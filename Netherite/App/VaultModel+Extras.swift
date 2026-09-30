@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 /// A bookmarked file, folder, heading, block or search (stored in `.netherite/bookmarks.json`).
@@ -41,6 +42,7 @@ extension VaultModel {
     func addBookmark(_ b: Bookmark) {
         guard !bookmarks.contains(b) else { return }
         bookmarks.append(b)
+        NetheriteTips.donate(NetheriteTips.bookmarkAdded)
     }
 
     func removeBookmark(_ b: Bookmark) { bookmarks.removeAll { $0 == b } }

@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 /// Force-directed layout. Positions live outside observation; `frame` bumps once per tick to redraw.
@@ -278,6 +279,7 @@ struct GraphView: View {
                 }
             }
             .onEnded { _ in
+                NetheriteTips.donate(NetheriteTips.graphInteracted)
                 if draggingNode != nil { sim.pinned = nil; sim.reheat(reduceMotion: reduceMotion, alpha: 0.1) }
                 draggingNode = nil
                 panStart = nil
@@ -328,6 +330,7 @@ struct GraphView: View {
                 iconButton("Zoom In", "plus.magnifyingglass") { scale = clampZoom(scale * 1.3) }
                 iconButton("Reset View", "scope") { scale = 1; offset = .zero }
                 iconButton("Graph Settings", "slider.horizontal.3") { showSettings.toggle() }
+                    .popoverTip(GraphControlsTip(), arrowEdge: .trailing)
             }
             .padding(6)
             .glassEffect(in: .capsule)

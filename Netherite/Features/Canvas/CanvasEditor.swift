@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 /// Infinite canvas editor for `.canvas` (JSON Canvas) files.
@@ -71,7 +72,13 @@ struct CanvasSurface: View {
             .onAppear { model.viewSize = geo.size; model.fitOnce() }
             .onChange(of: geo.size) { model.viewSize = geo.size; model.fitOnce() }
         }
-        .overlay(alignment: .top) { toolbar.padding(12) }
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                toolbar
+                TipView(CanvasTip()).frame(maxWidth: 420)
+            }
+            .padding(12)
+        }
         .overlay(alignment: .bottomTrailing) { zoomControls.padding(12) }
         .overlay {
             if let e = model.loadError {

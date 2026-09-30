@@ -16,9 +16,19 @@ typealias PlatformImage = UIImage
 
 /// An image embed rendered inline by Live Preview.
 struct PlacedEmbed {
+    enum Kind {
+        /// Rendered image; `label` is what VoiceOver reads ("Table", "Equation: …", the file name…).
+        case image(PlatformImage, label: String)
+        /// Clickable task checkbox; `range.location` is the task line start, `label` the task text.
+        case checkbox(done: Bool, label: String)
+        case bullet
+    }
+    /// Anchor: the line start of the element.
     var range: NSRange
-    var image: PlatformImage
+    var kind: Kind
     var size: CGSize
+    /// Horizontal offset from the line start (nested list indentation).
+    var xOffset: CGFloat = 0
 }
 
 /// Maps `MarkdownHighlighter` spans to text attributes. Markers outside the active lines are collapsed
@@ -29,6 +39,16 @@ struct EditorStyler {
     var livePreview = true
     /// Resolves an embed target to an image (nil when it isn't an image in the vault).
     var embedImage: ((String) -> PlatformImage?)? = nil
+    /// Rendered preview for a block (math, Mermaid, note embed); nil while rendering or when not applicable.
+    var blockImage: ((BlockKind) -> PlatformImage?)? = nil
+
+    enum BlockKind: Hashable {
+        case math(String)
+        case mermaid(String)
+        case noteEmbed(String)
+        /// Markdown rendered like reading view (tables, callouts).
+        case markdown(String)
+    }
     var maxEmbedWidth: CGFloat = 560
 
     #if os(macOS)
@@ -56,6 +76,13 @@ struct EditorStyler {
         return p
     }
 
+    var indented: NSParagraphStyle {
+        let p = paragraph.mutableCopy() as! NSMutableParagraphStyle
+        p.firstLineHeadIndent = baseSize
+        p.headIndent = baseSize
+        return p
+    }
+
     var baseAttributes: [NSAttributedString.Key: Any] {
         [.font: font(), .foregroundColor: PlatformColor.label, .paragraphStyle: paragraph]
     }
@@ -74,6 +101,16 @@ struct EditorStyler {
         default: .systemBlue
         }
     }
+
+    /// Paragraph style that makes hidden lines take (almost) no vertical space.
+    static let collapsed: NSParagraphStyle = {
+        let p = NSMutableParagraphStyle()
+        p.minimumLineHeight = 0.01
+        p.maximumLineHeight = 0.01
+        p.paragraphSpacing = 0
+        p.paragraphSpacingBefore = 0
+        return p
+    }()
 
     /// Restyles the whole storage. `active` is the range of lines holding the selection.
     /// Returns image embeds (outside the active lines) that the editor should draw inline.
@@ -95,28 +132,163 @@ struct EditorStyler {
                 storage.addAttribute(.foregroundColor, value: PlatformColor.tertiaryLabel, range: span.range)
             }
         }
+        let ns = text as NSString
+        // Live Preview shows properties in the header above the text, so collapse the YAML unless the caret is in it.
+        if livePreview, let fm = spans.first(where: { $0.kind == .frontmatter })?.range,
+           NSIntersectionRange(fm, active).length == 0, !NSLocationInRange(active.location, fm) {
+            storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear,
+                                   .paragraphStyle: Self.collapsed, .netheriteMarker: true], range: fm)
+        }
         var placed: [PlacedEmbed] = []
+        if livePreview {
+            placed += decorateLists(spans, ns, storage, active: active)
+            collapseInactiveFences(spans, ns, storage, active: active)
+        }
+        if livePreview, let blockImage {
+            for (range, kind) in blocks(spans, ns) {
+                let lines = ns.lineRange(for: range)
+                // A block only renders when it owns its lines and the caret is elsewhere.
+                guard ns.substring(with: lines).trimmingCharacters(in: .whitespacesAndNewlines) == ns.substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines),
+                      NSIntersectionRange(lines, active).length == 0, !NSLocationInRange(lines.location, active),
+                      let image = blockImage(kind) else { continue }
+                let size = image.size
+                let first = ns.lineRange(for: NSRange(location: lines.location, length: 0))
+                storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear,
+                                       .backgroundColor: PlatformColor.clear, .paragraphStyle: Self.collapsed], range: lines)
+                let para = NSMutableParagraphStyle()
+                para.minimumLineHeight = size.height + 12
+                para.maximumLineHeight = size.height + 12
+                storage.addAttribute(.paragraphStyle, value: para, range: first)
+                placed.removeAll { NSLocationInRange($0.range.location, lines) }
+                placed.append(PlacedEmbed(range: NSRange(location: lines.location, length: 0), kind: .image(image, label: Self.label(kind)), size: size))
+            }
+        }
         if livePreview, let embedImage {
-            let ns = text as NSString
             for span in spans {
-                guard case .link(let target, true) = span.kind, NSIntersectionRange(span.range, active).length == 0,
-                      !NSLocationInRange(span.range.location, active), let image = embedImage(target) else { continue }
+                guard case .link(let target, true) = span.kind else { continue }
+                // Images render only when the embed is the whole line (like a block); inline embeds stay links.
+                let line = ns.lineRange(for: span.range)
+                guard ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines) == ns.substring(with: span.range),
+                      NSIntersectionRange(line, active).length == 0, !NSLocationInRange(line.location, active),
+                      let image = embedImage(target) else { continue }
                 // `![[img.png|300]]` / `|300x200` sets the size, like Obsidian.
                 let inner = ns.substring(with: span.range)
-                let alias = inner.split(separator: "|").last.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "]")) }
+                let alias = inner.contains("|") ? inner.split(separator: "|").last.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "]")) } : nil
                 let dims = alias?.split(separator: "x").compactMap { Double($0) } ?? []
                 var size = image.size
                 if let w = dims.first, size.width > 0 { size = CGSize(width: w, height: dims.count > 1 ? dims[1] : w * size.height / size.width) }
                 if size.width > maxEmbedWidth, size.width > 0 { size = CGSize(width: maxEmbedWidth, height: maxEmbedWidth * size.height / size.width) }
-                storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear], range: span.range)
-                let para = (storage.attribute(.paragraphStyle, at: span.range.location, effectiveRange: nil) as? NSParagraphStyle ?? paragraph).mutableCopy() as! NSMutableParagraphStyle
-                para.minimumLineHeight = size.height + 8
-                storage.addAttribute(.paragraphStyle, value: para, range: ns.lineRange(for: span.range))
-                placed.append(PlacedEmbed(range: span.range, image: image, size: size))
+                storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear], range: line)
+                let para = NSMutableParagraphStyle()
+                para.minimumLineHeight = size.height + 12
+                para.maximumLineHeight = size.height + 12
+                storage.addAttribute(.paragraphStyle, value: para, range: line)
+                placed.append(PlacedEmbed(range: NSRange(location: line.location, length: 0),
+                                          kind: .image(image, label: String(localized: "Image: \((target as NSString).lastPathComponent)")), size: size))
             }
         }
         storage.endEditing()
         return placed
+    }
+
+    /// Spoken description of a rendered block.
+    static func label(_ kind: BlockKind) -> String {
+        switch kind {
+        case .math(let tex): String(localized: "Equation: \(tex)")
+        case .mermaid: String(localized: "Diagram")
+        case .noteEmbed(let raw): String(localized: "Embedded note: \(raw.trimmingCharacters(in: CharacterSet(charactersIn: "![]")))")
+        case .markdown(let md):
+            md.hasPrefix(">")
+                ? String(localized: "Callout: \(md.split(separator: "\n").first.map { $0.replacingOccurrences(of: #"^>\s*\[![\w-]+\][+-]?\s*"#, with: "", options: .regularExpression) } ?? "")")
+                : String(localized: "Table")
+        }
+    }
+
+    /// Block-level elements Live Preview can replace with a rendered image.
+    private func blocks(_ spans: [StyleSpan], _ ns: NSString) -> [(NSRange, BlockKind)] {
+        var out: [(NSRange, BlockKind)] = []
+        for (i, span) in spans.enumerated() {
+            switch span.kind {
+            case .mathBlock:
+                out.append((span.range, .math(String(ns.substring(with: span.range).dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespacesAndNewlines))))
+            case .codeBlock:
+                let block = ns.substring(with: span.range)
+                guard block.hasPrefix("```mermaid") || block.hasPrefix("~~~mermaid") else { continue }
+                var lines = block.components(separatedBy: "\n")
+                lines.removeFirst()
+                if let last = lines.last, last.hasPrefix("```") || last.hasPrefix("~~~") || last.isEmpty { lines.removeLast() }
+                out.append((span.range, .mermaid(lines.joined(separator: "\n"))))
+            case .link(let target, true) where target.isMarkdown || target.fileExtension.isEmpty:
+                out.append((span.range, .noteEmbed(ns.substring(with: span.range))))
+            case .table:
+                out.append((span.range, .markdown(ns.substring(with: span.range))))
+            case .callout:
+                // Header plus the "> " body lines that follow it.
+                var range = ns.lineRange(for: span.range)
+                for next in spans[(i + 1)...] {
+                    guard case .calloutBody = next.kind, next.range.location == NSMaxRange(range) else { continue }
+                    range = NSUnionRange(range, next.range)
+                }
+                if range.length > 0, ns.character(at: NSMaxRange(range) - 1) == 10 { range.length -= 1 }
+                out.append((range, .markdown(ns.substring(with: range))))
+            default: continue
+            }
+        }
+        return out
+    }
+
+    /// Replaces "- [ ]" with a real checkbox and "-"/"*"/"+" with a bullet on inactive lines.
+    private func decorateLists(_ spans: [StyleSpan], _ ns: NSString, _ storage: NSTextStorage, active: NSRange) -> [PlacedEmbed] {
+        var out: [PlacedEmbed] = []
+        var taskLines = Set<Int>()
+        let hidden: [NSAttributedString.Key: Any] = [.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear, .netheriteMarker: true]
+        func prepare(_ line: NSRange, prefixEnd: Int, room: CGFloat) -> CGFloat? {
+            guard NSIntersectionRange(line, active).length == 0, !NSLocationInRange(line.location, active) else { return nil }
+            let leading = ns.substring(with: line).prefix { $0 == " " || $0 == "\t" }
+            let indent = CGFloat(leading.reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }) * baseSize * 0.4
+            var end = prefixEnd
+            while end < NSMaxRange(line), ns.character(at: end) == 32 { end += 1 }
+            storage.addAttributes(hidden, range: NSRange(location: line.location, length: end - line.location))
+            let p = (storage.attribute(.paragraphStyle, at: line.location, effectiveRange: nil) as? NSParagraphStyle ?? paragraph).mutableCopy() as! NSMutableParagraphStyle
+            p.firstLineHeadIndent = indent + room
+            p.headIndent = indent + room
+            storage.addAttribute(.paragraphStyle, value: p, range: line)
+            return indent
+        }
+        for span in spans {
+            guard case .task(let done) = span.kind else { continue }
+            let line = ns.lineRange(for: span.range)
+            taskLines.insert(line.location)
+            if let indent = prepare(line, prefixEnd: NSMaxRange(span.range), room: baseSize * 1.6) {
+                let text = ns.substring(with: line).replacingOccurrences(of: #"^\s*(?:[-*+]|\d+[.)])\s+\[.\]\s*"#, with: "", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                out.append(PlacedEmbed(range: NSRange(location: line.location, length: 0), kind: .checkbox(done: done, label: text),
+                                       size: CGSize(width: baseSize * 1.1, height: baseSize * 1.1), xOffset: indent))
+            }
+        }
+        for span in spans where span.kind == .listMarker {
+            let line = ns.lineRange(for: span.range)
+            let marker = ns.substring(with: span.range)
+            guard !taskLines.contains(line.location), ["-", "*", "+"].contains(marker) else { continue }
+            if let indent = prepare(line, prefixEnd: NSMaxRange(span.range), room: baseSize * 1.2) {
+                out.append(PlacedEmbed(range: NSRange(location: line.location, length: 0), kind: .bullet,
+                                       size: CGSize(width: baseSize * 0.4, height: baseSize * 0.4), xOffset: indent + baseSize * 0.35))
+            }
+        }
+        return out
+    }
+
+    /// Hides ``` fences of code blocks the caret isn't in (the block keeps its background).
+    private func collapseInactiveFences(_ spans: [StyleSpan], _ ns: NSString, _ storage: NSTextStorage, active: NSRange) {
+        for block in spans where block.kind == .codeBlock {
+            let lines = ns.lineRange(for: block.range)
+            guard NSIntersectionRange(lines, active).length == 0, !NSLocationInRange(lines.location, active) else { continue }
+            for fence in spans where fence.kind == .codeFence && NSLocationInRange(fence.range.location, block.range) {
+                storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear,
+                                       .backgroundColor: PlatformColor.clear, .paragraphStyle: Self.collapsed],
+                                      range: ns.lineRange(for: fence.range))
+            }
+        }
     }
 
     private func style(_ span: StyleSpan, _ s: NSTextStorage) {
@@ -135,7 +307,7 @@ struct EditorStyler {
         case .codeBlock: s.addAttributes([.font: font(mono: true), .backgroundColor: PlatformColor.codeBackground], range: r)
         case .codeFence: s.addAttribute(.foregroundColor, value: PlatformColor.tertiaryLabel, range: r)
         case .math, .mathBlock: s.addAttributes([.font: font(mono: true), .foregroundColor: linkColor], range: r)
-        case .comment: s.addAttribute(.foregroundColor, value: PlatformColor.tertiaryLabel, range: r)
+        case .comment: s.addAttribute(.foregroundColor, value: PlatformColor.secondaryLabel, range: r)
         case .link(let target, _):
             s.addAttributes([.foregroundColor: linkColor, .netheriteLink: target,
                              .underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: linkColor.withAlphaComponent(0.35)], range: r)
@@ -146,12 +318,15 @@ struct EditorStyler {
             s.addAttributes([.foregroundColor: tagColor, .backgroundColor: tagColor.withAlphaComponent(0.12),
                              .netheriteTag: (s.string as NSString).substring(with: r)], range: r)
         case .quote:
-            let p = paragraph.mutableCopy() as! NSMutableParagraphStyle
-            p.firstLineHeadIndent = baseSize; p.headIndent = baseSize
-            s.addAttributes([.foregroundColor: PlatformColor.secondaryLabel, .paragraphStyle: p], range: r)
+            s.addAttributes([.foregroundColor: PlatformColor.secondaryLabel, .paragraphStyle: indented], range: r)
         case .callout(let type):
             let c = Self.calloutColor(type)
-            s.addAttributes([.foregroundColor: c, .font: font(bold: true), .backgroundColor: c.withAlphaComponent(0.08)], range: r)
+            s.addAttributes([.foregroundColor: c, .font: font(bold: true), .backgroundColor: c.withAlphaComponent(0.10),
+                             .paragraphStyle: indented], range: r)
+        case .table: break
+        case .calloutBody(let type):
+            s.addAttributes([.backgroundColor: Self.calloutColor(type).withAlphaComponent(0.06), .paragraphStyle: indented,
+                             .foregroundColor: PlatformColor.label], range: r)
         case .listMarker: s.addAttribute(.foregroundColor, value: PlatformColor.accent, range: r)
         case .task(let done):
             s.addAttributes([.foregroundColor: done ? PlatformColor.accent : PlatformColor.secondaryLabel, .font: font(mono: true),

@@ -251,6 +251,7 @@ final class CanvasModel {
 
     @discardableResult
     func addNode(_ node: CanvasNode) -> String {
+        NetheriteTips.donate(NetheriteTips.canvasCardAdded)
         mutate("Add card") { $0.nodes.append(node) }
         selection = [node.id]
         return node.id

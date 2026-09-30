@@ -14,6 +14,9 @@ public struct StyleSpan: Hashable, Sendable {
         case tag
         case quote
         case callout(String)
+        case calloutBody(String)
+        /// A whole GFM table (header, separator and rows).
+        case table
         case listMarker
         case task(done: Bool)
         case rule
@@ -62,21 +65,54 @@ public enum MarkdownHighlighter {
         each(R.inlineMath) { m in guard free(m.range) else { return }; out.append(.init(m.range, .math)); taken.append(m.range) }
 
         // Block-level (line based)
+        // Only the line prefix has to be outside code/math, so a quote line with `inline code` still counts.
         each(R.heading) { m in
-            guard free(m.range) else { return }
+            guard free(m.range(at: 1)) else { return }
             out.append(.init(m.range, .heading(m.range(at: 2).length)))
             out.append(.init(m.range(at: 1), .marker))
         }
         each(R.callout) { m in
-            guard free(m.range) else { return }
-            out.append(.init(m.range, .callout(ns.substring(with: m.range(at: 2)).lowercased())))
+            guard free(m.range(at: 1)) else { return }
+            let type = ns.substring(with: m.range(at: 2)).lowercased()
+            out.append(.init(m.range, .callout(type)))
             out.append(.init(m.range(at: 1), .marker))
+            // Following "> " lines are the callout body.
+            var next = NSMaxRange(ns.lineRange(for: m.range))
+            while next < ns.length {
+                let line = ns.lineRange(for: NSRange(location: next, length: 0))
+                guard ns.substring(with: line).hasPrefix(">") else { break }
+                out.append(.init(line, .calloutBody(type)))
+                next = NSMaxRange(line)
+            }
         }
-        each(R.quote) { m in guard free(m.range) else { return }; out.append(.init(m.range, .quote)); out.append(.init(m.range(at: 1), .marker)) }
-        each(R.task) { m in guard free(m.range) else { return }; out.append(.init(m.range(at: 1), .task(done: ns.substring(with: m.range(at: 2)) != " "))) }
-        each(R.list) { m in guard free(m.range) else { return }; out.append(.init(m.range(at: 1), .listMarker)) }
+        // Tables: a "|…" line followed by a separator row, then any further "|…" lines.
+        var loc = 0
+        while loc < ns.length {
+            let line = ns.lineRange(for: NSRange(location: loc, length: 0))
+            let next = NSMaxRange(line)
+            if ns.substring(with: line).trimmingCharacters(in: .whitespaces).hasPrefix("|"), next < ns.length, free(line) {
+                let sep = ns.lineRange(for: NSRange(location: next, length: 0))
+                if ns.substring(with: sep).range(of: #"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$"#, options: .regularExpression) != nil {
+                    var end = NSMaxRange(sep)
+                    while end < ns.length {
+                        let row = ns.lineRange(for: NSRange(location: end, length: 0))
+                        guard ns.substring(with: row).trimmingCharacters(in: .whitespaces).hasPrefix("|") else { break }
+                        end = NSMaxRange(row)
+                    }
+                    var r = NSRange(location: line.location, length: end - line.location)
+                    if r.length > 0, ns.character(at: NSMaxRange(r) - 1) == 10 { r.length -= 1 }
+                    out.append(.init(r, .table))
+                    loc = end
+                    continue
+                }
+            }
+            loc = max(next, loc + 1)
+        }
+        each(R.quote) { m in guard free(m.range(at: 1)) else { return }; out.append(.init(m.range, .quote)); out.append(.init(m.range(at: 1), .marker)) }
+        each(R.task) { m in guard free(m.range(at: 1)) else { return }; out.append(.init(m.range(at: 1), .task(done: ns.substring(with: m.range(at: 2)) != " "))) }
+        each(R.list) { m in guard free(m.range(at: 1)) else { return }; out.append(.init(m.range(at: 1), .listMarker)) }
         each(R.rule) { m in guard free(m.range) else { return }; out.append(.init(m.range, .rule)) }
-        each(R.blockID) { m in guard free(m.range) else { return }; out.append(.init(m.range(at: 1), .blockID)) }
+        each(R.blockID) { m in guard free(m.range(at: 1)) else { return }; out.append(.init(m.range(at: 1), .blockID)) }
 
         // Links first so emphasis inside aliases still works, but link syntax isn't mistaken for emphasis.
         each(R.wiki) { m in

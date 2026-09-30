@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 /// Editor for one Markdown note: inline title, Live Preview text, completions, and reading mode.
@@ -9,6 +10,10 @@ struct NoteEditorView: View {
     @State private var controller = EditorController()
     @State private var title = ""
     @FocusState private var titleFocused: Bool
+    @State private var headerHeight: CGFloat = 80
+    @State private var renderToken = 0
+    @AppStorage("hasSeenOnboarding") private var onboarded = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private var model: VaultModel { window.model }
 
@@ -30,17 +35,6 @@ struct NoteEditorView: View {
 
     private func editor(_ text: String) -> some View {
         VStack(spacing: 0) {
-            TextField("Title", text: $title)
-                .font(.largeTitle.bold())
-                .textFieldStyle(.plain)
-                .focused($titleFocused)
-                .onSubmit { commitTitle(); controller.focus() }
-                .onChange(of: titleFocused) { if !titleFocused { commitTitle() } }
-                .frame(maxWidth: model.settings.readableLineLength ? MarkdownTextView.maxLineWidth : .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .accessibilityLabel("Note title")
-
             MarkdownTextView(
                 text: text, theme: model.theme, livePreview: true,
                 readableWidth: model.settings.readableLineLength, spellcheck: model.settings.spellcheck,
@@ -59,9 +53,13 @@ struct NoteEditorView: View {
                           ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff"].contains(p.fileExtension) else { return nil }
                     return ImageCache.shared.image(at: model.vault.url(for: p))
                 },
-                styleToken: model.index.files.count
+                blockImage: { kind in blockImage(kind) },
+                styleToken: model.index.files.count &* 31 &+ renderToken &* 7 &+ Int(controller.textWidth) &+ (colorScheme == .dark ? 1 : 0),
+                header: AnyView(header.environment(window)),
+                headerHeight: headerHeight
             )
             .overlay(alignment: .topLeading) { CompletionOverlay(controller: controller, sourcePath: path) }
+
             .overlay(alignment: .topLeading) {
                 if let h = controller.hover {
                     Color.clear
@@ -78,6 +76,60 @@ struct NoteEditorView: View {
             ToolbarItemGroup(placement: .keyboard) { FormattingBar(controller: controller) }
         }
         #endif
+    }
+
+    /// Rendered math/Mermaid/note-embed previews; re-styles the editor when a render finishes.
+    private func blockImage(_ kind: EditorStyler.BlockKind) -> PlatformImage? {
+        let renderer = BlockRenderer.shared
+        renderer.vault = model.vault
+        let width = controller.textWidth
+        let fontSize = EditorStyler(theme: model.theme).baseSize
+        let dark = colorScheme == .dark
+        let done = { renderToken += 1 }
+        switch kind {
+        case .math(let tex):
+            return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, onReady: done)
+        case .mermaid(let src):
+            return renderer.image(.mermaid, source: src, width: width, dark: dark, fontSize: fontSize, onReady: done)
+        case .noteEmbed(let raw):
+            let inner = raw.trimmingCharacters(in: CharacterSet(charactersIn: "![]"))
+            let link = NoteParser.splitWiki(inner, isEmbed: true)
+            guard model.index.resolver.resolve(link.target, from: path) != nil else { return nil }
+            let html = HTMLRenderer.embed(link, .app(model.index, source: path))
+            // Re-render when the embedded note changes: its text is part of the cache key via the HTML.
+            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, onReady: done)
+        case .markdown(let md):
+            var ctx = RenderContext.app(model.index, source: path)
+            ctx.interactiveTasks = false
+            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, onReady: done)
+        }
+    }
+
+    /// Inline title and properties, drawn inside the editor so they scroll with the note.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Title", text: $title, axis: .vertical)
+                .font(.largeTitle.bold())
+                .textFieldStyle(.plain)
+                .focused($titleFocused)
+                .onSubmit { commitTitle(); controller.focus() }
+                .onChange(of: titleFocused) { if !titleFocused { commitTitle() } }
+                .accessibilityLabel("Note title")
+            // Writing tips, one at a time (links first, then slash commands), shown inline so they never cover text.
+            if onboarded { TipView(window.editorTips.currentTip) }
+            if !(model.index.notes[path]?.parsed.properties.isEmpty ?? true) {
+                PropertiesEditor(path: path, inline: true)
+                    .padding(10)
+                    .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: 10))
+            }
+        }
+        // Same left edge as the text: container inset + line fragment padding.
+        .padding(.horizontal, controller.sideInset + 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = ceil($0) }
     }
 
     private func commitTitle() {
@@ -180,6 +232,11 @@ struct CompletionOverlay: View {
     }
 
     private func accept(_ item: CompletionItem) {
+        switch controller.completion?.kind {
+        case .link, .embed: NetheriteTips.donate(NetheriteTips.linkInserted)
+        case .slash: NetheriteTips.donate(NetheriteTips.slashUsed)
+        default: break
+        }
         controller.complete(with: item.replacement, cursorOffsetFromEnd: item.cursorBack)
     }
 

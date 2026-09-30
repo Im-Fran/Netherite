@@ -24,6 +24,10 @@ final class EditorController {
 
     @ObservationIgnored weak var textView: PlatformTextView?
     var completion: Completion?
+    /// Horizontal inset of the text container, so the header lines up with the text.
+    var sideInset: CGFloat = 24
+    /// Width available to text, used to render block previews at the right size.
+    var textWidth: CGFloat = 700
     var completionIndex = 0
     var completionCount = 0
     @ObservationIgnored var acceptCompletion: (() -> Void)?
@@ -103,16 +107,21 @@ final class EditorController {
         focus()
     }
 
-    /// Toggles `- [ ]` ↔ `- [x]` on the line at `location`.
-    func toggleTask(at location: Int) {
+    /// Toggles `- [ ]` ↔ `- [x]` on the line at `location`. Only real task lines are touched;
+    /// returns the new state, or nil when the line isn't a task.
+    @discardableResult
+    func toggleTask(at location: Int) -> Bool? {
         let ns = text as NSString
+        guard location <= ns.length else { return nil }
         let line = ns.lineRange(for: NSRange(location: location, length: 0))
-        let s = ns.substring(with: line) as NSString
-        let r = s.range(of: #"\[(.)\]"#, options: .regularExpression)
-        guard r.location != NSNotFound else { return }
-        let done = s.substring(with: NSRange(location: r.location + 1, length: 1)) != " "
+        let s = ns.substring(with: line)
+        let re = try! NSRegularExpression(pattern: #"^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[(.)\]"#)
+        guard let m = re.firstMatch(in: s, range: NSRange(location: 0, length: (s as NSString).length)) else { return nil }
+        let box = m.range(at: 1)
+        let done = (s as NSString).substring(with: box) != " "
         let keep = selectedRange
-        replace(NSRange(location: line.location + r.location + 1, length: 1), with: done ? " " : "x", select: keep)
+        replace(NSRange(location: line.location + box.location, length: 1), with: done ? " " : "x", select: keep)
+        return !done
     }
 
     func scrollTo(line: Int) {

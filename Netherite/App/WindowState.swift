@@ -1,4 +1,6 @@
 import SwiftUI
+import TipKit
+import TipKit
 import NetheriteCore
 
 /// Something a pane can show.
@@ -127,12 +129,44 @@ final class WindowState {
     var panes: [Pane]
     var focusedPaneID: UUID
     var sidebarTab: SidebarTab = .files
+    /// Open by default on the Mac; on iPhone/iPad the inspector is a sheet/overlay, so start closed.
+    #if os(macOS)
     var showInspector = true
+    #else
+    var showInspector = false
+    #endif
     var columnVisibility: NavigationSplitViewVisibility = .all
-    var sheet: ActiveSheet?
+    var sheet: ActiveSheet? {
+        didSet {
+            switch sheet {
+            case .quickSwitcher: NetheriteTips.donate(NetheriteTips.quickSwitcherUsed)
+            case .commandPalette: NetheriteTips.donate(NetheriteTips.commandPaletteUsed)
+            default: break
+            }
+        }
+    }
     var searchQuery = ""
     var explorerSelection: String?
     var presentingSlides = false
+    /// Toolbar tips shown one at a time, in this order.
+    @ObservationIgnored let toolbarTips = TipGroup(.ordered) {
+        ReadingViewTip()
+        QuickSwitcherTip()
+        BacklinksTip()
+        GraphTip()
+        CommandPaletteTip()
+    }
+    /// Current toolbar tip, or nil while the welcome tour is on screen.
+    func toolbarTip<T: Tip>(_ type: T.Type, onboarded: Bool) -> T? {
+        onboarded ? toolbarTips.currentTip as? T : nil
+    }
+
+    /// Editor tips shown one at a time.
+    @ObservationIgnored let editorTips = TipGroup(.ordered) {
+        LinkTip()
+        SlashCommandTip()
+    }
+
     /// Editor of each pane showing a note, for commands that act on the current editor.
     @ObservationIgnored var editors: [UUID: EditorController] = [:]
     var editor: EditorController? { editors[pane.id] }
@@ -152,6 +186,11 @@ final class WindowState {
         if newPane { split() }
         pane.open(d, line: line)
         if let p = d.path { model.noteDidOpen(p); explorerSelection = p }
+        switch d {
+        case .note: NetheriteTips.donate(NetheriteTips.noteOpened)
+        case .graph, .localGraph: NetheriteTips.donate(NetheriteTips.graphOpened)
+        default: break
+        }
     }
 
     func open(path: String, line: Int? = nil, newPane: Bool = false) {

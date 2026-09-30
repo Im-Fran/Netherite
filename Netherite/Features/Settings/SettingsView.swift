@@ -4,6 +4,7 @@ import NetheriteCore
 struct SettingsView: View {
     @Bindable var model: VaultModel
     @Environment(\.dismiss) private var dismiss
+    @State private var tipsReset = false
 
     var body: some View {
         NavigationStack {
@@ -46,6 +47,13 @@ struct SettingsView: View {
                 Section("File recovery") {
                     Stepper("Snapshot every \(model.settings.snapshotIntervalMinutes) min", value: $model.settings.snapshotIntervalMinutes, in: 1...60)
                     Stepper("Keep snapshots for \(model.settings.snapshotRetentionDays) days", value: $model.settings.snapshotRetentionDays, in: 1...90)
+                }
+                Section("Help") {
+                    Button("Show Welcome Tour") { UserDefaults.standard.set(false, forKey: "hasSeenOnboarding") }
+                    Button("Show Tips Again") { UserDefaults.standard.set(true, forKey: "resetTipsOnLaunch"); tipsReset = true }
+                    if tipsReset {
+                        Text("Tips will show again the next time you open Netherite.").font(.callout).foregroundStyle(.secondary)
+                    }
                 }
                 Section("About") {
                     LabeledContent("Vault", value: model.vault.root.path(percentEncoded: false))

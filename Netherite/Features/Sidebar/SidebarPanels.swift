@@ -1,8 +1,10 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 struct SidebarView: View {
     @Environment(WindowState.self) private var window
+    @AppStorage("hasSeenOnboarding") private var onboarded = false
 
     var body: some View {
         @Bindable var window = window
@@ -28,6 +30,12 @@ struct SidebarView: View {
         .navigationTitle(window.model.name)
         .toolbar {
             ToolbarItemGroup {
+                Button("Go to File", systemImage: "magnifyingglass") { window.sheet = .quickSwitcher }
+                    .help("Go to file (⌘O)")
+                    .popoverTip(window.toolbarTip(QuickSwitcherTip.self, onboarded: onboarded), arrowEdge: .top)
+                Button("Command Palette", systemImage: "command") { window.sheet = .commandPalette }
+                    .help("Command palette (⌘P)")
+                    .popoverTip(window.toolbarTip(CommandPaletteTip.self, onboarded: onboarded), arrowEdge: .top)
                 Button("New Note", systemImage: "square.and.pencil") { window.newNote() }
                     .keyboardShortcut("n")
                     .help("New note (⌘N)")
@@ -70,6 +78,9 @@ struct SearchPanel: View {
             .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
             .padding(.horizontal, 10)
 
+            TipView(SearchTip())
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
             if !window.searchQuery.isEmpty {
                 Text("\(hits.count) results").font(.caption).foregroundStyle(.secondary).padding(.top, 6)
             }
@@ -93,6 +104,7 @@ struct SearchPanel: View {
         }
         .task(id: "\(window.searchQuery)|\(caseSensitive)|\(window.model.index.revision)") {
             try? await Task.sleep(for: .milliseconds(150))
+            if !window.searchQuery.isEmpty { NetheriteTips.donate(NetheriteTips.searchUsed) }
             let query = SearchQuery(window.searchQuery, caseSensitive: caseSensitive)
             let notes = window.model.index.notes
             hits = await Task.detached { Search.run(query, in: notes) }.value
@@ -166,6 +178,7 @@ struct BookmarksPanel: View {
     var body: some View {
         let model = window.model
         List {
+            TipView(BookmarksTip())
             ForEach(model.bookmarks) { b in
                 Button { open(b) } label: { Label(b.displayTitle, systemImage: b.symbolName) }
                     .buttonStyle(.plain)

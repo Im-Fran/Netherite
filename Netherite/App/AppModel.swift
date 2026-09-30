@@ -68,6 +68,17 @@ final class AppModel {
         return p
     }
 
+    /// Creates (or reopens) the guide vault in the user's language and opens its start note.
+    func createGuideVault(in parent: URL) throws -> VaultModel {
+        let spanish = Locale.current.language.languageCode?.identifier == "es"
+        let url = parent.appending(path: spanish ? "Guía de Netherite" : "Netherite Guide", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        try GuideVault.write(to: Vault(root: url), spanish: spanish)
+        let model = openVault(at: url)
+        model.noteDidOpen(GuideVault.startNote(spanish: spanish))
+        return model
+    }
+
     @discardableResult
     func openVault(at url: URL, bookmark: Data? = nil) -> VaultModel {
         let key = Self.key(url)

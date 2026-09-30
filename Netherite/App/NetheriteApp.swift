@@ -5,6 +5,8 @@ import NetheriteCore
 struct NetheriteApp: App {
     @State private var app = AppModel.shared
 
+    init() { NetheriteTips.configure() }
+
     var body: some Scene {
         WindowGroup(id: "vault", for: String.self) { $vaultPath in
             RootView(vaultPath: $vaultPath)
@@ -13,11 +15,19 @@ struct NetheriteApp: App {
             AppModel.shared.lastVaultPath ?? ""
         }
         .commands { NetheriteCommands() }
+        // Links (netherite://…, Spotlight) go to an existing window instead of spawning a new one.
+        .handlesExternalEvents(matching: [])
         #if os(macOS)
         .defaultSize(width: 1200, height: 780)
         #endif
 
         #if os(macOS)
+        // One tour window for the whole app (a per-window sheet would stack with several vault windows).
+        Window("Welcome to Netherite", id: "welcome") { OnboardingView() }
+            .windowResizability(.contentSize)
+            .defaultPosition(.center)
+            .restorationBehavior(.disabled)
+
         Settings {
             SettingsRoot().environment(app)
         }
@@ -29,7 +39,9 @@ struct NetheriteApp: App {
 struct RootView: View {
     @Binding var vaultPath: String
     @Environment(AppModel.self) private var app
+    @Environment(\.openWindow) private var openWindow
     @State private var window: WindowState?
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
         Group {
@@ -39,8 +51,22 @@ struct RootView: View {
                     .tint(Color(pair: window.model.theme.accent, fallback: .accentColor))
             } else {
                 VaultPicker { vaultPath = AppModel.key($0.vault.root) }
+                    .onOpenURL { url in
+                        // netherite://guide opens the guide vault from the start page (and from Shortcuts).
+                        guard url.host() == "guide" else { return }
+                        Task {
+                            let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
+                            if let m = try? app.createGuideVault(in: parent) { vaultPath = AppModel.key(m.vault.root) }
+                        }
+                    }
             }
         }
+        #if os(macOS)
+        .task { if !hasSeenOnboarding { openWindow(id: "welcome") } }
+        .onChange(of: hasSeenOnboarding) { _, seen in if !seen { openWindow(id: "welcome") } }
+        #else
+        .fullScreenCover(isPresented: Binding(get: { !hasSeenOnboarding }, set: { if !$0 { hasSeenOnboarding = true } })) { OnboardingView() }
+        #endif
         .task(id: vaultPath) {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
@@ -114,6 +140,20 @@ struct NetheriteCommands: Commands {
             Divider()
         }
         CommandGroup(replacing: .help) {
+            Button("Welcome Tour") { UserDefaults.standard.set(false, forKey: "hasSeenOnboarding") }
+            Button("Open the Guide Vault") {
+                Task {
+                    let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
+                    if let m = try? AppModel.shared.createGuideVault(in: parent) {
+                        openWindow(id: "vault", value: AppModel.key(m.vault.root))
+                    }
+                }
+            }
+            Button("Show Tips Again on Next Launch") {
+                // Takes effect on next launch (TipKit's store can only be reset before it's configured).
+                UserDefaults.standard.set(true, forKey: "resetTipsOnLaunch")
+            }
+            Divider()
             Link("Markdown Syntax Guide", destination: URL(string: "https://www.markdownguide.org/basic-syntax/")!)
         }
     }

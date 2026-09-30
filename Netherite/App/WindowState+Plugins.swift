@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 extension WindowState {
@@ -12,6 +13,7 @@ extension WindowState {
             do { try model.vault.write(content, to: path); model.index.didCreate(path) } catch { model.lastError = error.localizedDescription; return }
         }
         open(path: path)
+        NetheriteTips.donate(NetheriteTips.dailyOpened)
     }
 
     /// Opens the previous/next existing daily note relative to the current one (or today).

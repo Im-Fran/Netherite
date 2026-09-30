@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import NetheriteCore
 
 /// A `.base` file: filtered, sorted views (table / cards / list) over the vault's notes.
@@ -41,6 +42,7 @@ struct BaseView: View {
         let columns = view.order.isEmpty ? ["file.name"] : view.order
         VStack(spacing: 0) {
             header(views: views, view: view, count: rows.count)
+            TipView(BasesTip()).padding(.horizontal).padding(.bottom, 8)
             Divider()
             content(view: view, rows: rows, columns: columns)
                 .overlay {
@@ -370,7 +372,8 @@ struct BaseView: View {
     }
 
     private func save() {
-        guard loadError == nil else { return }   // never overwrite a file we failed to read
+        guard loadError == nil else { return }
+        NetheriteTips.donate(NetheriteTips.baseEdited)   // never overwrite a file we failed to read
         // Written directly: `.base` files aren't Markdown notes, so they must stay out of the note index.
         do { try model.vault.write(base.yaml, to: path) } catch { model.lastError = error.localizedDescription }
     }

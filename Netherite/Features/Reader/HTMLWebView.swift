@@ -5,7 +5,7 @@ import NetheriteCore
 /// Serves `nth://web/…` (bundled KaTeX/Mermaid/highlight.js/reader assets) and `nth://vault/…` (vault files)
 /// so rendered notes work inside the sandbox without file:// access.
 final class NetheriteSchemeHandler: NSObject, WKURLSchemeHandler {
-    let vault: Vault
+    var vault: Vault
     init(vault: Vault) { self.vault = vault }
 
     func webView(_ webView: WKWebView, start task: any WKURLSchemeTask) {

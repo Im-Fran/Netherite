@@ -1,16 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : ""
-          }
-        }
-      }
-    },
     "%@" : {
       "localizations" : {
         "es" : {
@@ -287,6 +277,46 @@
         }
       }
     },
+    "A new folder for your notes on this device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carpeta nueva para tus notas en este dispositivo."
+          }
+        }
+      }
+    },
+    "A new folder for your notes, synced with iCloud Drive." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carpeta nueva para tus notas, sincronizada con iCloud Drive."
+          }
+        }
+      }
+    },
+    "A private home for your ideas. Every note is a plain Markdown file in a folder you own." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un hogar privado para tus ideas. Cada nota es un archivo Markdown en una carpeta que es tuya."
+          }
+        }
+      }
+    },
+    "A sample vault that teaches Netherite with interactive notes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una bóveda de ejemplo que enseña Netherite con notas interactivas."
+          }
+        }
+      }
+    },
     "API token" : {
       "localizations" : {
         "es" : {
@@ -517,6 +547,16 @@
         }
       }
     },
+    "Always a Shortcut Away" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siempre a un atajo de distancia"
+          }
+        }
+      }
+    },
     "Any rule" : {
       "localizations" : {
         "es" : {
@@ -553,6 +593,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aplicar"
+          }
+        }
+      }
+    },
+    "Arrange ideas on an infinite canvas, and turn notes into sortable tables with Bases." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordena ideas en un lienzo infinito y convierte notas en tablas ordenables con Bases."
           }
         }
       }
@@ -637,6 +687,26 @@
         }
       }
     },
+    "Backlinks list every note that mentions this one" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los enlaces entrantes muestran cada nota que menciona esta"
+          }
+        }
+      }
+    },
+    "Bases filter and sort by properties" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las bases filtran y ordenan por propiedades"
+          }
+        }
+      }
+    },
     "Bases: Create new base" : {
       "localizations" : {
         "es" : {
@@ -703,6 +773,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Marcar el archivo actual"
+          }
+        }
+      }
+    },
+    "Bookmark notes, headings and searches from the ⋯ menu to find them here." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda notas, títulos y búsquedas desde el menú ⋯ para encontrarlos aquí."
           }
         }
       }
@@ -807,6 +887,16 @@
         }
       }
     },
+    "Callout: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callout: %@"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "es" : {
@@ -823,6 +913,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lienzo"
+          }
+        }
+      }
+    },
+    "Canvas for brainstorming and maps" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lienzos para lluvias de ideas y mapas"
           }
         }
       }
@@ -947,6 +1047,16 @@
         }
       }
     },
+    "Clip web pages from the share sheet" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda páginas web desde el menú Compartir"
+          }
+        }
+      }
+    },
     "Close" : {
       "localizations" : {
         "es" : {
@@ -1027,6 +1137,16 @@
         }
       }
     },
+    "Combine words with operators such as tag:, path:, \"exact phrase\" and [property:value]." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combina palabras con operadores como tag:, path:, \"frase exacta\" y [propiedad:valor]."
+          }
+        }
+      }
+    },
     "Command" : {
       "localizations" : {
         "es" : {
@@ -1037,12 +1157,52 @@
         }
       }
     },
+    "Command Palette" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paleta de comandos"
+          }
+        }
+      }
+    },
     "Command Palette…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paleta de comandos…"
+          }
+        }
+      }
+    },
+    "Command palette (⌘P)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paleta de comandos (⌘P)"
+          }
+        }
+      }
+    },
+    "Completed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completada"
+          }
+        }
+      }
+    },
+    "Connect Your Thinking" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conecta tus ideas"
           }
         }
       }
@@ -1129,6 +1289,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contenido"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar"
           }
         }
       }
@@ -1299,6 +1469,16 @@
         }
       }
     },
+    "Create" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear"
+          }
+        }
+      }
+    },
     "Create New Note" : {
       "localizations" : {
         "es" : {
@@ -1329,22 +1509,12 @@
         }
       }
     },
-    "Create Vault" : {
+    "Create a Vault" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crear bóveda"
-          }
-        }
-      }
-    },
-    "Create a new vault" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear una bóveda nueva"
+            "value" : "Crear una bóveda"
           }
         }
       }
@@ -1475,6 +1645,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notas diarias"
+          }
+        }
+      }
+    },
+    "Daily notes and templates" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas diarias y plantillas"
           }
         }
       }
@@ -1659,6 +1839,16 @@
         }
       }
     },
+    "Diagram" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagrama"
+          }
+        }
+      }
+    },
     "Divider" : {
       "localizations" : {
         "es" : {
@@ -1675,6 +1865,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Listo"
+          }
+        }
+      }
+    },
+    "Double-click (or double-tap) empty space to add a card. Drag the dots on a card's edge to connect it." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz doble clic (o toca dos veces) en un espacio vacío para añadir una tarjeta. Arrastra los puntos del borde para conectarla."
+          }
+        }
+      }
+    },
+    "Double-click to edit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz doble clic para editar"
           }
         }
       }
@@ -1705,6 +1915,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrastra sobre un espacio vacío para seleccionar (o mantén ⇧)"
+          }
+        }
+      }
+    },
+    "Drag to pan, pinch to zoom, and select a note to open it. Filters and forces are in these settings." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrastra para moverte, pellizca para hacer zoom y selecciona una nota para abrirla. Los filtros y fuerzas están en estos ajustes."
           }
         }
       }
@@ -1749,16 +1969,6 @@
         }
       }
     },
-    "Editing view" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista en edición"
-          }
-        }
-      }
-    },
     "Editor" : {
       "localizations" : {
         "es" : {
@@ -1769,12 +1979,12 @@
         }
       }
     },
-    "Embedded image" : {
+    "Embedded note: %@" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imagen incrustada"
+            "value" : "Nota incrustada: %@"
           }
         }
       }
@@ -1799,6 +2009,16 @@
         }
       }
     },
+    "Equation: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ecuación: %@"
+          }
+        }
+      }
+    },
     "Evernote (.enex)" : {
       "localizations" : {
         "es" : {
@@ -1809,12 +2029,52 @@
         }
       }
     },
+    "Every Action, One Shortcut" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas las acciones, un solo atajo"
+          }
+        }
+      }
+    },
+    "Everything is reachable from the keyboard, the share sheet, widgets and Shortcuts." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo está al alcance del teclado, el menú Compartir, los widgets y Atajos."
+          }
+        }
+      }
+    },
     "Example: %@" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ejemplo: %@"
+          }
+        }
+      }
+    },
+    "Explore the Graph" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explora el grafo"
+          }
+        }
+      }
+    },
+    "Explore the Guide" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorar la guía"
           }
         }
       }
@@ -1919,6 +2179,36 @@
         }
       }
     },
+    "Filter, sort and edit notes by their properties. Switch between table, cards and list views." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtra, ordena y edita notas por sus propiedades. Cambia entre vista de tabla, tarjetas y lista."
+          }
+        }
+      }
+    },
+    "Find and open notes by name — or create one — without leaving the keyboard. Press ⌘O." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca y abre notas por su nombre, o crea una, sin soltar el teclado. Pulsa ⌘O."
+          }
+        }
+      }
+    },
+    "Find and open notes by name, or create one, right from here." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca y abre notas por su nombre, o crea una, desde aquí."
+          }
+        }
+      }
+    },
     "Find or create a note…" : {
       "localizations" : {
         "es" : {
@@ -1999,12 +2289,52 @@
         }
       }
     },
+    "Get Started" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empezar"
+          }
+        }
+      }
+    },
+    "Go to File" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a archivo"
+          }
+        }
+      }
+    },
+    "Go to File jumps to any note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a archivo salta a cualquier nota"
+          }
+        }
+      }
+    },
     "Go to File…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ir al archivo…"
+          }
+        }
+      }
+    },
+    "Go to file (⌘O)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a archivo (⌘O)"
           }
         }
       }
@@ -2185,6 +2515,16 @@
         }
       }
     },
+    "Help" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayuda"
+          }
+        }
+      }
+    },
     "Highlight" : {
       "localizations" : {
         "es" : {
@@ -2201,6 +2541,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Página de inicio"
+          }
+        }
+      }
+    },
+    "Image: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imagen: %@"
           }
         }
       }
@@ -2335,6 +2685,16 @@
         }
       }
     },
+    "Insert Anything with /" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserta lo que quieras con /"
+          }
+        }
+      }
+    },
     "Insert Template…" : {
       "localizations" : {
         "es" : {
@@ -2411,6 +2771,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sus filtros, orden y columnas se quitarán de la base."
+          }
+        }
+      }
+    },
+    "Jump to Any Note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salta a cualquier nota"
+          }
+        }
+      }
+    },
+    "Keep Favorites Close" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten a mano tus favoritos"
           }
         }
       }
@@ -2495,12 +2875,32 @@
         }
       }
     },
+    "Link Your Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlaza tus notas"
+          }
+        }
+      }
+    },
     "Link distance" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Distancia de enlace"
+          }
+        }
+      }
+    },
+    "Link notes with [[double brackets]]. Backlinks and the graph show how your ideas relate." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlaza notas con [[dobles corchetes]]. Los enlaces entrantes y el grafo muestran cómo se relacionan tus ideas."
           }
         }
       }
@@ -2541,6 +2941,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lista"
+          }
+        }
+      }
+    },
+    "Live Preview formats as you type, and shows the Markdown only on the line you're editing." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Preview da formato mientras escribes y solo muestra el Markdown en la línea que editas."
           }
         }
       }
@@ -2635,6 +3045,16 @@
         }
       }
     },
+    "Math and Mermaid diagrams" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fórmulas y diagramas Mermaid"
+          }
+        }
+      }
+    },
     "Math block" : {
       "localizations" : {
         "es" : {
@@ -2705,6 +3125,16 @@
         }
       }
     },
+    "Move Around the Graph" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muévete por el grafo"
+          }
+        }
+      }
+    },
     "Move down" : {
       "localizations" : {
         "es" : {
@@ -2761,6 +3191,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Movido"
+          }
+        }
+      }
+    },
+    "My Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mis notas"
           }
         }
       }
@@ -2925,6 +3365,16 @@
         }
       }
     },
+    "Next page" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página siguiente"
+          }
+        }
+      }
+    },
     "No Bookmarks" : {
       "localizations" : {
         "es" : {
@@ -2941,6 +3391,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin color"
+          }
+        }
+      }
+    },
+    "No File Is Open" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ningún archivo abierto"
           }
         }
       }
@@ -3005,16 +3465,6 @@
         }
       }
     },
-    "No file is open" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No hay ningún archivo abierto"
-          }
-        }
-      }
-    },
     "No files match this view's filters." : {
       "localizations" : {
         "es" : {
@@ -3071,6 +3521,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ninguno"
+          }
+        }
+      }
+    },
+    "Not completed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin completar"
           }
         }
       }
@@ -3235,6 +3695,26 @@
         }
       }
     },
+    "One note per day for journaling and quick capture." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una nota por día para tu diario y apuntes rápidos."
+          }
+        }
+      }
+    },
+    "One note per day for journaling and quick capture. Press ⌥⌘D anytime." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una nota por día para tu diario y apuntes rápidos. Pulsa ⌥⌘D cuando quieras."
+          }
+        }
+      }
+    },
     "Open" : {
       "localizations" : {
         "es" : {
@@ -3251,16 +3731,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir nota diaria"
-          }
-        }
-      }
-    },
-    "Open Folder as Vault…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir carpeta como bóveda…"
           }
         }
       }
@@ -3325,6 +3795,16 @@
         }
       }
     },
+    "Open a Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir una carpeta"
+          }
+        }
+      }
+    },
     "Open a Vault to Change Its Settings" : {
       "localizations" : {
         "es" : {
@@ -3351,6 +3831,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir la nota diaria al iniciar"
+          }
+        }
+      }
+    },
+    "Open files, readable by any app" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos abiertos, legibles por cualquier app"
           }
         }
       }
@@ -3391,6 +3881,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir ajustes"
+          }
+        }
+      }
+    },
+    "Open the Guide Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la bóveda guía"
+          }
+        }
+      }
+    },
+    "Open the graph view from this menu to see how your notes connect, or a local graph for just this note." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la vista de grafo desde este menú para ver cómo se conectan tus notas, o un grafo local solo de esta nota."
           }
         }
       }
@@ -3485,6 +3995,16 @@
         }
       }
     },
+    "Page %lld of %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página %1$lld de %2$lld"
+          }
+        }
+      }
+    },
     "Pick the export file or folder" : {
       "localizations" : {
         "es" : {
@@ -3501,6 +4021,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diapositiva anterior"
+          }
+        }
+      }
+    },
+    "Previous page" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página anterior"
           }
         }
       }
@@ -3645,7 +4175,7 @@
         }
       }
     },
-    "Reading view" : {
+    "Reading View" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3665,7 +4195,7 @@
         }
       }
     },
-    "Recent vaults" : {
+    "Recent Vaults" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3875,6 +4405,16 @@
         }
       }
     },
+    "Reveal in Finder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar en Finder"
+          }
+        }
+      }
+    },
     "Roam #[[tags]], ^^highlights^^ and {{[[TODO]]}}" : {
       "localizations" : {
         "es" : {
@@ -3955,6 +4495,16 @@
         }
       }
     },
+    "Search Like a Pro" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Busca como un experto"
+          }
+        }
+      }
+    },
     "Search Notes" : {
       "localizations" : {
         "es" : {
@@ -3991,6 +4541,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Buscar: buscar en todos los archivos"
+          }
+        }
+      }
+    },
+    "See What Links Here" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira qué enlaza aquí"
+          }
+        }
+      }
+    },
+    "See the Big Picture" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ve el panorama completo"
+          }
+        }
+      }
+    },
+    "See the note fully rendered, with interactive tasks and embeds." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ve la nota renderizada por completo, con tareas interactivas e incrustaciones."
+          }
+        }
+      }
+    },
+    "See the note fully rendered, with interactive tasks and embeds. Press ⌘E to switch." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ve la nota renderizada por completo, con tareas interactivas e incrustaciones. Pulsa ⌘E para cambiar."
           }
         }
       }
@@ -4045,6 +4635,46 @@
         }
       }
     },
+    "Show Tips Again" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a mostrar consejos"
+          }
+        }
+      }
+    },
+    "Show Tips Again on Next Launch" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a mostrar consejos al abrir de nuevo"
+          }
+        }
+      }
+    },
+    "Show Welcome Tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar el recorrido de bienvenida"
+          }
+        }
+      }
+    },
+    "Show backlinks, outgoing links, the outline and properties of the current note." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra los enlaces entrantes y salientes, el esquema y las propiedades de la nota actual."
+          }
+        }
+      }
+    },
     "Show or hide backlinks, outline and properties" : {
       "localizations" : {
         "es" : {
@@ -4091,6 +4721,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nombre del sitio"
+          }
+        }
+      }
+    },
+    "Skip" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir"
           }
         }
       }
@@ -4225,6 +4865,16 @@
         }
       }
     },
+    "Sync through iCloud Drive if you want" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincroniza con iCloud Drive si quieres"
+          }
+        }
+      }
+    },
     "Table" : {
       "localizations" : {
         "es" : {
@@ -4255,12 +4905,42 @@
         }
       }
     },
+    "Tags and properties add structure" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las etiquetas y propiedades añaden estructura"
+          }
+        }
+      }
+    },
+    "Take the Welcome Tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hacer el recorrido de bienvenida"
+          }
+        }
+      }
+    },
     "Task" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarea"
+          }
+        }
+      }
+    },
+    "Tasks, callouts and tables" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tareas, callouts y tablas"
           }
         }
       }
@@ -4345,12 +5025,52 @@
         }
       }
     },
+    "The command palette finds any action by name, from formatting to publishing." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La paleta de comandos encuentra cualquier acción por su nombre, desde dar formato hasta publicar."
+          }
+        }
+      }
+    },
+    "The command palette finds any action by name, from formatting to publishing. Press ⌘P." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La paleta de comandos encuentra cualquier acción por su nombre, desde dar formato hasta publicar. Pulsa ⌘P."
+          }
+        }
+      }
+    },
+    "The command palette finds any command" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La paleta de comandos encuentra cualquier comando"
+          }
+        }
+      }
+    },
     "The current note is appended to the chosen note and moved to the Trash." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "La nota actual se agrega al final de la nota elegida y se mueve a la papelera."
+          }
+        }
+      }
+    },
+    "The graph maps your whole vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El grafo muestra toda tu bóveda"
           }
         }
       }
@@ -4385,6 +5105,16 @@
         }
       }
     },
+    "Think on a Canvas" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piensa en un lienzo"
+          }
+        }
+      }
+    },
     "This rewrites notes in place. Snapshots in File recovery let you restore earlier versions." : {
       "localizations" : {
         "es" : {
@@ -4395,12 +5125,32 @@
         }
       }
     },
+    "Tips will show again the next time you open Netherite." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los consejos volverán a aparecer la próxima vez que abras Netherite."
+          }
+        }
+      }
+    },
     "Title" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Título"
+          }
+        }
+      }
+    },
+    "Today's Note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La nota de hoy"
           }
         }
       }
@@ -4421,6 +5171,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alternar vista de lectura"
+          }
+        }
+      }
+    },
+    "Toggle Task" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcar o desmarcar tarea"
           }
         }
       }
@@ -4575,6 +5335,36 @@
         }
       }
     },
+    "Type / at the start of a line for headings, tasks, tables, callouts, math and templates." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe / al inicio de una línea para títulos, tareas, tablas, callouts, fórmulas y plantillas."
+          }
+        }
+      }
+    },
+    "Type / to insert anything" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe / para insertar lo que quieras"
+          }
+        }
+      }
+    },
+    "Type [[ to link to another note. Links build your knowledge graph and show up as backlinks." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe [[ para enlazar otra nota. Los enlaces construyen tu grafo de conocimiento y aparecen como enlaces entrantes."
+          }
+        }
+      }
+    },
     "Type a command…" : {
       "localizations" : {
         "es" : {
@@ -4672,6 +5462,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Usar [[wikilinks]]"
+          }
+        }
+      }
+    },
+    "Use any folder of Markdown files — including an Obsidian vault." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa cualquier carpeta de archivos Markdown, incluida una bóveda de Obsidian."
           }
         }
       }
@@ -4787,6 +5587,26 @@
         }
       }
     },
+    "Welcome Tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorrido de bienvenida"
+          }
+        }
+      }
+    },
+    "Welcome to Netherite" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bienvenido a Netherite"
+          }
+        }
+      }
+    },
     "Whole vault" : {
       "localizations" : {
         "es" : {
@@ -4827,6 +5647,16 @@
         }
       }
     },
+    "Write Without Friction" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe sin fricción"
+          }
+        }
+      }
+    },
     "Yellow" : {
       "localizations" : {
         "es" : {
@@ -4843,6 +5673,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Puedes restaurarla desde la papelera."
+          }
+        }
+      }
+    },
+    "Your Notes as a Database" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus notas como base de datos"
+          }
+        }
+      }
+    },
+    "Your notes stay on your devices" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus notas se quedan en tus dispositivos"
           }
         }
       }
@@ -4917,12 +5767,12 @@
         }
       }
     },
-    "iCloud Drive isn't available. The vault will be stored on this device." : {
+    "iCloud Drive isn't available, so the vault will be stored on this device." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iCloud Drive no está disponible. La bóveda se guardará en este dispositivo."
+            "value" : "iCloud Drive no está disponible, así que la bóveda se guardará en este dispositivo."
           }
         }
       }
@@ -4980,6 +5830,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "↩ abrir · ⌘↩ abrir en panel nuevo · ⇧↩ crear"
+          }
+        }
+      }
+    },
+    "⌘O jumps to any note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘O salta a cualquier nota"
+          }
+        }
+      }
+    },
+    "⌘P finds any command" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘P encuentra cualquier comando"
           }
         }
       }

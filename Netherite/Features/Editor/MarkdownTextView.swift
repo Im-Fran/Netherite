@@ -14,8 +14,12 @@ struct MarkdownTextView {
     var onOpenLink: (String, Bool) -> Void
     var onOpenTag: (String) -> Void
     var embedImage: ((String) -> PlatformImage?)? = nil
+    var blockImage: ((EditorStyler.BlockKind) -> PlatformImage?)? = nil
     /// Changes when the vault's file set changes, so embeds re-resolve.
     var styleToken = 0
+    /// SwiftUI header (inline title + properties) placed above the text, scrolling with it.
+    var header: AnyView? = nil
+    var headerHeight: CGFloat = 0
 
     static let maxLineWidth: CGFloat = 720
 
@@ -27,15 +31,15 @@ struct MarkdownTextView {
 
         init(_ parent: MarkdownTextView) { self.parent = parent }
 
-        var styler: EditorStyler { EditorStyler(theme: parent.theme, livePreview: parent.livePreview, embedImage: parent.embedImage) }
+        var styler: EditorStyler { EditorStyler(theme: parent.theme, livePreview: parent.livePreview, embedImage: parent.embedImage, blockImage: parent.blockImage) }
         var placed: [PlacedEmbed] = []
         #if os(macOS)
-        var embedViews: [NSImageView] = []
+        var embedViews: [NSView] = []
         #else
-        var embedViews: [UIImageView] = []
+        var embedViews: [UIView] = []
         #endif
 
-        /// Positions image views over the (hidden) embed text using TextKit 2 layout.
+        /// Positions images, checkboxes and bullets over the (hidden) Markdown using TextKit 2 layout.
         func layoutEmbeds(_ tv: PlatformTextView) {
             embedViews.forEach { $0.removeFromSuperview() }
             embedViews = []
@@ -45,36 +49,120 @@ struct MarkdownTextView {
             #else
             let origin = CGPoint(x: tv.textContainerInset.left, y: tv.textContainerInset.top)
             #endif
+            #if os(macOS)
+            let padding = tv.textContainer?.lineFragmentPadding ?? 0
+            #else
+            let padding = tv.textContainer.lineFragmentPadding
+            #endif
             let start = tcm.documentRange.location
-            for e in placed {
-                guard let loc = tcm.location(start, offsetBy: e.range.location) else { continue }
-                tlm.ensureLayout(for: NSTextRange(location: loc))
-                guard let frag = tlm.textLayoutFragment(for: loc) else { continue }
+            // Walk fragments from the top with .ensuresLayout so every frame reflects the new paragraph heights
+            // (asking for a single location can return stale frames for blocks above it).
+            var frames: [Int: CGRect] = [:]   // line start → (x: fragment x, y: line top, height: line height)
+            let wanted = Set(placed.map(\.range.location))
+            tlm.enumerateTextLayoutFragments(from: start, options: [.ensuresLayout]) { frag in
                 let base = tcm.offset(from: start, to: frag.rangeInElement.location)
-                var point = frag.layoutFragmentFrame.origin
-                if let line = frag.textLineFragments.first(where: { NSLocationInRange(e.range.location - base, $0.characterRange) }) {
-                    point.x += line.locationForCharacter(at: e.range.location - base).x
-                    point.y += line.typographicBounds.minY
+                let end = tcm.offset(from: start, to: frag.rangeInElement.endLocation)
+                for loc in wanted where loc >= base && loc < max(end, base + 1) {
+                    let f = frag.layoutFragmentFrame
+                    let line = frag.textLineFragments.first { NSLocationInRange(loc - base, $0.characterRange) } ?? frag.textLineFragments.first
+                    let lb = line?.typographicBounds ?? CGRect(x: 0, y: 0, width: 0, height: f.height)
+                    frames[loc] = CGRect(x: f.minX, y: f.minY + lb.minY, width: 0, height: lb.height)
                 }
-                let frame = CGRect(x: origin.x + point.x, y: origin.y + point.y + 4, width: e.size.width, height: e.size.height)
-                #if os(macOS)
-                let v = NSImageView(frame: frame)
-                v.imageScaling = .scaleProportionallyUpOrDown
-                v.wantsLayer = true
-                v.layer?.cornerRadius = 6
-                v.layer?.masksToBounds = true
-                #else
-                let v = UIImageView(frame: frame)
-                v.contentMode = .scaleAspectFit
-                v.layer.cornerRadius = 6
-                v.clipsToBounds = true
-                #endif
-                v.image = e.image
-                v.setAccessibilityLabelCompat(String(localized: "Embedded image"))
-                tv.addSubview(v)
-                embedViews.append(v)
+                return frames.count < wanted.count
+            }
+            for e in placed {
+                guard let line = frames[e.range.location] else { continue }
+                // Paragraph indents shift the fragment, so measure from the container edge instead.
+                let x = origin.x + padding + e.xOffset
+                let view: PlatformView
+                switch e.kind {
+                case .image(let image, let label):
+                    view = Self.imageView(image, label: label, frame: CGRect(x: x, y: origin.y + line.minY + 6, width: e.size.width, height: e.size.height))
+                case .checkbox(let done, let label):
+                    let frame = CGRect(x: x, y: origin.y + line.minY + (line.height - e.size.height) / 2, width: e.size.width, height: e.size.height)
+                    let controller = parent.controller
+                    view = Self.checkbox(done: done, label: label, lineHeight: line.height, frame: frame) { controller.toggleTask(at: e.range.location) }
+                case .bullet:
+                    let frame = CGRect(x: x, y: origin.y + line.minY + (line.height - e.size.height) / 2, width: e.size.width, height: e.size.height)
+                    view = Self.bullet(frame: frame)
+                }
+                tv.addSubview(view)
+                embedViews.append(view)
             }
         }
+
+        #if os(macOS)
+        typealias PlatformView = NSView
+
+        static func imageView(_ image: NSImage, label: String, frame: CGRect) -> NSView {
+            let v = NSImageView(frame: frame)
+            v.image = image
+            v.imageScaling = .scaleProportionallyUpOrDown
+            v.wantsLayer = true
+            v.layer?.cornerRadius = 6
+            v.layer?.masksToBounds = true
+            v.setAccessibilityLabel(label)
+            return v
+        }
+
+        static func checkbox(done: Bool, label: String, lineHeight: CGFloat, frame: CGRect, toggle: @escaping () -> Void) -> NSView {
+            let b = ClosureButton(frame: frame.insetBy(dx: -4, dy: -4), action: toggle)
+            b.isBordered = false
+            b.image = NSImage(systemSymbolName: done ? "checkmark.square.fill" : "square", accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(pointSize: frame.height, weight: .regular))
+            b.contentTintColor = done ? .controlAccentColor : .secondaryLabelColor
+            b.setAccessibilityLabel(label.isEmpty ? String(localized: "Task") : label)
+            b.setAccessibilityRole(.checkBox)
+            b.setAccessibilityValue(done)
+            return b
+        }
+
+        static func bullet(frame: CGRect) -> NSView {
+            let v = NSView(frame: frame)
+            v.wantsLayer = true
+            v.layer?.cornerRadius = frame.width / 2
+            v.layer?.backgroundColor = NSColor.secondaryLabelColor.cgColor
+            v.setAccessibilityElement(false)
+            return v
+        }
+        #else
+        typealias PlatformView = UIView
+
+        static func imageView(_ image: UIImage, label: String, frame: CGRect) -> UIView {
+            let v = UIImageView(frame: frame)
+            v.image = image
+            v.contentMode = .scaleAspectFit
+            v.layer.cornerRadius = 6
+            v.clipsToBounds = true
+            v.isAccessibilityElement = true
+            v.accessibilityLabel = label
+            return v
+        }
+
+        static func checkbox(done: Bool, label: String, lineHeight: CGFloat, frame: CGRect, toggle: @escaping () -> Void) -> UIView {
+            // 44 pt wide hit area; height clamped to the line so neighbouring tasks don't overlap.
+            let h = max(frame.height, min(44, lineHeight))
+            let hit = CGRect(x: frame.midX - 22, y: frame.midY - h / 2, width: 44, height: h)
+            let b = UIButton(type: .system, primaryAction: UIAction { _ in toggle() })
+            b.frame = hit
+            b.setImage(UIImage(systemName: done ? "checkmark.square.fill" : "square",
+                               withConfiguration: UIImage.SymbolConfiguration(pointSize: frame.height)), for: .normal)
+            b.tintColor = done ? .tintColor : .secondaryLabel
+            b.accessibilityLabel = label.isEmpty ? String(localized: "Task") : label
+            b.accessibilityTraits = [.button, .toggleButton]
+            b.accessibilityValue = done ? "1" : "0"
+            return b
+        }
+
+        static func bullet(frame: CGRect) -> UIView {
+            let v = UIView(frame: frame)
+            v.layer.cornerRadius = frame.width / 2
+            v.backgroundColor = .secondaryLabel
+            v.isAccessibilityElement = false
+            v.isUserInteractionEnabled = false
+            return v
+        }
+        #endif
 
         func restyle(_ tv: PlatformTextView, force: Bool = false) {
             #if os(macOS)
@@ -84,7 +172,10 @@ struct MarkdownTextView {
             let storage = tv.textStorage
             let sel = tv.selectedRange
             #endif
-            let lines = (storage.string as NSString).lineRange(for: NSRange(location: min(sel.location, storage.length), length: sel.length))
+            // Without focus nothing is "being edited", so everything renders (Obsidian shows syntax only where you type).
+            let lines = isFocused(tv)
+                ? (storage.string as NSString).lineRange(for: NSRange(location: min(sel.location, storage.length), length: sel.length))
+                : NSRange(location: NSNotFound, length: 0)
             guard force || lines != active else { return }
             active = lines
             updating = true
@@ -96,6 +187,14 @@ struct MarkdownTextView {
             tv.typingAttributes = styler.baseAttributes
             #endif
             updating = false
+        }
+
+        func isFocused(_ tv: PlatformTextView) -> Bool {
+            #if os(macOS)
+            tv.window?.firstResponder === tv
+            #else
+            tv.isFirstResponder
+            #endif
         }
 
         func caretRect(_ tv: PlatformTextView) -> CGRect {
@@ -121,7 +220,8 @@ struct MarkdownTextView {
         func selectionChanged(_ tv: PlatformTextView) {
             guard !updating else { return }
             restyle(tv)
-            parent.controller.updateCompletion(caret: caretRect(tv))
+            // Only typing opens a completion list; moving the caret just updates or closes an open one.
+            if parent.controller.completion != nil { parent.controller.updateCompletion(caret: caretRect(tv)) }
         }
 
         /// Handles a click/tap at a character index; returns true when it opened a link or toggled a task.
@@ -165,22 +265,72 @@ struct MarkdownTextView {
 final class NetheriteNSTextView: NSTextView {
     weak var coordinator: MarkdownTextView.Coordinator?
     var readableWidth = true
+    var headerHost: NSHostingView<AnyView>?
+    var headerHeight: CGFloat = 0 {
+        didSet { if headerHeight != oldValue { updateInsets(force: true) } }
+    }
+
+    func setHeader(_ view: AnyView?) {
+        guard let view else { headerHost?.removeFromSuperview(); headerHost = nil; return }
+        if let headerHost { headerHost.rootView = view } else {
+            let host = NSHostingView(rootView: view)
+            host.translatesAutoresizingMaskIntoConstraints = true
+            addSubview(host)
+            headerHost = host
+        }
+        layoutHeader()
+    }
+
+    func layoutHeader() {
+        headerHost?.frame = NSRect(x: 0, y: 0, width: bounds.width, height: max(1, headerHeight))
+    }
 
     override func setFrameSize(_ newSize: NSSize) {
         let widthChanged = newSize.width != frame.width
         super.setFrameSize(newSize)
         updateInsets()
+        layoutHeader()
         if widthChanged, let c = coordinator, !c.placed.isEmpty { DispatchQueue.main.async { c.layoutEmbeds(self) } }
     }
 
-    func updateInsets() {
+    func updateInsets(force: Bool = false) {
         let side = readableWidth ? max(24, (bounds.width - MarkdownTextView.maxLineWidth) / 2) : 24
-        if textContainerInset.width != side { textContainerInset = NSSize(width: side, height: 20) }
+        // NSTextView insets are symmetric, so the header height is also added below the text (scroll-past space).
+        let inset = NSSize(width: side, height: 20 + headerHeight)
+        if coordinator?.parent.controller.sideInset != side { coordinator?.parent.controller.sideInset = side }
+        let textWidth = (bounds.width - 2 * side - 2 * (textContainer?.lineFragmentPadding ?? 5)).rounded(.down)
+        if textWidth > 100, abs((coordinator?.parent.controller.textWidth ?? 0) - textWidth) >= 8 {
+            coordinator?.parent.controller.textWidth = textWidth
+        }
+        if force || textContainerInset != inset {
+            textContainerInset = inset
+            // TextKit 2 keeps the old viewport layout after an inset change; invalidate so text moves below the header.
+            if let tlm = textLayoutManager {
+                tlm.invalidateLayout(for: tlm.documentRange)
+                tlm.textViewportLayoutController.layoutViewport()
+            }
+            needsLayout = true
+            needsDisplay = true
+            layoutHeader()
+            if let c = coordinator, !c.placed.isEmpty { DispatchQueue.main.async { c.layoutEmbeds(self) } }
+        }
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.acceptsMouseMovedEvents = true
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
+        return ok
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
+        return ok
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -261,6 +411,8 @@ extension MarkdownTextView: NSViewRepresentable {
         scroll.documentView = tv
         configure(tv, context: context)
         tv.string = text
+        // Start after the frontmatter so Live Preview shows the properties header instead of raw YAML.
+        tv.setSelectedRange(NSRange(location: Frontmatter.locate(in: text).map { NSMaxRange($0.range) } ?? 0, length: 0))
         context.coordinator.restyle(tv, force: true)
         controller.textView = tv
         return scroll
@@ -286,6 +438,8 @@ extension MarkdownTextView: NSViewRepresentable {
     private func configure(_ tv: NetheriteNSTextView, context: Context) {
         tv.readableWidth = readableWidth
         tv.isContinuousSpellCheckingEnabled = spellcheck
+        tv.headerHeight = header == nil ? 0 : headerHeight
+        tv.setHeader(header)
         tv.updateInsets()
     }
 }
@@ -319,17 +473,44 @@ extension MarkdownTextView.Coordinator: NSTextViewDelegate {
 }
 #else
 final class NetheriteUITextView: UITextView {
+    weak var coordinator: MarkdownTextView.Coordinator?
     var readableWidth = true
+    var headerHeight: CGFloat = 0
+    var headerHost: UIHostingController<AnyView>?
+    var onSideInset: ((CGFloat) -> Void)?
+    var onTextWidth: ((CGFloat) -> Void)?
+    private var lastSide: CGFloat = -1
+    private var lastTextWidth: CGFloat = -1
+
+    func setHeader(_ view: AnyView?) {
+        guard let view else { headerHost?.view.removeFromSuperview(); headerHost = nil; return }
+        if let headerHost { headerHost.rootView = view } else {
+            let host = UIHostingController(rootView: view)
+            host.view.backgroundColor = .clear
+            host.sizingOptions = []
+            addSubview(host.view)
+            headerHost = host
+        }
+        setNeedsLayout()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let side = readableWidth ? max(16, (bounds.width - MarkdownTextView.maxLineWidth) / 2) : 16
-        if textContainerInset.left != side { textContainerInset = UIEdgeInsets(top: 16, left: side, bottom: 120, right: side) }
+        let inset = UIEdgeInsets(top: 16 + headerHeight, left: side, bottom: 120, right: side)
+        if onSideInset != nil, lastSide != side { lastSide = side; onSideInset?(side) }
+        let textWidth = (bounds.width - 2 * side - 2 * textContainer.lineFragmentPadding).rounded(.down)
+        if textWidth > 100, abs(lastTextWidth - textWidth) >= 8 { lastTextWidth = textWidth; onTextWidth?(textWidth) }
+        if textContainerInset != inset { textContainerInset = inset }
+        // Header scrolls with the content (content coordinates start at y = 0).
+        headerHost?.view.frame = CGRect(x: 0, y: 0, width: bounds.width, height: max(1, headerHeight))
     }
 }
 
 extension MarkdownTextView: UIViewRepresentable {
     func makeUIView(context: Context) -> NetheriteUITextView {
         let tv = NetheriteUITextView(usingTextLayoutManager: true)
+        tv.coordinator = context.coordinator
         tv.delegate = context.coordinator
         tv.backgroundColor = .clear
         tv.alwaysBounceVertical = true
@@ -338,7 +519,14 @@ extension MarkdownTextView: UIViewRepresentable {
         tv.smartDashesType = .no
         tv.autocapitalizationType = .sentences
         tv.accessibilityLabel = String(localized: "Note editor")
+        // VoiceOver may not reach checkbox overlays inside the text view, so offer the action on the editor itself.
+        tv.accessibilityCustomActions = [UIAccessibilityCustomAction(name: String(localized: "Toggle Task")) { [controller] _ in
+            guard let done = controller.toggleTask(at: controller.selectedRange.location) else { return false }
+            UIAccessibility.post(notification: .announcement, argument: done ? String(localized: "Completed") : String(localized: "Not completed"))
+            return true
+        }]
         tv.text = text
+        tv.selectedRange = NSRange(location: Frontmatter.locate(in: text).map { NSMaxRange($0.range) } ?? 0, length: 0)
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped(_:)))
         tap.delegate = context.coordinator
         tv.addGestureRecognizer(tap)
@@ -368,6 +556,10 @@ extension MarkdownTextView: UIViewRepresentable {
     private func configure(_ tv: NetheriteUITextView) {
         tv.readableWidth = readableWidth
         tv.spellCheckingType = spellcheck ? .yes : .no
+        tv.headerHeight = header == nil ? 0 : headerHeight
+        tv.onSideInset = { [controller] side in DispatchQueue.main.async { controller.sideInset = side } }
+        tv.onTextWidth = { [controller] w in DispatchQueue.main.async { controller.textWidth = w } }
+        tv.setHeader(header)
         tv.setNeedsLayout()
     }
 }
@@ -433,6 +625,19 @@ enum ListContinuation {
 
 #if os(macOS)
 extension NSView { func setAccessibilityLabelCompat(_ s: String) { setAccessibilityLabel(s) } }
+
+/// NSButton that runs a closure (checkboxes drawn over the editor).
+final class ClosureButton: NSButton {
+    private let run: () -> Void
+    init(frame: NSRect, action: @escaping () -> Void) {
+        run = action
+        super.init(frame: frame)
+        target = self
+        self.action = #selector(fire)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    @objc private func fire() { run() }
+}
 #else
 extension UIView { func setAccessibilityLabelCompat(_ s: String) { isAccessibilityElement = true; accessibilityLabel = s } }
 #endif

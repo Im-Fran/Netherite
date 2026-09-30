@@ -162,3 +162,33 @@ Footnote here[^1].
     #expect(html.contains("data-line=\"9\" checked"))
     #expect(html.contains("id=\"fn-a\""))
 }
+
+@Test func quoteMarkersHiddenNextToInlineCode() {
+    let t = "> [!tip] Title\n> Use `> [!note]` here\n> more"
+    let ns = t as NSString
+    let spans = MarkdownHighlighter.spans(t)
+    let markers = spans.filter { $0.kind == .marker }.map { ns.substring(with: $0.range) }
+    #expect(markers.contains("> "))
+    #expect(spans.filter { $0.kind == .calloutBody("tip") }.count == 2)
+}
+
+@Test func detectsTables() {
+    let t = "Intro\n| A | B |\n| --- | :-: |\n| 1 | 2 |\nAfter"
+    let ns = t as NSString
+    let tables = MarkdownHighlighter.spans(t).filter { $0.kind == .table }.map { ns.substring(with: $0.range) }
+    #expect(tables == ["| A | B |\n| --- | :-: |\n| 1 | 2 |"])
+}
+
+@MainActor @Test(arguments: [false, true]) func guideVaultLinksResolve(spanish: Bool) async throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    let vault = Vault(root: dir)
+    try GuideVault.write(to: vault, spanish: spanish)
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    #expect(index.files.contains(GuideVault.startNote(spanish: spanish)))
+    // Only the deliberate "create me" link may be unresolved.
+    let missing = index.unresolved.values.flatMap { $0 }
+    #expect(missing == [spanish ? "Mi primera idea" : "My first idea"])
+    #expect(try JSONCanvas.parse(vault.read(spanish ? "Tablero guía.canvas" : "Guide board.canvas")).nodes.count == 3)
+    try? FileManager.default.removeItem(at: dir)
+}

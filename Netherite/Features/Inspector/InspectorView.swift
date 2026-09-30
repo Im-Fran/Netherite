@@ -194,13 +194,46 @@ struct FootnotesView: View {
 /// Edits the note's YAML frontmatter as typed properties.
 struct PropertiesEditor: View {
     let path: String
+    /// Compact layout used in the note header (Live Preview) instead of a grouped form.
+    var inline = false
     @Environment(WindowState.self) private var window
     @State private var newKey = ""
+    @AppStorage("propertiesExpanded") private var expanded = true
 
     var body: some View {
         let props = window.model.index.notes[path]?.parsed.properties ?? []
-        Form {
-            ForEach(props) { p in
+        if inline {
+            DisclosureGroup(isExpanded: $expanded) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(props) { p in
+                        row(p, props)
+                            .textFieldStyle(.plain)
+                        Divider()
+                    }
+                    addField.textFieldStyle(.plain).foregroundStyle(.secondary)
+                }
+                .padding(.top, 6)
+            } label: {
+                Label("Properties", systemImage: "list.bullet.rectangle").font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+            }
+        } else {
+            Form {
+                ForEach(props) { p in row(p, props) }
+                addField
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    private var addField: some View {
+        HStack {
+            TextField("Add property", text: $newKey)
+                .onSubmit(add)
+            Button("Add", systemImage: "plus", action: add).labelStyle(.iconOnly).disabled(newKey.isEmpty)
+        }
+    }
+
+    private func row(_ p: Property, _ props: [Property]) -> some View {
                 LabeledContent {
                     editor(for: p, all: props)
                 } label: {
@@ -214,30 +247,25 @@ struct PropertiesEditor: View {
                     }
                     Button("Remove", systemImage: "trash", role: .destructive) { save(props.filter { $0.key != p.key }) }
                 }
-            }
-            HStack {
-                TextField("Add property", text: $newKey)
-                    .onSubmit(add)
-                Button("Add", systemImage: "plus", action: add).labelStyle(.iconOnly).disabled(newKey.isEmpty)
-            }
-        }
-        .formStyle(.grouped)
     }
 
     @ViewBuilder private func editor(for p: Property, all: [Property]) -> some View {
         switch p.value {
         case .bool(let b):
-            Toggle("", isOn: Binding(get: { b }, set: { set(p.key, .bool($0), in: all) })).labelsHidden()
+            Toggle(p.key, isOn: Binding(get: { b }, set: { set(p.key, .bool($0), in: all) })).labelsHidden()
         case .date(let d):
-            DatePicker("", selection: Binding(get: { d }, set: { set(p.key, .date($0), in: all) }), displayedComponents: .date).labelsHidden()
+            DatePicker(p.key, selection: Binding(get: { d }, set: { set(p.key, .date($0), in: all) }), displayedComponents: .date).labelsHidden()
         case .number(let n):
-            TextField("", value: Binding(get: { n }, set: { set(p.key, .number($0), in: all) }), format: .number).multilineTextAlignment(.trailing)
+            TextField(p.key, value: Binding(get: { n }, set: { set(p.key, .number($0), in: all) }), format: .number)
+                .labelsHidden().multilineTextAlignment(.trailing)
         case .list(let l):
-            TextField("", text: Binding(get: { l.joined(separator: ", ") },
+            TextField(p.key, text: Binding(get: { l.joined(separator: ", ") },
                                         set: { set(p.key, .list($0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }), in: all) }))
+                .labelsHidden()
                 .multilineTextAlignment(.trailing)
         default:
-            TextField("", text: Binding(get: { p.value.displayString }, set: { set(p.key, .text($0), in: all) }))
+            TextField(p.key, text: Binding(get: { p.value.displayString }, set: { set(p.key, .text($0), in: all) }))
+                .labelsHidden()
                 .multilineTextAlignment(.trailing)
         }
     }

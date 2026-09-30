@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import CoreSpotlight
 import NetheriteCore
 
@@ -112,6 +113,8 @@ struct PanesView: View {
 struct PaneView: View {
     @Bindable var pane: Pane
     @Environment(WindowState.self) private var window
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @AppStorage("hasSeenOnboarding") private var onboarded = false
 
     var body: some View {
         content
@@ -124,6 +127,7 @@ struct PaneView: View {
                 }
             }
             .toolbar { toolbar }
+            .onChange(of: pane.reading) { NetheriteTips.donate(NetheriteTips.readingToggled) }
     }
 
     @ViewBuilder private var content: some View {
@@ -150,20 +154,32 @@ struct PaneView: View {
                     .keyboardShortcut("]", modifiers: .command)
             }
             ToolbarItemGroup(placement: .primaryAction) {
+                #if os(iOS)
+                // On iPhone the sidebar (and its Go to File button) is off screen while a note is open.
+                if sizeClass == .compact {
+                    Button("Go to File", systemImage: "magnifyingglass") { window.sheet = .quickSwitcher }
+                }
+                #endif
                 if case .note = pane.current {
                     Toggle(isOn: $pane.reading) {
-                        Label(pane.reading ? "Editing view" : "Reading view", systemImage: pane.reading ? "pencil" : "book")
+                        Label("Reading View", systemImage: pane.reading ? "book.fill" : "book")
                     }
                     .keyboardShortcut("e")
                     .help("Toggle reading view (⌘E)")
+                    .popoverTip(window.toolbarTip(ReadingViewTip.self, onboarded: onboarded), arrowEdge: .top)
                 }
                 Menu {
                     moreMenu
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
-                Button("Toggle Inspector", systemImage: "sidebar.right") { window.showInspector.toggle() }
-                    .help("Show or hide backlinks, outline and properties")
+                .popoverTip(window.toolbarTip(GraphTip.self, onboarded: onboarded), arrowEdge: .top)
+                Button("Toggle Inspector", systemImage: "sidebar.right") {
+                    window.showInspector.toggle()
+                    NetheriteTips.donate(NetheriteTips.inspectorUsed)
+                }
+                .help("Show or hide backlinks, outline and properties")
+                .popoverTip(window.toolbarTip(BacklinksTip.self, onboarded: onboarded), arrowEdge: .top)
             }
         }
     }
@@ -200,7 +216,7 @@ struct EmptyPane: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("No file is open", systemImage: "doc.text")
+            Label("No File Is Open", systemImage: "doc.text")
         } description: {
             Text("Create a note or jump to one with the quick switcher.")
         } actions: {
@@ -208,6 +224,9 @@ struct EmptyPane: View {
                 .buttonStyle(.borderedProminent)
             Button("Go to File…") { window.sheet = .quickSwitcher }
             Button("Open Today's Daily Note") { window.openDailyNote() }
+        }
+        .overlay(alignment: .bottom) {
+            TipView(DailyNoteTip()).frame(maxWidth: 420).padding()
         }
     }
 }
