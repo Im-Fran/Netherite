@@ -28,7 +28,7 @@ struct SidebarView: View {
         .navigationTitle(window.model.name)
         .toolbar {
             ToolbarItemGroup {
-                Button("New note", systemImage: "square.and.pencil") { window.newNote() }
+                Button("New Note", systemImage: "square.and.pencil") { window.newNote() }
                     .keyboardShortcut("n")
                     .help("New note (⌘N)")
             }
@@ -57,7 +57,7 @@ struct SearchPanel: View {
                     .toggleStyle(.button)
                     .help("Match case")
                 Menu {
-                    Button("Bookmark search", systemImage: "bookmark") { window.model.addBookmark(.search(window.searchQuery)) }
+                    Button("Bookmark Search", systemImage: "bookmark") { window.model.addBookmark(.search(window.searchQuery)) }
                         .disabled(window.searchQuery.isEmpty)
                     Divider()
                     Text("Operators: tag: path: file: line: task: [prop:value] \"phrase\" -exclude OR /regex/")
@@ -140,7 +140,7 @@ struct TagsPanel: View {
             }
         }
         .overlay {
-            if counts.isEmpty { ContentUnavailableView("No tags", systemImage: "number", description: Text("Add #tags to your notes to see them here.")) }
+            if counts.isEmpty { ContentUnavailableView("No Tags", systemImage: "number", description: Text("Add #tags to your notes to see them here.")) }
         }
     }
 
@@ -169,14 +169,14 @@ struct BookmarksPanel: View {
             ForEach(model.bookmarks) { b in
                 Button { open(b) } label: { Label(b.displayTitle, systemImage: b.symbolName) }
                     .buttonStyle(.plain)
-                    .contextMenu { Button("Remove bookmark", systemImage: "bookmark.slash", role: .destructive) { model.removeBookmark(b) } }
+                    .contextMenu { Button("Remove Bookmark", systemImage: "bookmark.slash", role: .destructive) { model.removeBookmark(b) } }
             }
             .onMove { model.bookmarks.move(fromOffsets: $0, toOffset: $1) }
             .onDelete { model.bookmarks.remove(atOffsets: $0) }
         }
         .overlay {
             if model.bookmarks.isEmpty {
-                ContentUnavailableView("No bookmarks", systemImage: "bookmark", description: Text("Bookmark notes, headings and searches to find them quickly."))
+                ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Bookmark notes, headings and searches to find them quickly."))
             }
         }
     }

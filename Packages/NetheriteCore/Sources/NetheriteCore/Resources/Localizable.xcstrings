@@ -1,192 +1,222 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Cancel" : {
+    "%d results" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cancelar"
+            "value" : "%d resultados"
           }
         }
       }
     },
-    "Clip to Netherite" : {
+    "%d+ results" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recortar en Netherite"
+            "value" : "%d+ resultados"
           }
         }
       }
     },
-    "Clipped Markdown" : {
+    "1 result" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Markdown recortado"
+            "value" : "1 resultado"
           }
         }
       }
     },
-    "Clipping" : {
+    "Checking project…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recorte"
+            "value" : "Comprobando proyecto…"
           }
         }
       }
     },
-    "Clipping page…" : {
+    "Cloudflare returned an unexpected response." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recortando página…"
+            "value" : "Cloudflare devolvió una respuesta inesperada."
           }
         }
       }
     },
-    "Content" : {
+    "Creating deployment…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contenido"
+            "value" : "Creando despliegue…"
           }
         }
       }
     },
-    "Couldn't Save the Clip" : {
+    "Graph View" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo guardar el recorte"
+            "value" : "Vista de grafo"
           }
         }
       }
     },
-    "Couldn't download the page, so only the link will be saved." : {
+    "Graph of linked notes" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudo descargar la página, así que solo se guardará el enlace."
+            "value" : "Grafo de notas enlazadas"
           }
         }
       }
     },
-    "New note in Clippings" : {
+    "Links to this page" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nueva nota en Recortes"
+            "value" : "Enlaces a esta página"
           }
         }
       }
     },
-    "OK" : {
+    "No .enex files found." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OK"
+            "value" : "No se encontraron archivos .enex."
           }
         }
       }
     },
-    "Open a vault in Netherite first, then share again." : {
+    "No HTML files found." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Primero abre una bóveda en Netherite y luego vuelve a compartir."
+            "value" : "No se encontraron archivos HTML."
           }
         }
       }
     },
-    "Open a vault in Netherite first." : {
+    "No Results" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Primero abre una bóveda en Netherite."
+            "value" : "Sin resultados"
           }
         }
       }
     },
-    "Save" : {
+    "Page not found" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Guardar"
+            "value" : "Página no encontrada"
           }
         }
       }
     },
-    "Save to" : {
+    "Requesting upload token…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Guardar en"
+            "value" : "Solicitando token de subida…"
           }
         }
       }
     },
-    "Tags" : {
+    "Search" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Etiquetas"
+            "value" : "Buscar"
           }
         }
       }
     },
-    "Title" : {
+    "Search notes" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Título"
+            "value" : "Buscar notas"
           }
         }
       }
     },
-    "Today's daily note" : {
+    "The ZIP archive is damaged." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nota diaria de hoy"
+            "value" : "El archivo ZIP está dañado."
           }
         }
       }
     },
-    "^[%lld image](inflect: true) will be saved to attachments" : {
+    "The file isn't a ZIP archive." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se guardarán ^[%lld imagen](inflect: true) en adjuntos"
+            "value" : "El archivo no es un ZIP."
           }
         }
       }
     },
-    "reading, ideas" : {
+    "There's nothing to deploy in that folder." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "lectura, ideas"
+            "value" : "No hay nada que desplegar en esa carpeta."
+          }
+        }
+      }
+    },
+    "Unsupported ZIP feature: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Función de ZIP no compatible: %@"
+          }
+        }
+      }
+    },
+    "Untitled" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin título"
+          }
+        }
+      }
+    },
+    "Uploading files (%lld)…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subiendo archivos (%lld)…"
           }
         }
       }

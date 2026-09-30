@@ -21,9 +21,9 @@ struct WebViewer: View {
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
                     .onSubmit { window.openURL(address) }
-                Button("Save as note", systemImage: "square.and.arrow.down", action: saveAsNote)
+                Button("Save as Note", systemImage: "square.and.arrow.down", action: saveAsNote)
                     .help("Create a note linking to this page")
-                Link(destination: current ?? url) { Label("Open in browser", systemImage: "safari") }
+                Link(destination: current ?? url) { Label("Open in Browser", systemImage: "safari") }
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)

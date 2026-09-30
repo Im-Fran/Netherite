@@ -27,6 +27,7 @@ final class VaultModel {
         Task {
             await index.load()
             SystemIntegration.reindex(self)
+            NetheriteShortcuts.updateAppShortcutParameters()
         }
         watcher = VaultWatcher(url: vault.root) { [weak self] in
             Task { @MainActor in await self?.externalChange() }

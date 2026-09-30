@@ -29,6 +29,7 @@ struct CanvasSurface: View {
     @Bindable var model: CanvasModel
     @Environment(WindowState.self) private var window
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var panStart: CGSize?
     @State private var zoomStart: CGFloat?
     @State private var addingFile = false
@@ -74,12 +75,13 @@ struct CanvasSurface: View {
         .overlay(alignment: .bottomTrailing) { zoomControls.padding(12) }
         .overlay {
             if let e = model.loadError {
-                ContentUnavailableView("Couldn't read canvas", systemImage: "exclamationmark.triangle", description: Text(e))
+                ContentUnavailableView("Couldn't Read Canvas", systemImage: "exclamationmark.triangle", description: Text(e))
             }
         }
         .background(Color.canvasBackground)
         .sheet(isPresented: $addingFile) { fileSheet }
-        .alert("Add web page", isPresented: $addingLink) {
+        .sheet(isPresented: Binding(get: { model.connectingFrom != nil }, set: { if !$0 { model.connectingFrom = nil } })) { connectSheet }
+        .alert("Add Web Page", isPresented: $addingLink) {
             TextField("https://", text: $linkText)
             Button("Cancel", role: .cancel) {}
             Button("Add") {
@@ -88,7 +90,7 @@ struct CanvasSurface: View {
                 linkText = ""
             }
         }
-        .alert("Connection label", isPresented: Binding(get: { labelingEdge != nil }, set: { if !$0 { labelingEdge = nil } })) {
+        .alert("Connection Label", isPresented: Binding(get: { labelingEdge != nil }, set: { if !$0 { labelingEdge = nil } })) {
             TextField("Label", text: $labelText)
             Button("Cancel", role: .cancel) {}
             Button("Save") { if let e = labelingEdge { model.setEdgeLabel(e, labelText) } }
@@ -127,29 +129,51 @@ struct CanvasSurface: View {
                 }
                 x += step
             }
-            ctx.fill(path, with: .color(.secondary.opacity(0.35)))
+            ctx.fill(path, with: .color(.secondary.opacity(contrast == .increased ? 0.7 : 0.35)))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
     /// Empty space: pan (or rubber-band select), tap to deselect, double-tap to add a text card.
+    /// Searchable target picker for the VoiceOver "Connect…" action.
+    private var connectSheet: some View {
+        let from = model.connectingFrom ?? ""
+        return PaletteView(prompt: "Connect to…", items: { q in
+            model.canvas.nodes.filter { $0.id != from }.compactMap { n -> PaletteItem? in
+                let title = n.displayTitle.isEmpty ? String(localized: "Untitled card") : n.displayTitle
+                guard q.isEmpty || Search.fuzzyScore(q, title) != nil else { return nil }
+                let connected = model.isConnected(from, n.id)
+                return PaletteItem(id: n.id, title: title, subtitle: connected ? String(localized: "Already connected") : nil,
+                                   symbol: n.type == "group" ? "rectangle.dashed" : "rectangle") { _ in
+                    guard !connected else { AccessibilityNotification.Announcement(String(localized: "Already connected")).post(); return }
+                    model.connect(from: from, to: n.id)
+                    // Wait for the sheet to dismiss so VoiceOver doesn't cut the announcement off.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        AccessibilityNotification.Announcement(String(localized: "Connected to \(title)")).post()
+                    }
+                }
+            }
+        })
+    }
+
+    /// Pan (or rubber-band select) from empty space — also used by connection hit areas so they don't block panning.
+    private func panChanged(_ v: DragGesture.Value) {
+        if additive || model.marquee != nil {
+            model.marquee = CGRect(x: min(v.startLocation.x, v.location.x), y: min(v.startLocation.y, v.location.y),
+                                   width: abs(v.location.x - v.startLocation.x), height: abs(v.location.y - v.startLocation.y))
+        } else {
+            if panStart == nil { panStart = model.offset }
+            model.offset = CGSize(width: panStart!.width + v.translation.width, height: panStart!.height + v.translation.height)
+        }
+    }
+
+    private func panEnded() { panStart = nil; model.finishMarquee() }
+
     private var background: some View {
         Color.clear
             .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 2, coordinateSpace: .named(space))
-                    .onChanged { v in
-                        if additive || model.marquee != nil {
-                            model.marquee = CGRect(x: min(v.startLocation.x, v.location.x), y: min(v.startLocation.y, v.location.y),
-                                                   width: abs(v.location.x - v.startLocation.x), height: abs(v.location.y - v.startLocation.y))
-                        } else {
-                            if panStart == nil { panStart = model.offset }
-                            model.offset = CGSize(width: panStart!.width + v.translation.width, height: panStart!.height + v.translation.height)
-                        }
-                    }
-                    .onEnded { _ in panStart = nil; model.finishMarquee() }
-            )
+            .gesture(DragGesture(minimumDistance: 2, coordinateSpace: .named(space)).onChanged(panChanged).onEnded { _ in panEnded() })
             .onTapGesture(count: 2, coordinateSpace: .named(space)) { p in model.addText(at: model.toCanvas(p)) }
             .onTapGesture { model.endEditing(); model.clearSelection() }
             .accessibilityLabel("Canvas")
@@ -159,7 +183,7 @@ struct CanvasSurface: View {
     private var world: some View {
         ZStack(alignment: .topLeading) {
             ForEach(model.canvas.nodes.filter { $0.type == "group" }) { node in nodeView(node) }
-            ForEach(model.canvas.edges) { edge in EdgeView(model: model, edge: edge) { labelText = edge.label ?? ""; labelingEdge = edge.id } }
+            ForEach(model.canvas.edges) { edge in EdgeView(model: model, edge: edge, pan: DragGesture(minimumDistance: 2, coordinateSpace: .named(space)).onChanged(panChanged).onEnded { _ in panEnded() }) { labelText = edge.label ?? ""; labelingEdge = edge.id } }
             ForEach(model.canvas.nodes.filter { $0.type != "group" }) { node in nodeView(node) }
             if let pending = model.pendingEdge, let n = model.canvas.node(pending.node) {
                 let from = CanvasModel.anchor(n.frame, pending.side)
@@ -193,16 +217,16 @@ struct CanvasSurface: View {
 
     private var toolbar: some View {
         HStack(spacing: 2) {
-            tool("Add card", "note.text.badge.plus") { model.addText() }
+            tool("Add Card", "note.text.badge.plus") { model.addText() }
                 .keyboardShortcut("t", modifiers: [.command, .shift])
-            tool("Add note from vault", "doc.badge.plus") { addingFile = true }
-            tool("Add web page", "link.badge.plus") { addingLink = true }
+            tool("Add Note from Vault", "doc.badge.plus") { addingFile = true }
+            tool("Add Web Page", "link.badge.plus") { addingLink = true }
             Divider().frame(height: 24)
-            tool("Group selection", "rectangle.dashed") { model.groupSelection() }
+            tool("Group Selection", "rectangle.dashed") { model.groupSelection() }
                 .disabled(model.selection.isEmpty)
-                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .keyboardShortcut("g", modifiers: [.command, .option])
             Menu {
-                Button("No color") { model.setColor(nil) }
+                Button("No Color") { model.setColor(nil) }
                 ForEach(CanvasColor.presets, id: \.id) { p in
                     Button { model.setColor(p.id) } label: { Label(String(localized: p.name), systemImage: "circle.fill").tint(p.color) }
                 }
@@ -222,7 +246,7 @@ struct CanvasSurface: View {
             .toggleStyle(.button).buttonStyle(.borderless)
             .help("Drag on empty space to select (or hold ⇧)")
             // Hidden shortcuts
-            Button("Select all") { model.selectAll() }.keyboardShortcut("a").hidden().frame(width: 0)
+            Button("Select All") { model.selectAll() }.keyboardShortcut("a").hidden().frame(width: 0)
                 .disabled(model.editing != nil)
             Button("Deselect") { model.endEditing(); model.clearSelection() }.keyboardShortcut(.escape, modifiers: []).hidden().frame(width: 0)
         }
@@ -232,13 +256,13 @@ struct CanvasSurface: View {
 
     private var zoomControls: some View {
         HStack(spacing: 2) {
-            tool("Zoom out", "minus.magnifyingglass") { model.zoom(to: model.zoom / 1.25, around: center) }
+            tool("Zoom Out", "minus.magnifyingglass") { model.zoom(to: model.zoom / 1.25, around: center) }
                 .keyboardShortcut("-")
             Text("\(Int(model.zoom * 100))%").font(.caption.monospacedDigit()).frame(minWidth: 44)
                 .accessibilityLabel("Zoom \(Int(model.zoom * 100)) percent")
-            tool("Zoom in", "plus.magnifyingglass") { model.zoom(to: model.zoom * 1.25, around: center) }
+            tool("Zoom In", "plus.magnifyingglass") { model.zoom(to: model.zoom * 1.25, around: center) }
                 .keyboardShortcut("=")
-            tool("Zoom to fit", "arrow.up.left.and.down.right.magnifyingglass") { withAnimation(reduceMotion ? nil : .smooth) { model.zoomToFit() } }
+            tool("Zoom to Fit", "arrow.up.left.and.down.right.magnifyingglass") { withAnimation(reduceMotion ? nil : .smooth) { model.zoomToFit() } }
                 .keyboardShortcut("0")
         }
         .padding(.horizontal, 6)
@@ -338,10 +362,22 @@ nonisolated struct EdgeShape: Shape {
     }
 }
 
-struct EdgeView: View {
+struct EdgeView<Pan: Gesture>: View {
     let model: CanvasModel
     let edge: CanvasEdge
+    let pan: Pan
     let editLabel: () -> Void
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    private func select() { model.selection = []; model.selectedEdge = edge.id }
+
+    private var hitWidth: CGFloat {
+        #if os(iOS)
+        44 / max(model.zoom, 0.1)
+        #else
+        16 / max(model.zoom, 0.1)
+        #endif
+    }
 
     var body: some View {
         if let a = model.canvas.node(edge.fromNode), let b = model.canvas.node(edge.toNode) {
@@ -351,18 +387,22 @@ struct EdgeView: View {
             let selected = model.selectedEdge == edge.id
             let color = CanvasColor.color(edge.color) ?? .secondary
             let shape = EdgeShape(from: from, fromSide: fs, to: to, toSide: ts, arrow: (edge.toEnd ?? "arrow") != "none")
+            let mid = EdgeShape.midpoint(from: from, fromSide: fs, to: to, toSide: ts)
             ZStack(alignment: .topLeading) {
-                shape.stroke(selected ? Color.accentColor : color, style: StrokeStyle(lineWidth: selected ? 3 : 2, lineCap: .round))
-                shape.stroke(Color.white.opacity(0.001), lineWidth: 16)   // generous hit area
-                    .contentShape(shape.stroke(lineWidth: 16))
-                    .onTapGesture { model.selection = []; model.selectedEdge = edge.id }
+                shape.stroke(selected ? Color.accentColor : color.opacity(contrast == .increased ? 1 : 0.85),
+                             style: StrokeStyle(lineWidth: selected ? (contrast == .increased ? 5 : 3.5) : (contrast == .increased ? 3 : 2),
+                                                lineCap: .round, dash: selected && contrast == .increased ? [10, 4] : []))
+                shape.stroke(Color.white.opacity(0.001), lineWidth: hitWidth)   // generous hit area, constant on screen
+                    .contentShape(shape.stroke(lineWidth: hitWidth))
+                    .onTapGesture { select() }
                     .onTapGesture(count: 2) { editLabel() }
+                    .gesture(pan)   // drags on the hit band still pan the canvas
                     .contextMenu {
-                        Button("Edit label…", systemImage: "character.cursor.ibeam", action: editLabel)
+                        Button("Edit Label…", systemImage: "character.cursor.ibeam", action: editLabel)
                         Button("Delete", systemImage: "trash", role: .destructive) { model.selectedEdge = edge.id; model.deleteSelection() }
                     }
+                    .accessibilityHidden(true)
                 if let label = edge.label, !label.isEmpty {
-                    let mid = EdgeShape.midpoint(from: from, fromSide: fs, to: to, toSide: ts)
                     Text(label)
                         .font(.callout)
                         .padding(.horizontal, 6).padding(.vertical, 2)
@@ -370,15 +410,22 @@ struct EdgeView: View {
                         .fixedSize()
                         .position(mid)
                         .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
+                // VoiceOver element placed on the connection's midpoint (not the canvas origin).
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .position(mid)
+                    .allowsHitTesting(false)
+                    .accessibilityElement()
+                    .accessibilityLabel("Connection from \(a.displayTitle) to \(b.displayTitle)")
+                    .accessibilityValue(edge.label ?? "")
+                    .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction { select() }
+                    .accessibilityAction(named: "Edit label", editLabel)
+                    .accessibilityAction(named: "Delete") { model.selectedEdge = edge.id; model.deleteSelection() }
             }
             .frame(width: 1, height: 1, alignment: .topLeading)
-            .accessibilityElement()
-            .accessibilityLabel("Connection from \(a.displayTitle) to \(b.displayTitle)")
-            .accessibilityValue(edge.label ?? "")
-            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-            .accessibilityAction(named: "Edit label", editLabel)
-            .accessibilityAction(named: "Delete") { model.selectedEdge = edge.id; model.deleteSelection() }
         }
     }
 }

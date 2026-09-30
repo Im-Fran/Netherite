@@ -61,7 +61,7 @@
         }
       }
     },
-    "Daily note" : {
+    "Daily Note" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -101,22 +101,22 @@
         }
       }
     },
+    "Log Time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registrar hora"
+          }
+        }
+      }
+    },
     "Log Time in Daily Note" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Registrar hora en la nota diaria"
-          }
-        }
-      }
-    },
-    "Log time" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Registrar hora"
           }
         }
       }
@@ -231,7 +231,7 @@
         }
       }
     },
-    "Recent notes" : {
+    "Recent Notes" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {

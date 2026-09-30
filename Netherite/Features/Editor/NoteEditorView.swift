@@ -265,16 +265,19 @@ struct SlashCommand: Identifiable {
 /// Small cache for images shown inline in the editor.
 final class ImageCache {
     static let shared = ImageCache()
-    private let cache = NSCache<NSURL, PlatformImage>()
+    private let cache = NSCache<NSString, PlatformImage>()
 
+    /// Keyed by path + modification date, so a replaced attachment shows its new content.
     func image(at url: URL) -> PlatformImage? {
-        if let i = cache.object(forKey: url as NSURL) { return i }
+        let mod = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)?.timeIntervalSince1970 ?? 0
+        let key = "\(url.path(percentEncoded: false))|\(mod)" as NSString
+        if let i = cache.object(forKey: key) { return i }
         #if os(macOS)
         guard let i = NSImage(contentsOf: url) else { return nil }
         #else
         guard let i = UIImage(contentsOfFile: url.path(percentEncoded: false)) else { return nil }
         #endif
-        cache.setObject(i, forKey: url as NSURL)
+        cache.setObject(i, forKey: key)
         return i
     }
 }

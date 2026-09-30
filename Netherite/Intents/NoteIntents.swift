@@ -94,8 +94,7 @@ struct OpenNoteIntent: AppIntent {
     @Parameter(title: "Note") var note: NoteEntity
 
     func perform() async throws -> some IntentResult & OpensIntent {
-        let encoded = note.id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? note.id
-        return .result(opensIntent: OpenURLIntent(openURL("netherite://open?path=\(encoded)")))
+        .result(opensIntent: OpenURLIntent(SharedVault.openURL(path: note.id)))
     }
 }
 

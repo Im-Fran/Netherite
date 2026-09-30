@@ -54,7 +54,7 @@ struct VaultPicker: View {
                                     Text(r.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                                 }
                             }
-                            .contextMenu { Button("Remove from list", role: .destructive) { app.forget(r) } }
+                            .contextMenu { Button("Remove from List", role: .destructive) { app.forget(r) } }
                         }
                     }
                 }
@@ -70,7 +70,7 @@ struct VaultPicker: View {
             case .failure(let e): error = e.localizedDescription
             }
         }
-        .alert("Couldn't open vault", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+        .alert("Couldn't Open Vault", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK") {}
         } message: { Text(error ?? "") }
         .task {

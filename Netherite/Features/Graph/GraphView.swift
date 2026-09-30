@@ -99,10 +99,17 @@ final class GraphSimulation {
         (4 + CGFloat(Double(n.degree).squareRoot()) * 2.2) * settings.nodeSize
     }
 
+    /// Half of the minimum on-screen target (44 pt on touch, 16 pt with a pointer).
+    #if os(iOS)
+    static let minHitRadius: CGFloat = 22
+    #else
+    static let minHitRadius: CGFloat = 8
+    #endif
+
     func hit(_ world: CGPoint, scale: CGFloat) -> GraphNode? {
         data.nodes.last { n in
             guard let p = positions[n.id] else { return false }
-            return hypot(p.x - world.x, p.y - world.y) <= max(radius(n), 8 / scale)
+            return hypot(p.x - world.x, p.y - world.y) <= max(radius(n), Self.minHitRadius / scale)
         }
     }
 }
@@ -111,6 +118,9 @@ struct GraphView: View {
     let focus: String?
     @Environment(WindowState.self) private var window
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+    @Environment(\.colorSchemeContrast) private var contrast
+    @ScaledMetric(relativeTo: .caption) private var labelSize: CGFloat = 12
     @State private var sim = GraphSimulation()
     @State private var settings = GraphSettings()
     @State private var loaded = false
@@ -141,7 +151,7 @@ struct GraphView: View {
         }
         .background(.background)
         .overlay(alignment: .topTrailing) { controls.padding(12) }
-        .navigationTitle(focus.map { String(localized: "Local graph: \($0.noteName)") } ?? String(localized: "Graph view"))
+        .navigationTitle(focus.map { String(localized: "Local Graph: \($0.noteName)") } ?? String(localized: "Graph View"))
         .task(id: rebuildKey) {
             if !loaded {
                 settings = model.vault.loadConfig("graph.json", fallback: GraphSettings())
@@ -176,6 +186,10 @@ struct GraphView: View {
         let tagColor = Color(pair: model.theme.tag, fallback: .purple)
         let groups: [Color] = [.blue, .green, .orange, .pink, .teal, .indigo, .mint, .brown]
         let colorByTag = settings.colorByTag
+        let shapes = differentiateWithoutColor
+        let edgeOpacity = contrast == .increased ? 0.7 : 0.35
+        let unresolvedOpacity = contrast == .increased ? 1.0 : (shapes ? 0.7 : 0.4)
+        let labelSize = self.labelSize
         let _ = sim.frame   // observe ticks
         return Canvas { ctx, size in
             ctx.translateBy(x: size.width / 2 + offset.width, y: size.height / 2 + offset.height)
@@ -185,7 +199,7 @@ struct GraphView: View {
                 guard let a = sim.positions[e.from], let b = sim.positions[e.to] else { continue }
                 let lit = highlight.map { $0.contains(e.from) && $0.contains(e.to) && (e.from == hovered || e.to == hovered) } ?? false
                 var path = Path(); path.move(to: a); path.addLine(to: b)
-                ctx.stroke(path, with: .color(lit ? accent : Color.secondary.opacity(highlight == nil ? 0.35 : 0.12)),
+                ctx.stroke(path, with: .color(lit ? accent : Color.secondary.opacity(highlight == nil ? edgeOpacity : 0.12)),
                            lineWidth: lit ? lineWidth * 2 : lineWidth)
             }
             let labelOpacity = min(1, max(0, (zoom - 0.7) / 0.5))
@@ -197,16 +211,30 @@ struct GraphView: View {
                 case .note: colorByTag ? (n.group.map { groups[$0.unicodeScalars.reduce(0) { $0 + Int($1.value) } % groups.count] } ?? .secondary) : .secondary
                 case .attachment: .gray
                 case .tag: tagColor
-                case .unresolved: Color.secondary.opacity(0.4)
+                case .unresolved: Color.secondary.opacity(unresolvedOpacity)
                 }
                 if n.id == active { color = accent }
                 if n.id == hovered { color = accent }
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)),
-                         with: .color(color.opacity(dimmed ? 0.25 : 1)))
+                let rect = CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2)
+                let shading = GraphicsContext.Shading.color(color.opacity(dimmed ? 0.25 : 1))
+                if shapes && n.kind != .note {
+                    // Differentiate Without Color: tags are diamonds, attachments squares, unresolved hollow.
+                    switch n.kind {
+                    case .tag:
+                        var d = Path()
+                        d.move(to: CGPoint(x: p.x, y: rect.minY)); d.addLine(to: CGPoint(x: rect.maxX, y: p.y))
+                        d.addLine(to: CGPoint(x: p.x, y: rect.maxY)); d.addLine(to: CGPoint(x: rect.minX, y: p.y)); d.closeSubpath()
+                        ctx.fill(d, with: shading)
+                    case .attachment: ctx.fill(Path(rect.insetBy(dx: r * 0.1, dy: r * 0.1)), with: shading)
+                    default: ctx.stroke(Path(ellipseIn: rect.insetBy(dx: lineWidth, dy: lineWidth)), with: shading, lineWidth: 2 * lineWidth)
+                    }
+                } else {
+                    ctx.fill(Path(ellipseIn: rect), with: shading)
+                }
                 let showLabel = n.id == hovered || n.id == active
                 let opacity = showLabel ? 1 : labelOpacity * (dimmed ? 0.3 : 1)
                 if opacity > 0.02 {
-                    ctx.draw(Text(n.label).font(.system(size: 12 / max(zoom, 0.6))).foregroundStyle(.primary.opacity(opacity)),
+                    ctx.draw(Text(n.label).font(.system(size: labelSize / max(zoom, 0.6))).foregroundStyle(.primary.opacity(opacity)),
                              at: CGPoint(x: p.x, y: p.y + r + 8 / zoom), anchor: .top)
                 }
             }
@@ -296,10 +324,10 @@ struct GraphView: View {
     private var controls: some View {
         VStack(alignment: .trailing, spacing: 8) {
             HStack(spacing: 4) {
-                iconButton("Zoom out", "minus.magnifyingglass") { scale = clampZoom(scale / 1.3) }
-                iconButton("Zoom in", "plus.magnifyingglass") { scale = clampZoom(scale * 1.3) }
-                iconButton("Reset view", "scope") { scale = 1; offset = .zero }
-                iconButton("Graph settings", "slider.horizontal.3") { showSettings.toggle() }
+                iconButton("Zoom Out", "minus.magnifyingglass") { scale = clampZoom(scale / 1.3) }
+                iconButton("Zoom In", "plus.magnifyingglass") { scale = clampZoom(scale * 1.3) }
+                iconButton("Reset View", "scope") { scale = 1; offset = .zero }
+                iconButton("Graph Settings", "slider.horizontal.3") { showSettings.toggle() }
             }
             .padding(6)
             .glassEffect(in: .capsule)

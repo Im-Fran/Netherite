@@ -53,6 +53,7 @@ struct ImporterView: View {
     @State private var error: String?
     @State private var confirmConvert: ConvertScope?
     @State private var convertMessage: String?
+    @State private var convertProgress: Double?
 
     enum ConvertScope: Identifiable { case vault, note(String); var id: String { if case .note(let p) = self { p } else { "vault" } } }
 
@@ -86,22 +87,31 @@ struct ImporterView: View {
                     Toggle("HTML <mark> to ==highlights==", isOn: $options.htmlMarks)
                     Toggle("Legacy alias/tag/cssclass properties", isOn: $options.legacyProperties)
                     Toggle("Zettelkasten [[UID]] to full links", isOn: $options.zettelkastenLinks)
-                    Menu("Convert existing notes…") {
+                    Menu("Convert Existing Notes…") {
                         if let note = window.currentNote {
-                            Button("Current note (\(note.noteName))") { confirmConvert = .note(note) }
+                            Button("Current Note (\(note.noteName))") { confirmConvert = .note(note) }
                         }
-                        Button("All notes in vault") { confirmConvert = .vault }
+                        Button("All Notes in Vault") { confirmConvert = .vault }
                     }
                     .disabled(running)
+                    if let convertProgress {
+                        // Indeterminate while converting off the main thread, determinate while writing back.
+                        if convertProgress == 0 {
+                            ProgressView { Text("Converting notes…") }
+                        } else {
+                            ProgressView(value: convertProgress) { Text("Saving converted notes…") }
+                        }
+                    }
                     if let convertMessage {
                         Label(convertMessage, systemImage: "checkmark.circle").foregroundStyle(.secondary)
                     }
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("Import notes")
+            .interactiveDismissDisabled(running)
+            .navigationTitle("Import Notes")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(report == nil ? "Cancel" : "Done") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(report == nil ? "Cancel" : "Done") { dismiss() }.disabled(running) }
                 ToolbarItem(placement: .confirmationAction) {
                     if running { ProgressView().controlSize(.small).accessibilityLabel("Importing") }
                     else { Button("Import", action: runImport).disabled(sourceURL == nil) }
@@ -118,7 +128,7 @@ struct ImporterView: View {
             }
         }
         .onChange(of: source) { sourceURL = nil; report = nil }
-        .alert("Import failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+        .alert("Import Failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK") {}
         } message: { Text(error ?? "") }
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirmConvert != nil }, set: { if !$0 { confirmConvert = nil } }),
@@ -155,7 +165,7 @@ struct ImporterView: View {
                     }
                 }
             }
-            Button("Open imported folder", systemImage: "folder") {
+            Button("Open Imported Folder", systemImage: "folder") {
                 window.sidebarTab = .files
                 window.columnVisibility = .all
                 if let first = r.notes.first { window.open(path: first) }
@@ -176,8 +186,10 @@ struct ImporterView: View {
             let access = url.startAccessingSecurityScopedResource()
             defer { if access { url.stopAccessingSecurityScopedResource() } }
             do {
-                report = try await Task.detached { try importer.run(kind, from: url) }.value
+                let r = try await Task.detached { try importer.run(kind, from: url) }.value
+                report = r
                 await window.model.refresh()
+                AccessibilityNotification.Announcement(String(localized: "Imported \(r.notes.count) notes")).post()
             } catch {
                 self.error = error.localizedDescription
             }
@@ -185,6 +197,7 @@ struct ImporterView: View {
         }
     }
 
+    /// Converts off the main thread, then writes the changed notes back with progress.
     private func convert(_ scope: ConvertScope) {
         let model = window.model
         let converter = FormatConverter(options: options, files: model.index.files)
@@ -192,12 +205,25 @@ struct ImporterView: View {
         case .note(let p): [p]
         case .vault: model.index.markdownFiles
         }
-        var changed = 0
-        for p in paths {
-            let text = model.text(of: p)
-            let out = converter.convert(text, path: p)
-            if out != text { model.overwrite(p, with: out); changed += 1 }
+        let texts = paths.map { ($0, model.text(of: $0)) }
+        running = true
+        convertMessage = nil
+        convertProgress = 0
+        Task {
+            defer { running = false; convertProgress = nil }
+            let changes = await Task.detached {
+                texts.compactMap { p, text -> (String, String)? in
+                    let out = converter.convert(text, path: p)
+                    return out == text ? nil : (p, out)
+                }
+            }.value
+            for (i, (p, out)) in changes.enumerated() {
+                model.overwrite(p, with: out)
+                convertProgress = Double(i + 1) / Double(max(1, changes.count))
+                if i % 20 == 0 { await Task.yield() }
+            }
+            convertMessage = String(localized: "Converted \(changes.count) of \(paths.count) notes.")
+            AccessibilityNotification.Announcement(convertMessage ?? "").post()
         }
-        convertMessage = String(localized: "Converted \(changed) of \(paths.count) notes.")
     }
 }

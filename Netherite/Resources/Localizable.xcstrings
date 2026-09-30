@@ -21,22 +21,6 @@
         }
       }
     },
-    "%@ %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$lld"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$lld"
-          }
-        }
-      }
-    },
     "%lld" : {
       "localizations" : {
         "es" : {
@@ -363,6 +347,56 @@
         }
       }
     },
+    "Add Card" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir tarjeta"
+          }
+        }
+      }
+    },
+    "Add Formula" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar fórmula"
+          }
+        }
+      }
+    },
+    "Add Note from Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir nota de la bóveda"
+          }
+        }
+      }
+    },
+    "Add Rule" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar regla"
+          }
+        }
+      }
+    },
+    "Add Web Page" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar página web"
+          }
+        }
+      }
+    },
     "Add a file to the canvas…" : {
       "localizations" : {
         "es" : {
@@ -388,7 +422,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agregar fórmula"
+            "value" : "Añadir fórmula"
           }
         }
       }
@@ -399,16 +433,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agregar enlace interno"
-          }
-        }
-      }
-    },
-    "Add note from vault" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agregar nota de la bóveda"
           }
         }
       }
@@ -438,17 +462,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agregar regla"
-          }
-        }
-      }
-    },
-    "Add web page" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agregar página web"
+            "value" : "Añadir regla"
           }
         }
       }
@@ -473,7 +487,7 @@
         }
       }
     },
-    "All notes in vault" : {
+    "All Notes in Vault" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -489,6 +503,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Todas las reglas"
+          }
+        }
+      }
+    },
+    "Already connected" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya está conectada"
           }
         }
       }
@@ -653,22 +677,32 @@
         }
       }
     },
+    "Bookmark Heading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcar encabezado"
+          }
+        }
+      }
+    },
+    "Bookmark Search" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcar búsqueda"
+          }
+        }
+      }
+    },
     "Bookmark current file" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Marcar el archivo actual"
-          }
-        }
-      }
-    },
-    "Bookmark heading" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marcar encabezado"
           }
         }
       }
@@ -683,22 +717,22 @@
         }
       }
     },
-    "Bookmark search" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marcar búsqueda"
-          }
-        }
-      }
-    },
     "Bookmarks" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Marcadores"
+          }
+        }
+      }
+    },
+    "Building site…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creando sitio…"
           }
         }
       }
@@ -803,6 +837,16 @@
         }
       }
     },
+    "Cards" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarjetas"
+          }
+        }
+      }
+    },
     "Change color" : {
       "localizations" : {
         "es" : {
@@ -883,7 +927,7 @@
         }
       }
     },
-    "Clear sort" : {
+    "Clear Sort" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -913,7 +957,7 @@
         }
       }
     },
-    "Close pane" : {
+    "Close Pane" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1023,12 +1067,32 @@
         }
       }
     },
-    "Connect to %@" : {
+    "Connect to…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conectar con %@"
+            "value" : "Conectar con…"
+          }
+        }
+      }
+    },
+    "Connected to %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado a %@"
+          }
+        }
+      }
+    },
+    "Connection Label" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiqueta de conexión"
           }
         }
       }
@@ -1049,12 +1113,12 @@
         }
       }
     },
-    "Connection label" : {
+    "Connect…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Etiqueta de conexión"
+            "value" : "Conectar…"
           }
         }
       }
@@ -1075,6 +1139,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Convertir"
+          }
+        }
+      }
+    },
+    "Convert Existing Notes…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convertir notas existentes…"
           }
         }
       }
@@ -1129,16 +1203,6 @@
         }
       }
     },
-    "Convert existing notes…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Convertir notas existentes…"
-          }
-        }
-      }
-    },
     "Convert “%@”?" : {
       "localizations" : {
         "es" : {
@@ -1165,6 +1229,16 @@
         }
       }
     },
+    "Converting notes…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convirtiendo notas…"
+          }
+        }
+      }
+    },
     "Copy" : {
       "localizations" : {
         "es" : {
@@ -1175,7 +1249,7 @@
         }
       }
     },
-    "Copy link" : {
+    "Copy Link" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1195,7 +1269,7 @@
         }
       }
     },
-    "Couldn't open this base" : {
+    "Couldn't Open This Base" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1205,7 +1279,7 @@
         }
       }
     },
-    "Couldn't open vault" : {
+    "Couldn't Open Vault" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1215,12 +1289,22 @@
         }
       }
     },
-    "Couldn't read canvas" : {
+    "Couldn't Read Canvas" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo leer el lienzo"
+          }
+        }
+      }
+    },
+    "Create New Note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear nueva nota"
           }
         }
       }
@@ -1231,6 +1315,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crear nota"
+          }
+        }
+      }
+    },
+    "Create Theme from Current…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear tema a partir del actual…"
           }
         }
       }
@@ -1305,16 +1399,6 @@
         }
       }
     },
-    "Create theme from current…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear tema a partir del actual…"
-          }
-        }
-      }
-    },
     "Create this note" : {
       "localizations" : {
         "es" : {
@@ -1355,7 +1439,7 @@
         }
       }
     },
-    "Current note (%@)" : {
+    "Current Note (%@)" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1455,6 +1539,26 @@
         }
       }
     },
+    "Delete View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar vista"
+          }
+        }
+      }
+    },
+    "Delete View…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar vista…"
+          }
+        }
+      }
+    },
     "Delete connection" : {
       "localizations" : {
         "es" : {
@@ -1481,26 +1585,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "¿Eliminar esta vista?"
-          }
-        }
-      }
-    },
-    "Delete view" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliminar vista"
-          }
-        }
-      }
-    },
-    "Delete view…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliminar vista…"
           }
         }
       }
@@ -1595,16 +1679,6 @@
         }
       }
     },
-    "Double-click to edit" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Haz doble clic para editar"
-          }
-        }
-      }
-    },
     "Double-tap to add a card" : {
       "localizations" : {
         "es" : {
@@ -1645,6 +1719,16 @@
         }
       }
     },
+    "Edit Label…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar etiqueta…"
+          }
+        }
+      }
+    },
     "Edit card" : {
       "localizations" : {
         "es" : {
@@ -1661,16 +1745,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Editar etiqueta"
-          }
-        }
-      }
-    },
-    "Edit label…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Editar etiqueta…"
           }
         }
       }
@@ -1715,7 +1789,7 @@
         }
       }
     },
-    "End presentation" : {
+    "End Presentation" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1935,27 +2009,7 @@
         }
       }
     },
-    "Go to file…" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ir al archivo…"
-          }
-        }
-      }
-    },
-    "Graph View" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista de grafo"
-          }
-        }
-      }
-    },
-    "Graph settings" : {
+    "Graph Settings" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1965,7 +2019,7 @@
         }
       }
     },
-    "Graph view" : {
+    "Graph View" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2031,7 +2085,7 @@
         }
       }
     },
-    "Group by" : {
+    "Group By" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2041,7 +2095,7 @@
         }
       }
     },
-    "Group selection" : {
+    "Group Selection" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2161,22 +2215,32 @@
         }
       }
     },
+    "Import Failed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falló la importación"
+          }
+        }
+      }
+    },
+    "Import Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar notas"
+          }
+        }
+      }
+    },
     "Import complete" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importación completa"
-          }
-        }
-      }
-    },
-    "Import failed" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Falló la importación"
           }
         }
       }
@@ -2191,12 +2255,42 @@
         }
       }
     },
-    "Import notes" : {
+    "Imported %lld notes" : {
       "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %lld note"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %lld notes"
+                }
+              }
+            }
+          }
+        },
         "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importar notas"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Se importó %lld nota"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Se importaron %lld notas"
+                }
+              }
+            }
           }
         }
       }
@@ -2441,6 +2535,16 @@
         }
       }
     },
+    "List" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lista"
+          }
+        }
+      }
+    },
     "Load" : {
       "localizations" : {
         "es" : {
@@ -2451,7 +2555,7 @@
         }
       }
     },
-    "Local graph: %@" : {
+    "Local Graph: %@" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2571,6 +2675,16 @@
         }
       }
     },
+    "Minimum size" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño mínimo"
+          }
+        }
+      }
+    },
     "More" : {
       "localizations" : {
         "es" : {
@@ -2641,6 +2755,16 @@
         }
       }
     },
+    "Moved" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movido"
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "es" : {
@@ -2691,12 +2815,52 @@
         }
       }
     },
-    "New %@ view" : {
+    "New Base" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nueva vista de %@"
+            "value" : "Nueva base"
+          }
+        }
+      }
+    },
+    "New Canvas" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuevo lienzo"
+          }
+        }
+      }
+    },
+    "New Cards View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva vista de tarjetas"
+          }
+        }
+      }
+    },
+    "New Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva carpeta"
+          }
+        }
+      }
+    },
+    "New List View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva vista de lista"
           }
         }
       }
@@ -2721,52 +2885,22 @@
         }
       }
     },
+    "New Table View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva vista de tabla"
+          }
+        }
+      }
+    },
     "New Window" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nueva ventana"
-          }
-        }
-      }
-    },
-    "New base" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nueva base"
-          }
-        }
-      }
-    },
-    "New canvas" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nuevo lienzo"
-          }
-        }
-      }
-    },
-    "New folder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nueva carpeta"
-          }
-        }
-      }
-    },
-    "New note" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nueva nota"
           }
         }
       }
@@ -2781,7 +2915,7 @@
         }
       }
     },
-    "Next slide" : {
+    "Next Slide" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2791,7 +2925,7 @@
         }
       }
     },
-    "No bookmarks" : {
+    "No Bookmarks" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2801,12 +2935,72 @@
         }
       }
     },
-    "No color" : {
+    "No Color" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin color"
+          }
+        }
+      }
+    },
+    "No Footnotes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin notas al pie"
+          }
+        }
+      }
+    },
+    "No Headings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin encabezados"
+          }
+        }
+      }
+    },
+    "No Note Open" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ninguna nota abierta"
+          }
+        }
+      }
+    },
+    "No Results" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin resultados"
+          }
+        }
+      }
+    },
+    "No Snapshots Yet" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay instantáneas"
+          }
+        }
+      }
+    },
+    "No Tags" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin etiquetas"
           }
         }
       }
@@ -2841,72 +3035,12 @@
         }
       }
     },
-    "No footnotes" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sin notas al pie"
-          }
-        }
-      }
-    },
-    "No headings" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sin encabezados"
-          }
-        }
-      }
-    },
-    "No note open" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No hay ninguna nota abierta"
-          }
-        }
-      }
-    },
     "No notes yet" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aún no hay notas"
-          }
-        }
-      }
-    },
-    "No results" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sin resultados"
-          }
-        }
-      }
-    },
-    "No snapshots yet" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aún no hay instantáneas"
-          }
-        }
-      }
-    },
-    "No tags" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sin etiquetas"
           }
         }
       }
@@ -3071,6 +3205,26 @@
         }
       }
     },
+    "Off" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado"
+          }
+        }
+      }
+    },
+    "On" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activado"
+          }
+        }
+      }
+    },
     "One folder" : {
       "localizations" : {
         "es" : {
@@ -3107,6 +3261,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir carpeta como bóveda…"
+          }
+        }
+      }
+    },
+    "Open Imported Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir carpeta importada"
+          }
+        }
+      }
+    },
+    "Open Local Graph" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir grafo local"
           }
         }
       }
@@ -3151,22 +3325,22 @@
         }
       }
     },
+    "Open a Vault to Change Its Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una bóveda para cambiar sus ajustes"
+          }
+        }
+      }
+    },
     "Open a vault in Netherite first." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Primero abre una bóveda en Netherite."
-          }
-        }
-      }
-    },
-    "Open a vault to change its settings" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abre una bóveda para cambiar sus ajustes"
           }
         }
       }
@@ -3181,17 +3355,7 @@
         }
       }
     },
-    "Open imported folder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir carpeta importada"
-          }
-        }
-      }
-    },
-    "Open in browser" : {
+    "Open in Browser" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3201,22 +3365,12 @@
         }
       }
     },
-    "Open in new pane" : {
+    "Open in New Pane" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir en panel nuevo"
-          }
-        }
-      }
-    },
-    "Open local graph" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir grafo local"
           }
         }
       }
@@ -3237,16 +3391,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir ajustes"
-          }
-        }
-      }
-    },
-    "Open today's daily note" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir la nota diaria de hoy"
           }
         }
       }
@@ -3351,7 +3495,7 @@
         }
       }
     },
-    "Previous slide" : {
+    "Previous Slide" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3381,6 +3525,16 @@
         }
       }
     },
+    "Properties…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Propiedades…"
+          }
+        }
+      }
+    },
     "Property" : {
       "localizations" : {
         "es" : {
@@ -3391,7 +3545,7 @@
         }
       }
     },
-    "Property type" : {
+    "Property Type" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3431,7 +3585,7 @@
         }
       }
     },
-    "Publishing failed" : {
+    "Publishing Failed" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3591,7 +3745,7 @@
         }
       }
     },
-    "Remove bookmark" : {
+    "Remove Bookmark" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3601,22 +3755,22 @@
         }
       }
     },
-    "Remove from list" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quitar de la lista"
-          }
-        }
-      }
-    },
-    "Remove rule" : {
+    "Remove Rule" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quitar regla"
+          }
+        }
+      }
+    },
+    "Remove from List" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de la lista"
           }
         }
       }
@@ -3631,22 +3785,22 @@
         }
       }
     },
+    "Rename Group" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renombrar grupo"
+          }
+        }
+      }
+    },
     "Rename file" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Renombrar archivo"
-          }
-        }
-      }
-    },
-    "Rename group" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Renombrar grupo"
           }
         }
       }
@@ -3681,7 +3835,7 @@
         }
       }
     },
-    "Reset view" : {
+    "Reset View" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3701,22 +3855,22 @@
         }
       }
     },
+    "Resized" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redimensionado"
+          }
+        }
+      }
+    },
     "Restore" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restaurar"
-          }
-        }
-      }
-    },
-    "Reveal in Finder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostrar en el Finder"
           }
         }
       }
@@ -3751,7 +3905,7 @@
         }
       }
     },
-    "Save as note" : {
+    "Save as Note" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3777,6 +3931,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Espacios de trabajo guardados"
+          }
+        }
+      }
+    },
+    "Saving converted notes…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardando notas convertidas…"
           }
         }
       }
@@ -3831,22 +3995,22 @@
         }
       }
     },
-    "Select a snapshot" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selecciona una instantánea"
-          }
-        }
-      }
-    },
-    "Select all" : {
+    "Select All" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Seleccionar todo"
+          }
+        }
+      }
+    },
+    "Select a Snapshot" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selecciona una instantánea"
           }
         }
       }
@@ -3961,7 +4125,7 @@
         }
       }
     },
-    "Something went wrong" : {
+    "Something Went Wrong" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4021,7 +4185,7 @@
         }
       }
     },
-    "Start presentation" : {
+    "Start Presentation" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4331,16 +4495,6 @@
         }
       }
     },
-    "Toggle inspector" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostrar u ocultar inspector"
-          }
-        }
-      }
-    },
     "Toggle italic" : {
       "localizations" : {
         "es" : {
@@ -4498,6 +4652,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sin título"
+          }
+        }
+      }
+    },
+    "Untitled card" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarjeta sin título"
           }
         }
       }
@@ -4713,7 +4877,7 @@
         }
       }
     },
-    "Zoom in" : {
+    "Zoom In" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4723,7 +4887,7 @@
         }
       }
     },
-    "Zoom out" : {
+    "Zoom Out" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4733,12 +4897,12 @@
         }
       }
     },
-    "Zoom to fit" : {
+    "Zoom to Fit" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ajustar al tamaño"
+            "value" : "Ajustar a la ventana"
           }
         }
       }

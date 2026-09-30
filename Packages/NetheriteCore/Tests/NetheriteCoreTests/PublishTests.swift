@@ -9,7 +9,7 @@ import Testing
     let out = FileManager.default.temporaryDirectory.appending(path: "netherite-site-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: out) }
 
-    let report = try SiteExporter.export(index, to: out)
+    let report = try await SiteExporter.export(index, to: out)
     #expect(report.pages == index.markdownFiles.filter { !$0.hasPrefix("Templates/") }.count)
     func read(_ p: String) throws -> String { try String(contentsOf: out.appending(path: p), encoding: .utf8) }
     for f in ["index.html", "welcome.html", "projects/japan-trip.html", "graph.html", "404.html", "search.json",
@@ -32,7 +32,7 @@ import Testing
 
     var published = PublishOptions(); published.scope = .folder; published.folder = "Books"
     let out2 = out.appending(path: "books-only")
-    #expect(try SiteExporter.export(index, to: out2, options: published).pages == 1)
+    #expect(try await SiteExporter.export(index, to: out2, options: published).pages == 1)
 }
 
 @Test func cloudflareRequests() throws {

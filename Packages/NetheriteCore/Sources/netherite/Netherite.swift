@@ -94,7 +94,7 @@ struct Export: AsyncParsableCommand {
     @OptionGroup var e: ExportOptions
     @MainActor func run() async throws {
         let index = try await v.load()
-        let r = try SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
+        let r = try await SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
         print("Exported \(r.pages) pages and \(r.attachments) attachments to \(e.outURL.path(percentEncoded: false))")
     }
 }
@@ -110,7 +110,7 @@ struct Publish: AsyncParsableCommand {
             throw ValidationError("Set CLOUDFLARE_API_TOKEN to a token with Cloudflare Pages: Edit permission.")
         }
         let index = try await v.load()
-        try SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
+        try await SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
         let url = try await CloudflarePagesDeployer(accountID: account, projectName: project, apiToken: token)
             .deploy(e.outURL) { print($0) }
         print("Deployed: \(url.absoluteString)")

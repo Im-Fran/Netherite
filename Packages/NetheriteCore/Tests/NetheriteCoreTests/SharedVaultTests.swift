@@ -19,3 +19,11 @@ import Testing
     #expect(vault.excerpt("Hello World.md") == "Body text")
     try? FileManager.default.removeItem(at: dir)
 }
+
+@Test func deepLinkEscapesSpecialCharacters() {
+    let path = "Q&A/C++ notes #1.md"
+    let url = SharedVault.openURL(path: path)
+    let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+    #expect(url.host() == "open")
+    #expect(items?.first { $0.name == "path" }?.value == path)
+}

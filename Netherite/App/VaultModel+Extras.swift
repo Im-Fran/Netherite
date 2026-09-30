@@ -21,7 +21,7 @@ struct Bookmark: Codable, Hashable, Identifiable {
         switch kind {
         case .search: return query ?? ""
         case .heading: return "\(path?.noteName ?? "") › \(subpath ?? "")"
-        case .graph: return String(localized: "Graph view")
+        case .graph: return String(localized: "Graph View")
         default: return path.map { $0.isMarkdown ? $0.noteName : ($0 as NSString).lastPathComponent } ?? ""
         }
     }

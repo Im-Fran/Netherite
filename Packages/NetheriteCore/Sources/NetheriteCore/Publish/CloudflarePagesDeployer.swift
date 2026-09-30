@@ -94,12 +94,12 @@ public struct CloudflarePagesDeployer: Sendable {
     /// Deploys `dir`, creating the project if needed. Returns the deployment URL.
     public func deploy(_ dir: URL, session: URLSession = .shared, progress: @Sendable (String) -> Void = { _ in }) async throws -> URL {
         let assets = try Self.assets(in: dir)
-        guard !assets.isEmpty else { throw DeployError(message: String(localized: "There's nothing to deploy in that folder.")) }
+        guard !assets.isEmpty else { throw DeployError(message: String(localized: "There's nothing to deploy in that folder.", bundle: .module)) }
 
-        progress(String(localized: "Checking project…"))
+        progress(String(localized: "Checking project…", bundle: .module))
         try await ensureProject(session)
 
-        progress(String(localized: "Requesting upload token…"))
+        progress(String(localized: "Requesting upload token…", bundle: .module))
         struct JWT: Decodable { var jwt: String }
         let jwt = try await call(try request("GET", "accounts/\(accountID)/pages/projects/\(projectName)/upload-token"), session, as: JWT.self).jwt
 
@@ -107,13 +107,13 @@ public struct CloudflarePagesDeployer: Sendable {
         let missing = Set(try await call(try request("POST", "pages/assets/check-missing", bearer: jwt, json: ["hashes": hashes]), session, as: [String].self))
         let toUpload = assets.filter { missing.contains($0.hash) }
         for (i, bucket) in Self.buckets(toUpload).enumerated() {
-            progress(String(localized: "Uploading files (\(i + 1))…"))
+            progress(String(localized: "Uploading files (\(i + 1))…", bundle: .module))
             let payload = bucket.map { ["key": $0.hash, "value": $0.base64, "metadata": ["contentType": $0.contentType], "base64": true] as [String: Any] }
             _ = try await raw(try request("POST", "pages/assets/upload", bearer: jwt, json: payload), session)
         }
         _ = try? await raw(try request("POST", "pages/assets/upsert-hashes", bearer: jwt, json: ["hashes": hashes]), session)
 
-        progress(String(localized: "Creating deployment…"))
+        progress(String(localized: "Creating deployment…", bundle: .module))
         struct Deployment: Decodable { var url: String? }
         let d = try await call(try deploymentRequest(manifest: Self.manifest(assets)), session, as: Deployment.self)
         guard let s = d.url, let url = URL(string: s) else { return URL(string: "https://\(projectName).pages.dev")! }
@@ -148,6 +148,6 @@ public struct CloudflarePagesDeployer: Sendable {
     static func error(from data: Data) -> DeployError {
         struct E: Decodable { struct M: Decodable { var code: Int?; var message: String }; var errors: [M]? }
         let msg = (try? JSONDecoder().decode(E.self, from: data))?.errors?.map(\.message).joined(separator: "\n")
-        return DeployError(message: msg ?? String(localized: "Cloudflare returned an unexpected response."))
+        return DeployError(message: msg ?? String(localized: "Cloudflare returned an unexpected response.", bundle: .module))
     }
 }

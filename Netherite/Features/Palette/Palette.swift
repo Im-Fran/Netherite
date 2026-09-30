@@ -21,8 +21,22 @@ struct PaletteView: View {
     @FocusState private var focused: Bool
 
     var body: some View {
+        #if os(macOS)
+        content.frame(minWidth: 520, idealWidth: 600, minHeight: 360, idealHeight: 440)
+        #else
+        NavigationStack {
+            content
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+                .navigationTitle(prompt)
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.large])
+        #endif
+    }
+
+    private var content: some View {
         let list = items(query)
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             TextField(prompt, text: $query)
                 .textFieldStyle(.plain)
                 .font(.title3)
@@ -64,10 +78,9 @@ struct PaletteView: View {
                 Text(footer).font(.caption).foregroundStyle(.secondary).padding(8)
             }
         }
-        .frame(minWidth: 520, idealWidth: 600, minHeight: 360, idealHeight: 440)
         .onAppear { focused = true }
         .onChange(of: query) { selection = 0 }
-        .presentationDetents([.large])
+        .accessibilityAction(.escape) { dismiss() }
     }
 
     private func run(_ list: [PaletteItem], alternate: Bool) {

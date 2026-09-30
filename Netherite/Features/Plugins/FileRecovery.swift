@@ -84,7 +84,7 @@ struct FileRecoveryView: View {
                 Text(s.date.formatted(date: .abbreviated, time: .shortened)).tag(s)
             }
             .navigationTitle(path.noteName)
-            .overlay { if snapshots.isEmpty { ContentUnavailableView("No snapshots yet", systemImage: "clock.arrow.circlepath") } }
+            .overlay { if snapshots.isEmpty { ContentUnavailableView("No Snapshots Yet", systemImage: "clock.arrow.circlepath") } }
         } detail: {
             if let s = selection, let text = try? String(contentsOf: s.url, encoding: .utf8) {
                 ScrollView {
@@ -103,7 +103,7 @@ struct FileRecoveryView: View {
                     }
                 }
             } else {
-                ContentUnavailableView("Select a snapshot", systemImage: "clock")
+                ContentUnavailableView("Select a Snapshot", systemImage: "clock")
             }
         }
         .frame(minWidth: 700, minHeight: 460)

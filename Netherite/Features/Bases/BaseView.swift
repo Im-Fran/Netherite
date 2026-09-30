@@ -20,7 +20,7 @@ struct BaseView: View {
         Group {
             if let loadError {
                 ContentUnavailableView {
-                    Label("Couldn't open this base", systemImage: "exclamationmark.triangle")
+                    Label("Couldn't Open This Base", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(loadError)
                 } actions: {
@@ -45,7 +45,7 @@ struct BaseView: View {
             content(view: view, rows: rows, columns: columns)
                 .overlay {
                     if rows.isEmpty {
-                        ContentUnavailableView("No results", systemImage: "line.3.horizontal.decrease.circle",
+                        ContentUnavailableView("No Results", systemImage: "line.3.horizontal.decrease.circle",
                                                description: Text("No files match this view's filters."))
                     }
                 }
@@ -55,7 +55,8 @@ struct BaseView: View {
     // MARK: Header
 
     private func header(views: [BaseViewConfig], view: BaseViewConfig, count: Int) -> some View {
-        HStack(spacing: 12) {
+        let compact = sizeClass == .compact
+        return HStack(spacing: compact ? 4 : 12) {
             Picker("View", selection: $selected) {
                 ForEach(Array(views.enumerated()), id: \.offset) { i, v in
                     Label(v.name, systemImage: symbol(v.kind)).tag(i)
@@ -64,12 +65,13 @@ struct BaseView: View {
             .pickerStyle(.menu)
             .labelsHidden()
             .labelStyle(.titleAndIcon)
-            .fixedSize()
+            .fixedSize(horizontal: !compact, vertical: false)   // may truncate on iPhone instead of pushing controls off-screen
+            .iosTarget()
 
             if sizeClass != .compact {
                 Text("\(count) results").font(.callout).foregroundStyle(.secondary).monospacedDigit()
             }
-            Spacer()
+            Spacer(minLength: 0)
 
             if sizeClass != .compact {
                 layoutPicker(view)
@@ -84,25 +86,29 @@ struct BaseView: View {
                 .symbolVariant(view.filters == nil ? .none : .fill)
                 .keyboardShortcut("l", modifiers: [.command, .option])
                 .help("Filter (⌥⌘L)")
+                .accessibilityValue(view.filters == nil ? Text("Off") : Text("On"))
                 .iosTarget()
                 .popover(isPresented: $showFilters) { FilterEditor(filter: view.filters, keys: allProperties) { f in update { $0.filters = f } } }
 
-            Button("Properties", systemImage: "tablecells.badge.ellipsis") { showColumns = true }
-                .help("Choose properties")
-                .iosTarget()
-                .popover(isPresented: $showColumns) { columnPicker(view) }
+            if !compact {
+                Button("Properties", systemImage: "tablecells.badge.ellipsis") { showColumns = true }
+                    .help("Choose properties")
+                    .iosTarget()
+                    .popover(isPresented: $showColumns) { columnPicker(view) }
+            }
 
             Menu {
                 if sizeClass == .compact {
                     layoutPicker(view).pickerStyle(.inline)
+                    Button("Properties…", systemImage: "tablecells.badge.ellipsis") { showColumns = true }
                     Divider()
                 }
                 ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in
-                    Button("New \(k.rawValue) view", systemImage: symbol(k)) { addView(k) }
+                    Button(newViewTitle(k), systemImage: symbol(k)) { addView(k) }
                 }
                 if base.views.count > 1 {
                     Divider()
-                    Button("Delete view…", systemImage: "trash", role: .destructive) { confirmDeleteView = true }
+                    Button("Delete View…", systemImage: "trash", role: .destructive) { confirmDeleteView = true }
                 }
             } label: { Label("Views", systemImage: "plus.rectangle.on.rectangle") }
                 .menuStyle(.button)
@@ -110,20 +116,38 @@ struct BaseView: View {
                 .iosTarget()
                 .help("Add or delete views")
                 .confirmationDialog("Delete this view?", isPresented: $confirmDeleteView, titleVisibility: .visible) {
-                    Button("Delete view", role: .destructive) { deleteView() }
+                    Button("Delete View", role: .destructive) { deleteView() }
                 } message: {
                     Text("Its filters, sort and columns will be removed from the base.")
                 }
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, compact ? 8 : 16)
         .padding(.vertical, 8)
+        // Compact width opens Properties from the Views menu, so anchor on the header there.
+        .popover(isPresented: Binding(get: { compact && showColumns }, set: { showColumns = $0 }), arrowEdge: .top) { columnPicker(view) }
+    }
+
+    private func kindName(_ k: BaseViewConfig.Kind) -> String {
+        switch k {
+        case .table: String(localized: "Table")
+        case .cards: String(localized: "Cards")
+        case .list: String(localized: "List")
+        }
+    }
+
+    private func newViewTitle(_ k: BaseViewConfig.Kind) -> LocalizedStringKey {
+        switch k {
+        case .table: "New Table View"
+        case .cards: "New Cards View"
+        case .list: "New List View"
+        }
     }
 
     private func layoutPicker(_ view: BaseViewConfig) -> some View {
         Picker("Layout", selection: Binding(get: { view.kind }, set: { k in update { $0.type = k.rawValue } })) {
-            ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in Label(k.rawValue.capitalized, systemImage: symbol(k)).tag(k) }
+            ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in Label(kindName(k), systemImage: symbol(k)).tag(k) }
         }
     }
 
@@ -144,11 +168,11 @@ struct BaseView: View {
                 }
             }
             Divider()
-            Menu("Group by") {
+            Menu("Group By") {
                 Button("None") { update { $0.groupBy = nil } }
                 ForEach(allProperties, id: \.self) { p in Button(base.displayName(p)) { update { $0.groupBy = BaseSort(property: p) } } }
             }
-            if !view.sort.isEmpty { Button("Clear sort") { update { $0.sort = [] } } }
+            if !view.sort.isEmpty { Button("Clear Sort") { update { $0.sort = [] } } }
         } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
         .help("Sort")
             .menuStyle(.button)
@@ -251,13 +275,9 @@ struct BaseView: View {
         return nil
     }
 
+    /// Cached, so scrolling the card grid doesn't reread images from disk.
     private func loadImage(_ path: String) -> Image? {
-        let file = model.vault.url(for: path).path(percentEncoded: false)
-        #if os(macOS)
-        return NSImage(contentsOfFile: file).map { Image(nsImage: $0) }
-        #else
-        return UIImage(contentsOfFile: file).map { Image(uiImage: $0) }
-        #endif
+        ImageCache.shared.image(at: model.vault.url(for: path)).map(Image.init(platformImage:))
     }
 
     private func openButton(_ r: BaseRow) -> some View {
@@ -276,7 +296,7 @@ struct BaseView: View {
                 Toggle(base.displayName(column), isOn: Binding(get: { b }, set: { setProperty(key, .bool($0), of: r.path) }))
                     .labelsHidden()
             } else {
-                PropertyCell(value: v.description) { setProperty(key, typed($0, like: v), of: r.path) }
+                PropertyCell(label: base.displayName(column), value: v.description) { setProperty(key, typed($0, like: v), of: r.path) }
             }
         } else {
             Text(v.description).foregroundStyle(.secondary)
@@ -337,7 +357,7 @@ struct BaseView: View {
     }
 
     private func addView(_ kind: BaseViewConfig.Kind) {
-        let name = String(localized: "\(kind.rawValue.capitalized) \(base.views.count + 1)")
+        let name = "\(kindName(kind)) \(base.views.count + 1)"
         base.views.append(BaseViewConfig(type: kind.rawValue, name: name, order: base.views.first?.order ?? ["file.name"]))
         selected = base.views.count - 1
         save()
@@ -358,13 +378,14 @@ struct BaseView: View {
 
 /// Text cell that commits on Return or when focus leaves.
 private struct PropertyCell: View {
+    let label: String
     let value: String
     let commit: (String) -> Void
     @State private var text = ""
     @FocusState private var focused: Bool
 
     var body: some View {
-        TextField("Value", text: $text)
+        TextField(label, text: $text)
             .labelsHidden()
             .textFieldStyle(.plain)
             .focused($focused)
@@ -438,7 +459,8 @@ private struct FilterEditor: View {
                         TextField("Expression", text: Binding(get: { rules.indices.contains(i) ? rules[i] : "" },
                                                               set: { if rules.indices.contains(i) { rules[i] = $0 } }))
                             .font(.body.monospaced())
-                        Button("Remove rule", systemImage: "minus.circle") { if rules.indices.contains(i) { rules.remove(at: i) } }
+                        Button("Remove Rule", systemImage: "minus.circle") { if rules.indices.contains(i) { rules.remove(at: i) } }
+                            .iosTarget()
                             .labelStyle(.iconOnly).buttonStyle(.borderless)
                     }
                 }
@@ -448,7 +470,7 @@ private struct FilterEditor: View {
                 Picker("Property", selection: $property) { ForEach(keys, id: \.self) { Text($0).tag($0) } }
                 Picker("Operator", selection: $op) { ForEach(Self.ops, id: \.self) { Text($0).tag($0) } }
                 if !op.hasPrefix("is ") { TextField("Value", text: $value) }
-                Button("Add rule", systemImage: "plus") { rules.append(expression()); value = "" }
+                Button("Add Rule", systemImage: "plus") { rules.append(expression()); value = "" }
             }
             HStack {
                 Button("Clear") { rules = [] ; commit() }
@@ -523,6 +545,9 @@ private struct ColumnPicker: View {
                 }
                 .onMove { var o = order; o.move(fromOffsets: $0, toOffset: $1); apply(o) }
             }
+            #if os(iOS)
+            .environment(\.editMode, .constant(.active))   // drag handles to reorder shown columns
+            #endif
             Section("Available") {
                 ForEach(all.filter { !order.contains($0) }, id: \.self) { c in
                     Toggle(displayName(c), isOn: Binding(get: { false }, set: { if $0 { apply(order + [c]) } }))
@@ -531,7 +556,7 @@ private struct ColumnPicker: View {
             Section("Add formula") {
                 TextField("Name", text: $name)
                 TextField("Expression, e.g. rating * 2", text: $expr).font(.body.monospaced())
-                Button("Add formula", systemImage: "function") {
+                Button("Add Formula", systemImage: "function") {
                     addFormula(name.trimmingCharacters(in: .whitespaces), expr)
                     name = ""; expr = ""
                 }
@@ -540,6 +565,16 @@ private struct ColumnPicker: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 320, minHeight: 440)
+    }
+}
+
+extension Image {
+    init(platformImage: PlatformImage) {
+        #if os(macOS)
+        self.init(nsImage: platformImage)
+        #else
+        self.init(uiImage: platformImage)
+        #endif
     }
 }
 

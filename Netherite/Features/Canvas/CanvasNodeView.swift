@@ -8,6 +8,7 @@ struct CanvasNodeView: View {
     let additive: Bool
     @Environment(WindowState.self) private var window
     @State private var hovered = false
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var selected: Bool { model.selection.contains(node.id) }
     private var editing: Bool { model.editing == node.id }
@@ -100,7 +101,8 @@ struct CanvasNodeView: View {
 
     private var border: some View {
         RoundedRectangle(cornerRadius: isGroup ? 16 : 10, style: .continuous)
-            .strokeBorder(selected ? Color.accentColor : (tint ?? Color.secondary.opacity(0.35)), lineWidth: selected ? 2.5 : (tint == nil ? 1 : 2))
+            .strokeBorder(selected ? Color.accentColor : (tint ?? Color.secondary.opacity(contrast == .increased ? 0.8 : 0.35)),
+                          lineWidth: selected ? 2.5 : (tint == nil && contrast != .increased ? 1 : 2))
     }
 
     // MARK: Handles
@@ -181,12 +183,12 @@ struct CanvasNodeView: View {
     @ViewBuilder private var menu: some View {
         switch node.type {
         case "text": Button("Edit", systemImage: "pencil") { model.beginEditing(node.id) }
-        case "group": Button("Rename group", systemImage: "pencil") { model.beginEditing(node.id) }
+        case "group": Button("Rename Group", systemImage: "pencil") { model.beginEditing(node.id) }
         case "file", "link": Button("Open", systemImage: "arrow.up.forward.square") { activate() }
         default: EmptyView()
         }
         Menu("Color") {
-            Button("No color") { model.selection = [node.id]; model.setColor(nil) }
+            Button("No Color") { model.selection = [node.id]; model.setColor(nil) }
             ForEach(CanvasColor.presets, id: \.id) { p in
                 Button(String(localized: p.name)) { model.selection = [node.id]; model.setColor(p.id) }
             }
@@ -251,11 +253,7 @@ struct FileCard: View {
     }
 
     private func loadImage(_ url: URL) -> Image? {
-        #if os(macOS)
-        NSImage(contentsOf: url).map(Image.init(nsImage:))
-        #else
-        UIImage(contentsOfFile: url.path(percentEncoded: false)).map(Image.init(uiImage:))
-        #endif
+        ImageCache.shared.image(at: url).map(Image.init(platformImage:))
     }
 }
 
@@ -270,13 +268,21 @@ private struct CanvasNodeAccessibility: ViewModifier {
     func body(content: Content) -> some View {
         base(content)
             .accessibilityActions {
-                ForEach(model.canvas.nodes.filter { $0.id != node.id && $0.type != "group" }) { other in
-                    Button(String(localized: "Connect to \(other.displayTitle)")) { model.connect(from: node.id, to: other.id) }
-                }
+                // One action that opens a searchable picker, instead of one action per card.
+                Button(String(localized: "Connect…")) { model.connectingFrom = node.id }
+                Button(String(localized: "No Color")) { model.setColor(nil, for: node.id) }
                 ForEach(CanvasColor.presets, id: \.id) { p in
-                    Button(String(localized: "Color: \(String(localized: p.name))")) { model.selection = [node.id]; model.setColor(p.id) }
+                    Button(String(localized: "Color: \(String(localized: p.name))")) { model.setColor(p.id, for: node.id) }
                 }
             }
+    }
+
+    private func announce(_ s: String) { AccessibilityNotification.Announcement(s).post() }
+
+    private func resize(_ d: Double) {
+        let before = model.canvas.node(node.id)?.frame.size
+        model.nudge(node.id, dw: d, dh: d)
+        announce(model.canvas.node(node.id)?.frame.size == before ? String(localized: "Minimum size") : String(localized: "Resized"))
     }
 
     private func base(_ content: Content) -> some View {
@@ -286,11 +292,11 @@ private struct CanvasNodeAccessibility: ViewModifier {
             .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
             .accessibilityAction(named: "Open") { activate() }
             .accessibilityAction(named: "Delete") { model.selection = [node.id]; model.deleteSelection() }
-            .accessibilityAction(named: "Move left") { model.nudge(node.id, dx: -40) }
-            .accessibilityAction(named: "Move right") { model.nudge(node.id, dx: 40) }
-            .accessibilityAction(named: "Move up") { model.nudge(node.id, dy: -40) }
-            .accessibilityAction(named: "Move down") { model.nudge(node.id, dy: 40) }
-            .accessibilityAction(named: "Make larger") { model.nudge(node.id, dw: 40, dh: 40) }
-            .accessibilityAction(named: "Make smaller") { model.nudge(node.id, dw: -40, dh: -40) }
+            .accessibilityAction(named: "Move left") { model.nudge(node.id, dx: -40); announce(String(localized: "Moved")) }
+            .accessibilityAction(named: "Move right") { model.nudge(node.id, dx: 40); announce(String(localized: "Moved")) }
+            .accessibilityAction(named: "Move up") { model.nudge(node.id, dy: -40); announce(String(localized: "Moved")) }
+            .accessibilityAction(named: "Move down") { model.nudge(node.id, dy: 40); announce(String(localized: "Moved")) }
+            .accessibilityAction(named: "Make larger") { resize(40) }
+            .accessibilityAction(named: "Make smaller") { resize(-40) }
     }
 }

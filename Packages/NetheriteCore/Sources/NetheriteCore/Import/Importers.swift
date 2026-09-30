@@ -65,7 +65,7 @@ public struct Importer: Sendable {
 
     func importENEX(_ url: URL, _ w: inout Writer) throws {
         let files = try Self.files(at: url).filter { $0.path.lowercased().hasSuffix(".enex") }
-        if files.isEmpty { w.report.warnings.append(String(localized: "No .enex files found.")) }
+        if files.isEmpty { w.report.warnings.append(String(localized: "No .enex files found.", bundle: .module)) }
         for f in files {
             let notebook = f.path.noteName
             for note in ENEXParser.parse(f.data) {
@@ -105,7 +105,7 @@ public struct Importer: Sendable {
     func importHTML(_ files: [(path: String, data: Data)], _ w: inout Writer) {
         let byPath = Dictionary(files.map { ($0.path.lowercased(), $0.data) }, uniquingKeysWith: { a, _ in a })
         let pages = files.filter { ["html", "htm"].contains($0.path.fileExtension) }
-        if pages.isEmpty { w.report.warnings.append(String(localized: "No HTML files found.")) }
+        if pages.isEmpty { w.report.warnings.append(String(localized: "No HTML files found.", bundle: .module)) }
         for page in pages {
             let html = String(decoding: page.data, as: UTF8.self)
             var copied: [String: String] = [:]
@@ -263,7 +263,7 @@ struct Writer {
     static func safeName(_ s: String) -> String {
         let cleaned = s.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]\n\r\t]"#, with: " ", options: .regularExpression)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
-        return cleaned.isEmpty ? String(localized: "Untitled") : String(cleaned.prefix(120))
+        return cleaned.isEmpty ? String(localized: "Untitled", bundle: .module) : String(cleaned.prefix(120))
     }
 
     mutating func note(_ text: String, name: String, folder: String, converter: FormatConverter.Options?) {

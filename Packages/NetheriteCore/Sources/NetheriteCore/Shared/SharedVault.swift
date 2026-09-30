@@ -73,3 +73,16 @@ public extension Vault {
         return String(body.trimmingCharacters(in: .whitespacesAndNewlines).prefix(length))
     }
 }
+
+public extension SharedVault {
+    /// `netherite://open?path=…`, built with URLComponents so `&`, `+` and `#` in names survive.
+    static func openURL(path: String) -> URL {
+        var c = URLComponents()
+        c.scheme = "netherite"
+        c.host = "open"
+        c.queryItems = [URLQueryItem(name: "path", value: path)]
+        // URLComponents leaves "+" as-is in queries, which some parsers read as a space.
+        c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        return c.url!
+    }
+}

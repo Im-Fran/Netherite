@@ -47,7 +47,7 @@ struct InspectorView: View {
                 case .footnotes: FootnotesView(path: path)
                 }
             } else {
-                ContentUnavailableView("No note open", systemImage: "doc.text")
+                ContentUnavailableView("No Note Open", systemImage: "doc.text")
             }
         }
     }
@@ -164,10 +164,10 @@ struct OutlineView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .contextMenu { Button("Bookmark heading", systemImage: "bookmark") { window.model.addBookmark(.heading(path, h.text)) } }
+            .contextMenu { Button("Bookmark Heading", systemImage: "bookmark") { window.model.addBookmark(.heading(path, h.text)) } }
         }
         .listStyle(.sidebar)
-        .overlay { if headings.isEmpty { ContentUnavailableView("No headings", systemImage: "list.bullet.indent") } }
+        .overlay { if headings.isEmpty { ContentUnavailableView("No Headings", systemImage: "list.bullet.indent") } }
     }
 }
 
@@ -187,7 +187,7 @@ struct FootnotesView: View {
             .buttonStyle(.plain)
         }
         .listStyle(.sidebar)
-        .overlay { if notes.isEmpty { ContentUnavailableView("No footnotes", systemImage: "textformat.superscript") } }
+        .overlay { if notes.isEmpty { ContentUnavailableView("No Footnotes", systemImage: "textformat.superscript") } }
     }
 }
 
@@ -207,7 +207,7 @@ struct PropertiesEditor: View {
                     Label(p.key, systemImage: icon(p.value.kind))
                 }
                 .contextMenu {
-                    Menu("Property type") {
+                    Menu("Property Type") {
                         ForEach(PropertyValue.Kind.allCases, id: \.self) { k in
                             Button(k.rawValue.capitalized) { set(p.key, convert(p.value, to: k), in: props) }
                         }

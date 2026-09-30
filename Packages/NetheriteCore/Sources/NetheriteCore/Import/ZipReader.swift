@@ -16,9 +16,9 @@ public struct ZipReader {
         case notAZip, unsupported(String), corrupt
         public var errorDescription: String? {
             switch self {
-            case .notAZip: String(localized: "The file isn't a ZIP archive.")
-            case .unsupported(let m): String(localized: "Unsupported ZIP feature: \(m)")
-            case .corrupt: String(localized: "The ZIP archive is damaged.")
+            case .notAZip: String(localized: "The file isn't a ZIP archive.", bundle: .module)
+            case .unsupported(let m): String(localized: "Unsupported ZIP feature: \(m)", bundle: .module)
+            case .corrupt: String(localized: "The ZIP archive is damaged.", bundle: .module)
             }
         }
     }

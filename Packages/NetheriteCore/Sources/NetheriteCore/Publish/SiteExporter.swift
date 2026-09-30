@@ -23,8 +23,10 @@ public enum SiteExporter {
     }
 
     /// Files written directly into `out` (existing unrelated files are left alone).
+    /// Yields between pages so the UI stays responsive; `progress` gets 0…1.
     @discardableResult
-    public static func export(_ index: VaultIndex, to out: URL, options: PublishOptions = .init(), theme: Theme? = nil) throws -> Report {
+    public static func export(_ index: VaultIndex, to out: URL, options: PublishOptions = .init(), theme: Theme? = nil,
+                              progress: ((Double) -> Void)? = nil) async throws -> Report {
         let fm = FileManager.default
         try fm.createDirectory(at: out, withIntermediateDirectories: true)
 
@@ -52,7 +54,10 @@ public enum SiteExporter {
 
         // Notes
         var tags: [String: [String]] = [:]
-        for path in notes {
+        for (i, path) in notes.enumerated() {
+            progress?(Double(i) / Double(max(1, notes.count)))
+            await Task.yield()
+            try Task.checkCancellation()
             guard let rec = index.notes[path] else { continue }
             let rel = pagePath(path)
             try write(page(index: index, source: path, text: rec.text, rel: rel, published: published, home: home,
@@ -75,7 +80,7 @@ public enum SiteExporter {
         }
 
         // 404 (served from any depth on hosts like Cloudflare Pages, so links are root-absolute)
-        try write(shell(title: String(localized: "Page not found"), body: "<p><a href=\"/\">\(HTMLRenderer.escape(siteName))</a></p>",
+        try write(shell(title: String(localized: "Page not found", bundle: .module), body: "<p><a href=\"/\">\(HTMLRenderer.escape(siteName))</a></p>",
                         prefix: "/", current: nil, notes: notes, siteName: siteName, theme: theme), "404.html")
 
         // Search index and graph data (JSON + JS so they also work when opened from file://)
@@ -93,7 +98,7 @@ public enum SiteExporter {
         let graphJSON = try json(["nodes": nodes, "links": links])
         try Data(graphJSON.utf8).write(to: out.appending(path: "graph.json"))
         try Data("window.NETHERITE_GRAPH = \(graphJSON);".utf8).write(to: assets.appending(path: "graph-data.js"))
-        try write(shell(title: String(localized: "Graph view"), body: "<canvas id=\"graph\" aria-label=\"Graph of linked notes\"></canvas><script src=\"assets/graph-data.js\"></script><script src=\"assets/graph.js\"></script>",
+        try write(shell(title: String(localized: "Graph View", bundle: .module), body: "<canvas id=\"graph\" role=\"img\" aria-label=\"\(HTMLRenderer.escape(String(localized: "Graph of linked notes", bundle: .module)))\"></canvas><script src=\"assets/graph-data.js\"></script><script src=\"assets/graph.js\"></script>",
                         prefix: "", current: nil, notes: notes, siteName: siteName, theme: theme, wide: true), "graph.html")
 
         // Attachments referenced by published pages
@@ -104,6 +109,7 @@ public enum SiteExporter {
             try? fm.removeItem(at: dst)
             if (try? fm.copyItem(at: index.vault.url(for: p), to: dst)) != nil { copied += 1 }
         }
+        progress?(1)
         return Report(pages: notes.count, attachments: copied)
     }
 
@@ -175,7 +181,7 @@ public enum SiteExporter {
 
         let backlinks = source.isEmpty ? [] : index.backlinks(for: source).map(\.source).filter(published.contains)
         if !backlinks.isEmpty {
-            body += "<section class=\"backlinks\"><h2>" + HTMLRenderer.escape(String(localized: "Links to this page")) + "</h2><ul>"
+            body += "<section class=\"backlinks\"><h2>" + HTMLRenderer.escape(String(localized: "Links to this page", bundle: .module)) + "</h2><ul>"
                 + backlinks.map { "<li><a class=\"internal-link\" href=\"\(pre)\(pagePath($0))\">\(HTMLRenderer.escape($0.noteName))</a></li>" }.joined()
                 + "</ul></section>"
         }
@@ -196,13 +202,14 @@ public enum SiteExporter {
         let nav = """
         <nav class="site-nav" aria-label="Site">
           <a class="site-name" href="\(pre)index.html">\(HTMLRenderer.escape(siteName))</a>
-          <input id="site-search" type="search" placeholder="\(HTMLRenderer.escape(String(localized: "Search")))" aria-label="\(HTMLRenderer.escape(String(localized: "Search notes")))" autocomplete="off">
+          <input id="site-search" type="search" placeholder="\(HTMLRenderer.escape(String(localized: "Search", bundle: .module)))" aria-label="\(HTMLRenderer.escape(String(localized: "Search notes", bundle: .module)))" autocomplete="off">
+          <p id="search-status" class="visually-hidden" role="status"></p>
           <ul id="search-results" hidden></ul>
-          <a class="graph-link" href="\(pre)graph.html">\(HTMLRenderer.escape(String(localized: "Graph view")))</a>
+          <a class="graph-link" href="\(pre)graph.html">\(HTMLRenderer.escape(String(localized: "Graph View", bundle: .module)))</a>
           \(tree(notes, prefix: pre, current: current))
         </nav>
         """
-        let head = "<link rel=\"stylesheet\" href=\"\(pre)assets/site.css\"><script>window.NETHERITE_ROOT = \"\(pre)\";</script>"
+        let head = "<link rel=\"stylesheet\" href=\"\(pre)assets/site.css\"><script>window.NETHERITE_ROOT = \"\(pre)\"; window.NETHERITE_STRINGS = \(stringsJSON);</script>"
         let scripts = "<script src=\"\(pre)assets/search-index.js\"></script><script src=\"\(pre)assets/site.js\"></script>"
         let main = "<main class=\"\(wide ? "wide" : "")\"><h1 class=\"inline-title\">\(HTMLRenderer.escape(title))</h1>\(body)</main>"
         return HTMLRenderer.page(title: nil, body: nav + main, assets: pre + "assets/", theme: theme, fullWidth: true,
@@ -248,6 +255,7 @@ public enum SiteExporter {
     .site-name { display: block; font-weight: 700; font-size: 1.2em; color: var(--text); margin-bottom: 12px; }
     #site-search { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--faint);
       background: var(--code-bg); color: var(--text); font: inherit; min-height: 36px; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     #search-results { list-style: none; padding: 0; margin: 8px 0; }
     #search-results li { padding: 6px 0; border-bottom: 1px solid var(--faint); }
     #search-results small { display: block; color: var(--muted); }
@@ -272,22 +280,40 @@ public enum SiteExporter {
     static let siteJS = """
     (function () {
       const input = document.getElementById('site-search'), out = document.getElementById('search-results');
+      const status = document.getElementById('search-status'), S = window.NETHERITE_STRINGS || {};
+      let announce = null;
       const data = window.NETHERITE_SEARCH || [], root = window.NETHERITE_ROOT || '';
       const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
       if (!input) return;
       input.addEventListener('input', () => {
         const q = input.value.trim().toLowerCase();
-        if (!q) { out.hidden = true; out.innerHTML = ''; return; }
-        const hits = data.filter(d => d.title.toLowerCase().includes(q) || d.text.toLowerCase().includes(q)).slice(0, 30);
+        if (!q) { clearTimeout(announce); out.hidden = true; out.innerHTML = ''; if (status) status.textContent = ''; return; }
+        const all = data.filter(d => d.title.toLowerCase().includes(q) || d.text.toLowerCase().includes(q)), hits = all.slice(0, 30);
         out.innerHTML = hits.map(d => {
           const i = d.text.toLowerCase().indexOf(q);
           const snip = i < 0 ? '' : d.text.slice(Math.max(0, i - 40), i + 60);
           return '<li><a href="' + root + d.path + '">' + esc(d.title) + '</a><small>' + esc(snip) + '</small></li>';
-        }).join('') || '<li><small>No results</small></li>';
+        }).join('') || '<li><small>' + esc(S.noResults || 'No results') + '</small></li>';
         out.hidden = false;
+        // Debounced status message for screen readers (the list itself is not a live region).
+        clearTimeout(announce);
+        announce = setTimeout(() => {
+          if (!status) return;
+          const n = all.length, more = n > hits.length;
+          status.textContent = !n ? (S.noResults || 'No results')
+            : more ? (S.resultsMore || '%d+ results').replace('%d', hits.length)
+            : (n === 1 ? (S.resultsOne || '1 result') : (S.results || '%d results')).replace('%d', n);
+        }, 500);
       });
     })();
     """
+
+    /// Localized strings used by the site scripts.
+    static var stringsJSON: String {
+        let d = ["noResults": String(localized: "No Results", bundle: .module), "results": String(localized: "%d results", bundle: .module),
+                 "resultsOne": String(localized: "1 result", bundle: .module), "resultsMore": String(localized: "%d+ results", bundle: .module)]
+        return (try? String(data: JSONSerialization.data(withJSONObject: d, options: [.sortedKeys]), encoding: .utf8)) ?? "{}"
+    }
 
     /// Tiny force layout on a canvas; honours prefers-reduced-motion by settling before drawing.
     static let graphJS = """

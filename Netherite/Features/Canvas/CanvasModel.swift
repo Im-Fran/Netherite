@@ -11,6 +11,8 @@ final class CanvasModel {
     var canvas = JSONCanvas()
     var selection: Set<String> = []
     var selectedEdge: String?
+    /// Card chosen as the source of an accessibility "Connect…" action.
+    var connectingFrom: String?
     var editing: String?
     var zoom: CGFloat = 1
     var offset: CGSize = .zero
@@ -309,9 +311,20 @@ final class CanvasModel {
         mutate("Connect cards") { $0.edges.append(CanvasEdge(fromNode: from, fromSide: side.rawValue, toNode: target.id, toSide: toSide.rawValue)) }
     }
 
+    func isConnected(_ a: String, _ b: String) -> Bool {
+        canvas.edges.contains { ($0.fromNode == a && $0.toNode == b) || ($0.fromNode == b && $0.toNode == a) }
+    }
+
+    /// Colors one node without touching the current selection or selected edge.
+    func setColor(_ color: String?, for id: String) {
+        mutate("Change color") { c in
+            if let i = c.nodes.firstIndex(where: { $0.id == id }) { c.nodes[i].color = color }
+        }
+    }
+
     /// Accessibility alternative to dragging a connection handle.
     func connect(from: String, to: String) {
-        guard from != to, let a = canvas.node(from), let b = canvas.node(to) else { return }
+        guard from != to, !isConnected(from, to), let a = canvas.node(from), let b = canvas.node(to) else { return }
         let fs = Self.side(of: a.frame, facing: CGPoint(x: b.frame.midX, y: b.frame.midY))
         let ts = Self.side(of: b.frame, facing: CGPoint(x: a.frame.midX, y: a.frame.midY))
         mutate("Connect cards") { $0.edges.append(CanvasEdge(fromNode: from, fromSide: fs.rawValue, toNode: to, toSide: ts.rawValue)) }

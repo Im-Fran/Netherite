@@ -30,7 +30,7 @@ struct VaultWindow: View {
         #else
         .fullScreenCover(isPresented: $window.presentingSlides) { slides }
         #endif
-        .alert("Something went wrong", isPresented: Binding(get: { window.model.lastError != nil }, set: { if !$0 { window.model.lastError = nil } })) {
+        .alert("Something Went Wrong", isPresented: Binding(get: { window.model.lastError != nil }, set: { if !$0 { window.model.lastError = nil } })) {
             Button("OK") { window.model.lastError = nil }
         } message: {
             Text(window.model.lastError ?? "")
@@ -162,7 +162,7 @@ struct PaneView: View {
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
-                Button("Toggle inspector", systemImage: "sidebar.right") { window.showInspector.toggle() }
+                Button("Toggle Inspector", systemImage: "sidebar.right") { window.showInspector.toggle() }
                     .help("Show or hide backlinks, outline and properties")
             }
         }
@@ -170,17 +170,17 @@ struct PaneView: View {
 
     @ViewBuilder private var moreMenu: some View {
         if let p = pane.current?.path {
-            Button("Open in new pane", systemImage: "rectangle.split.2x1") { window.split() }
-            if window.panes.count > 1 { Button("Close pane", systemImage: "xmark.rectangle") { window.closePane(pane) } }
+            Button("Open in New Pane", systemImage: "rectangle.split.2x1") { window.split() }
+            if window.panes.count > 1 { Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) } }
             Divider()
             if case .note(let n) = pane.current {
-                Button("Open local graph", systemImage: "circle.hexagongrid") { window.openLocalGraph(for: n) }
-                Button("Start presentation", systemImage: "play.rectangle") { window.presentingSlides = true }
+                Button("Open Local Graph", systemImage: "circle.hexagongrid") { window.openLocalGraph(for: n) }
+                Button("Start Presentation", systemImage: "play.rectangle") { window.presentingSlides = true }
             }
-            Button(window.model.isBookmarked(p) ? "Remove bookmark" : "Bookmark", systemImage: "bookmark") {
+            Button(window.model.isBookmarked(p) ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark") {
                 if window.model.isBookmarked(p) { window.model.removeBookmark(.file(p)) } else { window.model.addBookmark(.file(p)) }
             }
-            Button("Copy link", systemImage: "link") { copyToPasteboard(window.model.linkText(to: p)) }
+            Button("Copy Link", systemImage: "link") { copyToPasteboard(window.model.linkText(to: p)) }
             ShareLink(item: window.model.vault.url(for: p))
             Button("Rename…", systemImage: "pencil") { window.sheet = .rename(p) }
             Button("Snapshots…", systemImage: "clock.arrow.circlepath") { window.sheet = .recovery(p) }
@@ -190,7 +190,7 @@ struct PaneView: View {
             Divider()
             Button("Delete", systemImage: "trash", role: .destructive) { window.trash(p) }
         } else if window.panes.count > 1 {
-            Button("Close pane", systemImage: "xmark.rectangle") { window.closePane(pane) }
+            Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) }
         }
     }
 }
@@ -204,10 +204,10 @@ struct EmptyPane: View {
         } description: {
             Text("Create a note or jump to one with the quick switcher.")
         } actions: {
-            Button("Create new note") { window.newNote() }
+            Button("Create New Note") { window.newNote() }
                 .buttonStyle(.borderedProminent)
-            Button("Go to file…") { window.sheet = .quickSwitcher }
-            Button("Open today's daily note") { window.openDailyNote() }
+            Button("Go to File…") { window.sheet = .quickSwitcher }
+            Button("Open Today's Daily Note") { window.openDailyNote() }
         }
     }
 }

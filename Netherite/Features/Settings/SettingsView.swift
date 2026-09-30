@@ -25,7 +25,7 @@ struct SettingsView: View {
                     LabeledContent("Custom themes") {
                         Text(".netherite/themes/*.json").font(.caption.monospaced()).foregroundStyle(.secondary)
                     }
-                    Button("Create theme from current…") { createThemeFile() }
+                    Button("Create Theme from Current…") { createThemeFile() }
                 }
                 Section("Daily notes") {
                     folderField("Folder", $model.settings.dailyNotes.folder)

@@ -21,7 +21,7 @@ let package = Package(
                 .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "Yams", package: "Yams"),
             ],
-            resources: [.copy("Resources/Web")]
+            resources: [.copy("Resources/Web"), .process("Resources/Localizable.xcstrings")]
         ),
         .executableTarget(
             name: "netherite",

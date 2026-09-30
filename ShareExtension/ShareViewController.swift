@@ -19,6 +19,10 @@ final class ClipModel {
     var destination: Destination = .newNote
     var loading = true
     var error: String?
+    var fetchFailed = false
+    var fallbackBody: String {
+        [input.text, input.url.map { "[\(title)](\($0.absoluteString))" }].compactMap { $0 }.joined(separator: "\n\n")
+    }
     var input = SharedInput()
     let vault = SharedVault.current()?.resolve()
 
@@ -38,12 +42,13 @@ final class ClipModel {
         }
         if let url = input.url {
             title = url.host() ?? ""
-            if let (data, _) = try? await URLSession.shared.data(from: url), let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+            if let (data, _) = try? await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 10)), let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
                 let clip = HTMLToMarkdown.convert(html, baseURL: url)
                 if !clip.title.isEmpty { title = clip.title }
                 body = [clip.description.map { "> \($0)" }, input.text, clip.markdown].compactMap { $0 }.joined(separator: "\n\n")
             } else {
-                body = input.text ?? ""
+                fetchFailed = true
+                body = fallbackBody
             }
         } else {
             body = input.text ?? ""
@@ -71,7 +76,8 @@ final class ClipModel {
                 try vault.write(img.data, to: path)
                 parts.append("![[\((path as NSString).lastPathComponent)]]")
             }
-            if !body.isEmpty { parts.append(body) }
+            // The daily-note bullet already carries the link, so skip the fetch-failure fallback body there.
+            if !body.isEmpty && !(fetchFailed && destination == .dailyNote && body == fallbackBody) { parts.append(body) }
             let tagList = tags.split(whereSeparator: { $0 == "," || $0 == " " }).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
             switch destination {
             case .newNote:
@@ -115,13 +121,20 @@ struct ClipView: View {
                     }
                     TextField("Tags", text: $model.tags, prompt: Text("reading, ideas"))
                         .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
                 }
                 Section("Content") {
                     if model.loading {
                         HStack { ProgressView(); Text("Clipping page…").foregroundStyle(.secondary) }
                     } else {
+                        if model.fetchFailed {
+                            Label("Couldn't download the page, so only the link will be saved.", systemImage: "wifi.exclamationmark")
+                                .foregroundStyle(.secondary)
+                        }
                         if !model.input.images.isEmpty {
-                            Label("\(model.input.images.count) image(s) will be saved to attachments", systemImage: "photo")
+                            Label("^[\(model.input.images.count) image](inflect: true) will be saved to attachments", systemImage: "photo")
                                 .foregroundStyle(.secondary)
                         }
                         TextEditor(text: $model.body)
@@ -132,7 +145,7 @@ struct ClipView: View {
                 }
             }
             .formStyle(.grouped)
-            .alert("Couldn't save the clip", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+            .alert("Couldn't Save the Clip", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
                 Button("OK") {}
             } message: {
                 Text(model.error ?? "")

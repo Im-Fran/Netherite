@@ -55,7 +55,7 @@ struct SettingsRoot: View {
         if let path = app.lastVaultPath, let model = app.model(forPath: path) {
             SettingsView(model: model).frame(width: 560, height: 560)
         } else {
-            ContentUnavailableView("Open a vault to change its settings", systemImage: "gearshape").frame(width: 400, height: 240)
+            ContentUnavailableView("Open a Vault to Change Its Settings", systemImage: "gearshape").frame(width: 400, height: 240)
         }
     }
 }

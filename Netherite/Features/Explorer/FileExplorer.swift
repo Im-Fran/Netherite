@@ -58,7 +58,7 @@ struct FileExplorer: View {
                 ContentUnavailableView {
                     Label("No notes yet", systemImage: "doc.text")
                 } actions: {
-                    Button("New note") { window.newNote() }
+                    Button("New Note") { window.newNote() }
                 }
             } else if !index.isLoaded {
                 ProgressView()
@@ -100,16 +100,16 @@ struct FileExplorer: View {
     }
 
     @ViewBuilder private func folderMenu(_ folder: String) -> some View {
-        Button("New note", systemImage: "square.and.pencil") {
+        Button("New Note", systemImage: "square.and.pencil") {
             if let p = window.model.newNote(in: folder) { window.open(path: p) }
         }
-        Button("New folder", systemImage: "folder.badge.plus") {
+        Button("New Folder", systemImage: "folder.badge.plus") {
             if let p = window.model.newFolder(in: folder) { expanded.insert(folder); window.sheet = .rename(p) }
         }
-        Button("New canvas", systemImage: "rectangle.3.group") {
+        Button("New Canvas", systemImage: "rectangle.3.group") {
             if let p = window.model.newCanvas(in: folder) { window.open(path: p) }
         }
-        Button("New base", systemImage: "tablecells") {
+        Button("New Base", systemImage: "tablecells") {
             if let p = window.model.newBase(in: folder) { window.open(path: p) }
         }
         Divider()
@@ -117,7 +117,7 @@ struct FileExplorer: View {
 
     @ViewBuilder private func itemMenu(_ path: String) -> some View {
         if !window.model.index.folders.contains(path) {
-            Button("Open in new pane", systemImage: "rectangle.split.2x1") { window.open(path: path, newPane: true) }
+            Button("Open in New Pane", systemImage: "rectangle.split.2x1") { window.open(path: path, newPane: true) }
             Button("Bookmark", systemImage: "bookmark") { window.model.addBookmark(.file(path)) }
         }
         Button("Rename…", systemImage: "pencil") { window.sheet = .rename(path) }

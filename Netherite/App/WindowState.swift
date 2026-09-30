@@ -29,8 +29,8 @@ enum Destination: Hashable, Codable {
 
     var title: String {
         switch self {
-        case .graph: String(localized: "Graph view")
-        case .localGraph(let p): String(localized: "Local graph: \(p.noteName)")
+        case .graph: String(localized: "Graph View")
+        case .localGraph(let p): String(localized: "Local Graph: \(p.noteName)")
         case .web(let url): url.host() ?? url.absoluteString
         default: path.map { $0.isMarkdown ? $0.noteName : ($0 as NSString).lastPathComponent } ?? ""
         }

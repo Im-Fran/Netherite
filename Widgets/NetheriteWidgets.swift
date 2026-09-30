@@ -52,13 +52,13 @@ struct VaultProvider: TimelineProvider {
 }
 
 private func openURL(_ path: String) -> URL {
-    URL(string: "netherite://open?path=" + (path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path))!
+    SharedVault.openURL(path: path)
 }
 
 private struct NoVaultView: View {
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "diamond").font(.title2).foregroundStyle(.tint)
+            Image(systemName: "diamond").font(.title2).foregroundStyle(.tint).widgetAccentable()
             Text("Open a vault in Netherite").font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)
         }
     }
@@ -73,7 +73,7 @@ struct DailyNoteWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
                 .widgetURL(URL(string: "netherite://daily"))
         }
-        .configurationDisplayName("Daily note")
+        .configurationDisplayName("Daily Note")
         .description("Today's daily note at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
@@ -89,12 +89,12 @@ struct DailyNoteView: View {
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Label("Today", systemImage: "calendar").font(.caption.bold()).foregroundStyle(.tint)
+                    Label("Today", systemImage: "calendar").font(.caption.bold()).foregroundStyle(.tint).widgetAccentable()
                     Spacer()
                     if family != .systemSmall {
                         // Quick capture: logs the current time as a new bullet in today's note.
                         Button(intent: LogTimeIntent()) {
-                            Label("Log time", systemImage: "plus")
+                            Label("Log Time", systemImage: "plus")
                         }
                         .font(.caption)
                         .buttonStyle(.bordered)
@@ -120,7 +120,7 @@ struct RecentNotesWidget: Widget {
                 // Small widgets are a single tap target and ignore Link: open the most recent note.
                 .widgetURL(entry.recents.first.map(openURL))
         }
-        .configurationDisplayName("Recent notes")
+        .configurationDisplayName("Recent Notes")
         .description("Jump back into the notes you opened last.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
@@ -143,7 +143,7 @@ struct RecentNotesView: View {
             NoVaultView()
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Label(entry.vaultName ?? "", systemImage: "clock").font(.caption.bold()).foregroundStyle(.tint).lineLimit(1)
+                Label(entry.vaultName ?? "", systemImage: "clock").font(.caption.bold()).foregroundStyle(.tint).lineLimit(1).widgetAccentable()
                 ForEach(entry.recents.prefix(limit), id: \.self) { path in
                     Link(destination: openURL(path)) {
                         Label(path.noteName, systemImage: "doc.text").font(.subheadline).lineLimit(1)

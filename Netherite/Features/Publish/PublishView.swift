@@ -12,10 +12,12 @@ struct PublishView: View {
     @State private var exporting = false
     @State private var exportDocument: SiteFolder?
     @State private var busy = false
+    @State private var deploying = false
     @State private var confirmDeploy = false
     @State private var status: String?
     @State private var deployedURL: URL?
     @State private var error: String?
+    @State private var buildProgress: Double?
 
     private var model: VaultModel { window.model }
     private var notes: [String] { model.index.markdownFiles }
@@ -44,6 +46,9 @@ struct PublishView: View {
                 Section {
                     Button("Export to Folder…", systemImage: "folder.badge.plus", action: exportToFolder)
                         .disabled(busy)
+                    if let buildProgress {
+                        ProgressView(value: buildProgress) { Text("Building site…") }
+                    }
                 } footer: {
                     Text("Creates HTML pages, search, a graph and tag pages you can host anywhere.")
                 }
@@ -63,7 +68,7 @@ struct PublishView: View {
                     Button { confirmDeploy = true } label: {
                         HStack {
                             Label("Deploy", systemImage: "paperplane")
-                            if busy { Spacer(); ProgressView().controlSize(.small) }
+                            if deploying { Spacer(); ProgressView().controlSize(.small) }
                         }
                     }
                     .disabled(busy || options.accountID.isEmpty || options.projectName.isEmpty || token.isEmpty)
@@ -78,9 +83,10 @@ struct PublishView: View {
                 }
             }
             .formStyle(.grouped)
+            .interactiveDismissDisabled(busy)
             .navigationTitle("Publish")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { save(); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { save(); dismiss() }.disabled(busy) }
             }
         }
         #if os(macOS)
@@ -100,7 +106,10 @@ struct PublishView: View {
         } message: {
             Text("The notes in the selected scope will be public on the web. Notes with private content should be excluded first.")
         }
-        .alert("Publishing failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+        .onChange(of: status) { _, new in
+            if let new { AccessibilityNotification.Announcement(new).post() }
+        }
+        .alert("Publishing Failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK") {}
         } message: {
             Text(error ?? "")
@@ -112,17 +121,24 @@ struct PublishView: View {
     /// Exports into a temporary folder, then hands it to the system save panel.
     private func exportToFolder() {
         save()
-        do {
-            let dir = try buildSite()
-            exportDocument = SiteFolder(wrapper: try FileWrapper(url: dir))
-            exporting = true
-        } catch { self.error = error.localizedDescription }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                let dir = try await buildSite()
+                exportDocument = SiteFolder(wrapper: try FileWrapper(url: dir))
+                exporting = true
+            } catch { self.error = error.localizedDescription }
+        }
     }
 
-    private func buildSite() throws -> URL {
+    /// Builds the site page by page (yielding between pages) and shows progress.
+    private func buildSite() async throws -> URL {
         model.flushAll()
         let dir = URL.temporaryDirectory.appending(path: "netherite-site-\(UUID().uuidString)", directoryHint: .isDirectory)
-        let report = try SiteExporter.export(model.index, to: dir, options: options, theme: model.theme)
+        buildProgress = 0
+        defer { buildProgress = nil }
+        let report = try await SiteExporter.export(model.index, to: dir, options: options, theme: model.theme) { buildProgress = $0 }
         status = String(localized: "Built \(report.pages) pages.")
         return dir
     }
@@ -132,10 +148,11 @@ struct PublishView: View {
         Keychain.cloudflareToken = token
         deployedURL = nil
         busy = true
+        deploying = true
         Task {
-            defer { busy = false }
+            defer { busy = false; deploying = false }
             do {
-                let dir = try buildSite()
+                let dir = try await buildSite()
                 let deployer = CloudflarePagesDeployer(accountID: options.accountID, projectName: options.projectName, apiToken: token)
                 deployedURL = try await deployer.deploy(dir) { msg in Task { @MainActor in status = msg } }
                 status = String(localized: "Deployed.")
