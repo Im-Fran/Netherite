@@ -6,3 +6,4 @@ DerivedData/
 .swiftpm/
 build/
 .claude/
+graphify-out/
