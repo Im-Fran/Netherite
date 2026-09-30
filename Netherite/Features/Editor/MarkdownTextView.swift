@@ -13,6 +13,9 @@ struct MarkdownTextView {
     /// (link target, open in new pane)
     var onOpenLink: (String, Bool) -> Void
     var onOpenTag: (String) -> Void
+    var embedImage: ((String) -> PlatformImage?)? = nil
+    /// Changes when the vault's file set changes, so embeds re-resolve.
+    var styleToken = 0
 
     static let maxLineWidth: CGFloat = 720
 
@@ -24,7 +27,54 @@ struct MarkdownTextView {
 
         init(_ parent: MarkdownTextView) { self.parent = parent }
 
-        var styler: EditorStyler { EditorStyler(theme: parent.theme, livePreview: parent.livePreview) }
+        var styler: EditorStyler { EditorStyler(theme: parent.theme, livePreview: parent.livePreview, embedImage: parent.embedImage) }
+        var placed: [PlacedEmbed] = []
+        #if os(macOS)
+        var embedViews: [NSImageView] = []
+        #else
+        var embedViews: [UIImageView] = []
+        #endif
+
+        /// Positions image views over the (hidden) embed text using TextKit 2 layout.
+        func layoutEmbeds(_ tv: PlatformTextView) {
+            embedViews.forEach { $0.removeFromSuperview() }
+            embedViews = []
+            guard let tlm = tv.textLayoutManager, let tcm = tlm.textContentManager else { return }
+            #if os(macOS)
+            let origin = tv.textContainerOrigin
+            #else
+            let origin = CGPoint(x: tv.textContainerInset.left, y: tv.textContainerInset.top)
+            #endif
+            let start = tcm.documentRange.location
+            for e in placed {
+                guard let loc = tcm.location(start, offsetBy: e.range.location) else { continue }
+                tlm.ensureLayout(for: NSTextRange(location: loc))
+                guard let frag = tlm.textLayoutFragment(for: loc) else { continue }
+                let base = tcm.offset(from: start, to: frag.rangeInElement.location)
+                var point = frag.layoutFragmentFrame.origin
+                if let line = frag.textLineFragments.first(where: { NSLocationInRange(e.range.location - base, $0.characterRange) }) {
+                    point.x += line.locationForCharacter(at: e.range.location - base).x
+                    point.y += line.typographicBounds.minY
+                }
+                let frame = CGRect(x: origin.x + point.x, y: origin.y + point.y + 4, width: e.size.width, height: e.size.height)
+                #if os(macOS)
+                let v = NSImageView(frame: frame)
+                v.imageScaling = .scaleProportionallyUpOrDown
+                v.wantsLayer = true
+                v.layer?.cornerRadius = 6
+                v.layer?.masksToBounds = true
+                #else
+                let v = UIImageView(frame: frame)
+                v.contentMode = .scaleAspectFit
+                v.layer.cornerRadius = 6
+                v.clipsToBounds = true
+                #endif
+                v.image = e.image
+                v.setAccessibilityLabelCompat(String(localized: "Embedded image"))
+                tv.addSubview(v)
+                embedViews.append(v)
+            }
+        }
 
         func restyle(_ tv: PlatformTextView, force: Bool = false) {
             #if os(macOS)
@@ -38,7 +88,8 @@ struct MarkdownTextView {
             guard force || lines != active else { return }
             active = lines
             updating = true
-            styler.apply(to: storage, active: lines)
+            placed = styler.apply(to: storage, active: lines)
+            DispatchQueue.main.async { [weak tv] in if let tv { self.layoutEmbeds(tv) } }
             #if os(macOS)
             tv.typingAttributes = styler.baseAttributes
             #else
@@ -116,13 +167,51 @@ final class NetheriteNSTextView: NSTextView {
     var readableWidth = true
 
     override func setFrameSize(_ newSize: NSSize) {
+        let widthChanged = newSize.width != frame.width
         super.setFrameSize(newSize)
         updateInsets()
+        if widthChanged, let c = coordinator, !c.placed.isEmpty { DispatchQueue.main.async { c.layoutEmbeds(self) } }
     }
 
     func updateInsets() {
         let side = readableWidth ? max(24, (bounds.width - MarkdownTextView.maxLineWidth) / 2) : 24
         if textContainerInset.width != side { textContainerInset = NSSize(width: side, height: 20) }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.acceptsMouseMovedEvents = true
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        updateHover(event)
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        updateHover(event)
+    }
+
+    /// ⌘-hover over an internal link shows a page preview (like Obsidian).
+    private func updateHover(_ event: NSEvent) {
+        guard let c = coordinator?.parent.controller, let window, let scroll = enclosingScrollView else { return }
+        let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        guard event.modifierFlags.contains(.command), let storage = textStorage else {
+            if c.hover != nil { c.hover = nil }
+            return
+        }
+        let i = characterIndexForInsertion(at: point)
+        for idx in [i, i - 1] where idx >= 0 && idx < storage.length {
+            if let target = storage.attribute(.netheriteLink, at: idx, effectiveRange: nil) as? String,
+               let rect = firstRectForCharacter(idx), rect.contains(point) {
+                let inScroll = scroll.convert(convert(rect, to: nil), from: nil)
+                let flipped = CGRect(x: inScroll.minX, y: scroll.bounds.height - inScroll.maxY, width: inScroll.width, height: inScroll.height)
+                if c.hover?.target != target { c.hover = .init(target: target, rect: flipped) }
+                return
+            }
+        }
+        if c.hover != nil { c.hover = nil }
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -180,6 +269,7 @@ extension MarkdownTextView: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let tv = scroll.documentView as? NetheriteNSTextView else { return }
         let themeChanged = context.coordinator.parent.theme != theme || context.coordinator.parent.livePreview != livePreview
+            || context.coordinator.parent.styleToken != styleToken
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv, context: context)
@@ -261,6 +351,7 @@ extension MarkdownTextView: UIViewRepresentable {
 
     func updateUIView(_ tv: NetheriteUITextView, context: Context) {
         let themeChanged = context.coordinator.parent.theme != theme || context.coordinator.parent.livePreview != livePreview
+            || context.coordinator.parent.styleToken != styleToken
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv)
@@ -339,3 +430,9 @@ enum ListContinuation {
         return true
     }
 }
+
+#if os(macOS)
+extension NSView { func setAccessibilityLabelCompat(_ s: String) { setAccessibilityLabel(s) } }
+#else
+extension UIView { func setAccessibilityLabelCompat(_ s: String) { isAccessibilityElement = true; accessibilityLabel = s } }
+#endif

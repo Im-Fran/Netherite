@@ -43,6 +43,7 @@ enum WebAction {
     case tag(String)
     case external(URL)
     case task(line: Int)
+    case hover(path: String, subpath: String?, rect: CGRect)
 }
 
 extension RenderContext {
@@ -114,6 +115,12 @@ struct HTMLWebView {
         func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
             if type == "task", let line = body["line"] as? Int { parent.onAction(.task(line: line)) }
+            if type == "hover", let href = body["href"] as? String, let url = URL(string: href), url.host() == "open" {
+                let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                let sub = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "sub" }?.value
+                func n(_ k: String) -> CGFloat { CGFloat((body[k] as? NSNumber)?.doubleValue ?? 0) }
+                parent.onAction(.hover(path: rel, subpath: sub, rect: CGRect(x: n("x"), y: n("y"), width: n("w"), height: n("h"))))
+            }
         }
     }
 

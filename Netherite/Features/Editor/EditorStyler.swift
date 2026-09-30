@@ -8,12 +8,28 @@ extension NSAttributedString.Key {
     static let netheriteMarker = NSAttributedString.Key("netherite.marker")  // Bool: hideable syntax
 }
 
+#if os(macOS)
+typealias PlatformImage = NSImage
+#else
+typealias PlatformImage = UIImage
+#endif
+
+/// An image embed rendered inline by Live Preview.
+struct PlacedEmbed {
+    var range: NSRange
+    var image: PlatformImage
+    var size: CGSize
+}
+
 /// Maps `MarkdownHighlighter` spans to text attributes. Markers outside the active lines are collapsed
 /// (Live Preview); inside them they're shown dimmed so the syntax stays editable.
 @MainActor
 struct EditorStyler {
     var theme: Theme
     var livePreview = true
+    /// Resolves an embed target to an image (nil when it isn't an image in the vault).
+    var embedImage: ((String) -> PlatformImage?)? = nil
+    var maxEmbedWidth: CGFloat = 560
 
     #if os(macOS)
     var baseSize: CGFloat { 15 * (theme.fontScale ?? 1) }
@@ -60,7 +76,9 @@ struct EditorStyler {
     }
 
     /// Restyles the whole storage. `active` is the range of lines holding the selection.
-    func apply(to storage: NSTextStorage, active: NSRange) {
+    /// Returns image embeds (outside the active lines) that the editor should draw inline.
+    @discardableResult
+    func apply(to storage: NSTextStorage, active: NSRange) -> [PlacedEmbed] {
         let text = storage.string
         let full = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
@@ -77,7 +95,28 @@ struct EditorStyler {
                 storage.addAttribute(.foregroundColor, value: PlatformColor.tertiaryLabel, range: span.range)
             }
         }
+        var placed: [PlacedEmbed] = []
+        if livePreview, let embedImage {
+            let ns = text as NSString
+            for span in spans {
+                guard case .link(let target, true) = span.kind, NSIntersectionRange(span.range, active).length == 0,
+                      !NSLocationInRange(span.range.location, active), let image = embedImage(target) else { continue }
+                // `![[img.png|300]]` / `|300x200` sets the size, like Obsidian.
+                let inner = ns.substring(with: span.range)
+                let alias = inner.split(separator: "|").last.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "]")) }
+                let dims = alias?.split(separator: "x").compactMap { Double($0) } ?? []
+                var size = image.size
+                if let w = dims.first, size.width > 0 { size = CGSize(width: w, height: dims.count > 1 ? dims[1] : w * size.height / size.width) }
+                if size.width > maxEmbedWidth, size.width > 0 { size = CGSize(width: maxEmbedWidth, height: maxEmbedWidth * size.height / size.width) }
+                storage.addAttributes([.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear], range: span.range)
+                let para = (storage.attribute(.paragraphStyle, at: span.range.location, effectiveRange: nil) as? NSParagraphStyle ?? paragraph).mutableCopy() as! NSMutableParagraphStyle
+                para.minimumLineHeight = size.height + 8
+                storage.addAttribute(.paragraphStyle, value: para, range: ns.lineRange(for: span.range))
+                placed.append(PlacedEmbed(range: span.range, image: image, size: size))
+            }
+        }
         storage.endEditing()
+        return placed
     }
 
     private func style(_ span: StyleSpan, _ s: NSTextStorage) {

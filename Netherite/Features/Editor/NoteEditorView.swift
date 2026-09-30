@@ -53,9 +53,25 @@ struct NoteEditorView: View {
                     window.searchQuery = "tag:\(tag)"
                     window.sidebarTab = .search
                     window.columnVisibility = .all
-                }
+                },
+                embedImage: { [model, path] target in
+                    guard let p = model.index.resolver.resolve(target, from: path),
+                          ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff"].contains(p.fileExtension) else { return nil }
+                    return ImageCache.shared.image(at: model.vault.url(for: p))
+                },
+                styleToken: model.index.files.count
             )
             .overlay(alignment: .topLeading) { CompletionOverlay(controller: controller, sourcePath: path) }
+            .overlay(alignment: .topLeading) {
+                if let h = controller.hover {
+                    Color.clear
+                        .frame(width: max(1, h.rect.width), height: max(1, h.rect.height))
+                        .offset(x: h.rect.minX, y: h.rect.minY)
+                        .popover(isPresented: Binding(get: { controller.hover != nil }, set: { if !$0 { controller.hover = nil } })) {
+                            PagePreview(link: NoteParser.splitWiki(h.target, isEmbed: false), source: path)
+                        }
+                }
+            }
         }
         #if os(iOS)
         .toolbar {
@@ -243,5 +259,22 @@ struct SlashCommand: Identifiable {
                               text: Templates.render(model.text(of: t), title: "", date: now)))
         }
         return list
+    }
+}
+
+/// Small cache for images shown inline in the editor.
+final class ImageCache {
+    static let shared = ImageCache()
+    private let cache = NSCache<NSURL, PlatformImage>()
+
+    func image(at url: URL) -> PlatformImage? {
+        if let i = cache.object(forKey: url as NSURL) { return i }
+        #if os(macOS)
+        guard let i = NSImage(contentsOf: url) else { return nil }
+        #else
+        guard let i = UIImage(contentsOfFile: url.path(percentEncoded: false)) else { return nil }
+        #endif
+        cache.setObject(i, forKey: url as NSURL)
+        return i
     }
 }

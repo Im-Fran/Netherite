@@ -7,6 +7,7 @@ struct ReaderView: View {
     let text: String
     let pane: Pane
     @Environment(WindowState.self) private var window
+    @State private var hover: (path: String, subpath: String?, rect: CGRect)?
 
     var body: some View {
         let model = window.model
@@ -16,8 +17,20 @@ struct ReaderView: View {
             html: HTMLRenderer.page(title: path.noteName, body: body, assets: "nth://web/", theme: model.theme,
                                     fullWidth: !model.settings.readableLineLength, initialSubpath: sub),
             vault: model.vault,
-            onAction: { window.handle($0, from: path) })
+            onAction: { action in
+                if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
+            })
         .accessibilityLabel(Text("Reading view of \(path.noteName)"))
+        .overlay(alignment: .topLeading) {
+            if let h = hover {
+                Color.clear
+                    .frame(width: max(1, h.rect.width), height: max(1, h.rect.height))
+                    .offset(x: h.rect.minX, y: h.rect.minY)
+                    .popover(isPresented: Binding(get: { hover != nil }, set: { if !$0 { hover = nil } })) {
+                        PagePreview(link: NoteParser.splitWiki(h.path + (h.subpath.map { "#\($0)" } ?? ""), isEmbed: false), source: path)
+                    }
+            }
+        }
     }
 }
 
@@ -34,6 +47,7 @@ extension WindowState {
             UIApplication.shared.open(url)
             #endif
         case .task(let line): toggleTask(in: source, line: line)
+        case .hover: break
         }
     }
 
@@ -53,5 +67,30 @@ extension NoteLink {
         self = NoteParser.splitWiki(target, isEmbed: isEmbed)
         self.range = range
         self.line = line
+    }
+}
+
+/// Hover preview of a linked note (Page preview core plugin).
+struct PagePreview: View {
+    let link: NoteLink
+    let source: String
+    @Environment(WindowState.self) private var window
+
+    var body: some View {
+        let index = window.model.index
+        Group {
+            if let target = index.resolver.resolve(link.target, from: source) {
+                let text = target.isMarkdown ? HTMLRenderer.section(of: window.model.text(of: target), subpath: link.subpath) : ""
+                let body = target.isMarkdown
+                    ? HTMLRenderer.render(text, context: .app(index, source: target))
+                    : HTMLRenderer.embed(NoteLink(target: target, isEmbed: true, isWiki: true, range: NSRange(), line: 0), .app(index, source: target))
+                HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme),
+                            vault: window.model.vault, onAction: { window.handle($0, from: target) })
+            } else {
+                ContentUnavailableView("“\(link.target)” doesn't exist yet", systemImage: "doc.badge.plus",
+                                       description: Text("Click the link to create it."))
+            }
+        }
+        .frame(width: 460, height: 340)
     }
 }

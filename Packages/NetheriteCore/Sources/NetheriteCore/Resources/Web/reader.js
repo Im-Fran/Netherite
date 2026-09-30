@@ -32,6 +32,20 @@
       target.classList.add('flash');
     }
   };
+  let hoverTimer = null;
+  document.addEventListener('mouseover', e => {
+    const a = e.target.closest && e.target.closest('a.internal-link');
+    if (!a) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+      const r = a.getBoundingClientRect();
+      post({ type: 'hover', href: a.getAttribute('href'), x: r.left, y: r.top, w: r.width, h: r.height });
+    }, 600);
+  });
+  document.addEventListener('mouseout', e => {
+    const a = e.target.closest && e.target.closest('a.internal-link');
+    if (a) { clearTimeout(hoverTimer); }
+  });
   document.addEventListener('change', e => {
     if (e.target.classList.contains('task-checkbox')) post({ type: 'task', line: parseInt(e.target.dataset.line, 10) });
   });

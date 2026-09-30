@@ -27,6 +27,9 @@ final class EditorController {
     var completionIndex = 0
     var completionCount = 0
     @ObservationIgnored var acceptCompletion: (() -> Void)?
+    /// Link under the pointer for page preview (target, rect in editor coordinates).
+    var hover: LinkHover?
+    struct LinkHover: Equatable { var target: String; var rect: CGRect }
 
     var text: String { textView?.string ?? "" }
     var selectedRange: NSRange {
