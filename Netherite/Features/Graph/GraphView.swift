@@ -5,7 +5,7 @@ import NetheriteCore
 @Observable
 final class GraphSimulation {
     private(set) var data = GraphData()
-    private(set) var frame = 0
+    var frame = 0
     private(set) var settled = true
     /// Bumped when the simulation needs to (re)start its tick loop.
     private(set) var generation = 0
@@ -243,7 +243,8 @@ struct GraphView: View {
                 }
                 if let id = draggingNode {
                     sim.positions[id] = toWorld(v.location, size: size)
-                    sim.reheat(reduceMotion: reduceMotion, alpha: 0.3)
+                    // With Reduce Motion the layout settles synchronously, so only do that once on release.
+                    if reduceMotion { sim.frame += 1 } else { sim.reheat(reduceMotion: false, alpha: 0.3) }
                 } else if let start = panStart {
                     offset = CGSize(width: start.width + v.translation.width, height: start.height + v.translation.height)
                 }

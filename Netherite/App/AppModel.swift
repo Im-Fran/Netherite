@@ -71,6 +71,9 @@ final class AppModel {
     @discardableResult
     func openVault(at url: URL, bookmark: Data? = nil) -> VaultModel {
         let key = Self.key(url)
+        // Extensions, widgets and intents read the most recently opened vault from the App Group.
+        SharedVault.publish(SharedVault(name: url.lastPathComponent, path: key,
+                                        bookmark: try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
         if let m = open[key] { touch(url, bookmark: bookmark); return m }
         _ = url.startAccessingSecurityScopedResource()
         let model = VaultModel(vault: Vault(root: url))

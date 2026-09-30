@@ -27,6 +27,9 @@ targets:
     dependencies:
       - package: NetheriteCore
         product: NetheriteCore
+      - target: ShareExtension
+      - target: Widgets
+      - sdk: CoreSpotlight.framework
     entitlements:
       path: Netherite/Netherite.entitlements
       properties:
@@ -59,6 +62,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: cl.franciscosolis.netherite
             CFBundleURLSchemes: [netherite]
+        NSUserActivityTypes: [com.apple.corespotlightitem]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cl.franciscosolis.netherite
@@ -71,6 +75,77 @@ targets:
         ENABLE_PREVIEWS: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+  ShareExtension:
+    type: app-extension
+    supportedDestinations: [macOS, iOS]
+    sources:
+      - ShareExtension
+    dependencies:
+      - package: NetheriteCore
+        product: NetheriteCore
+    entitlements:
+      path: ShareExtension/ShareExtension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.developer.icloud-services: [CloudDocuments]
+        com.apple.developer.icloud-container-identifiers: [iCloud.cl.franciscosolis.netherite]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.cl.franciscosolis.netherite]
+        com.apple.security.application-groups: [group.cl.franciscosolis.netherite]
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Netherite
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsImageWithMaxCount: 5
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.franciscosolis.netherite.share
+        PRODUCT_NAME: ShareExtension
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
+  Widgets:
+    type: app-extension
+    supportedDestinations: [macOS, iOS]
+    sources:
+      - Widgets
+      - Netherite/Intents/NoteIntents.swift
+    dependencies:
+      - package: NetheriteCore
+        product: NetheriteCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    entitlements:
+      path: Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.developer.icloud-services: [CloudDocuments]
+        com.apple.developer.icloud-container-identifiers: [iCloud.cl.franciscosolis.netherite]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.cl.franciscosolis.netherite]
+        com.apple.security.application-groups: [group.cl.franciscosolis.netherite]
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Netherite
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cl.franciscosolis.netherite.widgets
+        PRODUCT_NAME: Widgets
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
 schemes:
   Netherite:
     build:

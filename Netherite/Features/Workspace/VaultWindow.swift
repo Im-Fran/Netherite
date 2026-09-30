@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 import NetheriteCore
 
 /// One window on a vault: sidebar · editor pane(s) · inspector.
@@ -45,6 +46,9 @@ struct VaultWindow: View {
             }
         }
         .onOpenURL { url in handleDeepLink(url) }
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: path) }
+        }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
         .snapshotting(window.model)

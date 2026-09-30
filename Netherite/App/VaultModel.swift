@@ -24,7 +24,10 @@ final class VaultModel {
         themes = vault.themes()
         bookmarks = vault.loadConfig("bookmarks.json", fallback: [Bookmark]())
         vault.downloadPlaceholders()
-        Task { await index.load() }
+        Task {
+            await index.load()
+            SystemIntegration.reindex(self)
+        }
         watcher = VaultWatcher(url: vault.root) { [weak self] in
             Task { @MainActor in await self?.externalChange() }
         }
@@ -58,6 +61,7 @@ final class VaultModel {
         do {
             try vault.write(text, to: path)
             dirty.remove(path)
+            SystemIntegration.noteSaved(self)
         } catch {
             lastError = error.localizedDescription
         }
@@ -79,6 +83,7 @@ final class VaultModel {
         recentFiles.insert(path, at: 0)
         if recentFiles.count > 50 { recentFiles.removeLast(recentFiles.count - 50) }
         vault.saveConfig("recent.json", recentFiles)
+        SharedVault.publishRecents(recentFiles)
     }
 
     @discardableResult

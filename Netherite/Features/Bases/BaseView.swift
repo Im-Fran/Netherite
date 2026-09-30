@@ -17,11 +17,21 @@ struct BaseView: View {
     private var model: VaultModel { window.model }
 
     var body: some View {
-        if let loadError {
-            ContentUnavailableView("Couldn't open this base", systemImage: "exclamationmark.triangle", description: Text(loadError))
-        } else {
-            baseBody
+        Group {
+            if let loadError {
+                ContentUnavailableView {
+                    Label("Couldn't open this base", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(loadError)
+                } actions: {
+                    Button("Try Again", action: load)
+                }
+            } else {
+                baseBody
+            }
         }
+        .onAppear(perform: load)
+        .onChange(of: path) { load() }
     }
 
     @ViewBuilder private var baseBody: some View {
@@ -40,8 +50,6 @@ struct BaseView: View {
                     }
                 }
         }
-        .onAppear(perform: load)
-        .onChange(of: path) { load() }
     }
 
     // MARK: Header
@@ -58,29 +66,37 @@ struct BaseView: View {
             .labelStyle(.titleAndIcon)
             .fixedSize()
 
-            Text("\(count) results").font(.callout).foregroundStyle(.secondary).monospacedDigit()
+            if sizeClass != .compact {
+                Text("\(count) results").font(.callout).foregroundStyle(.secondary).monospacedDigit()
+            }
             Spacer()
 
-            Picker("Layout", selection: Binding(get: { view.kind }, set: { k in update { $0.type = k.rawValue } })) {
-                ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in Label(k.rawValue.capitalized, systemImage: symbol(k)).tag(k) }
+            if sizeClass != .compact {
+                layoutPicker(view)
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
 
-            sortMenu(view)
+            sortMenu(view).iosTarget()
 
             Button("Filter", systemImage: "line.3.horizontal.decrease.circle") { showFilters = true }
                 .symbolVariant(view.filters == nil ? .none : .fill)
-                .keyboardShortcut("f", modifiers: [.command, .option])
-                .help("Filter (⌥⌘F)")
+                .keyboardShortcut("l", modifiers: [.command, .option])
+                .help("Filter (⌥⌘L)")
+                .iosTarget()
                 .popover(isPresented: $showFilters) { FilterEditor(filter: view.filters, keys: allProperties) { f in update { $0.filters = f } } }
 
             Button("Properties", systemImage: "tablecells.badge.ellipsis") { showColumns = true }
                 .help("Choose properties")
+                .iosTarget()
                 .popover(isPresented: $showColumns) { columnPicker(view) }
 
             Menu {
+                if sizeClass == .compact {
+                    layoutPicker(view).pickerStyle(.inline)
+                    Divider()
+                }
                 ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in
                     Button("New \(k.rawValue) view", systemImage: symbol(k)) { addView(k) }
                 }
@@ -91,6 +107,7 @@ struct BaseView: View {
             } label: { Label("Views", systemImage: "plus.rectangle.on.rectangle") }
                 .menuStyle(.button)
                 .fixedSize()
+                .iosTarget()
                 .help("Add or delete views")
                 .confirmationDialog("Delete this view?", isPresented: $confirmDeleteView, titleVisibility: .visible) {
                     Button("Delete view", role: .destructive) { deleteView() }
@@ -102,6 +119,12 @@ struct BaseView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+    }
+
+    private func layoutPicker(_ view: BaseViewConfig) -> some View {
+        Picker("Layout", selection: Binding(get: { view.kind }, set: { k in update { $0.type = k.rawValue } })) {
+            ForEach(BaseViewConfig.Kind.allCases, id: \.self) { k in Label(k.rawValue.capitalized, systemImage: symbol(k)).tag(k) }
+        }
     }
 
     private func sortMenu(_ view: BaseViewConfig) -> some View {
@@ -127,6 +150,7 @@ struct BaseView: View {
             }
             if !view.sort.isEmpty { Button("Clear sort") { update { $0.sort = [] } } }
         } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
+        .help("Sort")
             .menuStyle(.button)
             .fixedSize()
     }
@@ -516,5 +540,16 @@ private struct ColumnPicker: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 320, minHeight: 440)
+    }
+}
+
+private extension View {
+    /// 44×44 pt minimum hit area for icon-only controls on iOS.
+    @ViewBuilder func iosTarget() -> some View {
+        #if os(iOS)
+        frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+        #else
+        self
+        #endif
     }
 }
