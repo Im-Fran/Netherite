@@ -83,9 +83,12 @@ The interface is available in **English and Spanish**, follows Apple's Human Int
 
 ## 🚀 Getting Started
 
-### 1. Get the source
+### 1. Clone the repository
 
-Clone the repository and open a terminal in its root folder (the one containing `project.yml`).
+```bash
+git clone https://github.com/Im-Fran/Netherite.git
+cd Netherite
+```
 
 ### 2. Generate the Xcode project
 
