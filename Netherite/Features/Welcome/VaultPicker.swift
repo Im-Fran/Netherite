@@ -11,30 +11,27 @@ struct VaultPicker: View {
     @State private var creating = false
     @State private var error: String?
 
-    private let columns = [GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 16)]
+    /// Three 300-pt cards plus gaps; the grid and the recents list share this width so their edges line up.
+    private static let contentWidth: CGFloat = 3 * 300 + 2 * 16
+    private static let minRowWidth: CGFloat = 3 * 220 + 2 * 16
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
                     hero
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ActionCard(symbol: "plus.square.on.square", tint: .accentColor, title: "Create a Vault",
-                                   detail: iCloudURL == nil ? "A new folder for your notes on this device." : "A new folder for your notes, synced with iCloud Drive.") {
-                            creating = true
+                    // Cards and recents share one width so their edges line up. The cards form a centered row
+                    // (692–932 pt, equal heights) when it fits, otherwise a column (iPhone, narrow split views).
+                    VStack(spacing: 32) {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 16) { cards }
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(minWidth: Self.minRowWidth)
+                            VStack(spacing: 16) { cards }
                         }
-                        ActionCard(symbol: "folder", tint: .blue, title: "Open a Folder",
-                                   detail: "Use any folder of Markdown files — including an Obsidian vault.") {
-                            importing = true
-                        }
-                        ActionCard(symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
-                                   detail: "A sample vault that teaches Netherite with interactive notes.") {
-                            openGuide()
-                        }
+                        if !app.recents.isEmpty { recents }
                     }
-                    .frame(maxWidth: 1000)
-
-                    if !app.recents.isEmpty { recents }
+                    .frame(maxWidth: Self.contentWidth)
 
                     Button("Take the Welcome Tour", systemImage: "play.circle") { hasSeenOnboarding = false }
                         .buttonStyle(.borderless)
@@ -61,6 +58,21 @@ struct VaultPicker: View {
             Button("OK") {}
         } message: { Text(error ?? "") }
         .task { iCloudURL = await AppModel.iCloudDocuments() }
+    }
+
+    @ViewBuilder private var cards: some View {
+        ActionCard(symbol: "plus.square.on.square", tint: .accentColor, title: "Create a Vault",
+                   detail: iCloudURL == nil ? "A new folder for your notes on this device." : "A new folder for your notes, synced with iCloud Drive.") {
+            creating = true
+        }
+        ActionCard(symbol: "folder", tint: .blue, title: "Open a Folder",
+                   detail: "Use any folder of Markdown files — including an Obsidian vault.") {
+            importing = true
+        }
+        ActionCard(symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
+                   detail: "A sample vault that teaches Netherite with interactive notes.") {
+            openGuide()
+        }
     }
 
     private var hero: some View {
@@ -111,7 +123,6 @@ struct VaultPicker: View {
             }
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
-        .frame(maxWidth: 640)
     }
 
     private func openGuide() {
@@ -145,7 +156,8 @@ private struct ActionCard: View {
                 Spacer(minLength: 0)
             }
             .padding(18)
-            .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+            // Bounded ideal width lets the row fit; maxHeight .infinity keeps every card in a row the same height.
+            .frame(idealWidth: 220, maxWidth: .infinity, minHeight: 170, maxHeight: .infinity, alignment: .topLeading)
             .background(.background.secondary, in: .rect(cornerRadius: 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(hovering ? tint.opacity(0.6) : Color.clear, lineWidth: 1.5))
             .contentShape(.rect(cornerRadius: 16))
