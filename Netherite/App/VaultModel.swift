@@ -129,7 +129,8 @@ final class VaultModel {
     func overwrite(_ path: String, with text: String) {
         do {
             try vault.write(text, to: path)
-            if index.files.contains(path) { index.update(path, text: text) } else { index.didCreate(path) }
+            if !index.files.contains(path) { index.didCreate(path) }
+            else if path.isMarkdown { index.update(path, text: text) }
         } catch { lastError = error.localizedDescription }
     }
 
