@@ -211,6 +211,31 @@ project.yml                XcodeGen project definition
 
 ---
 
+## 🕸 Codebase knowledge graph (graphify)
+
+We use [graphify](https://github.com/safishamsi/graphify) to keep a navigable **knowledge graph of this codebase**. It parses every Swift file into nodes (types, functions, files) and edges (calls, references), adds the concepts described in the docs, and clusters everything into communities such as *Vault Index & Link Graph* or *Canvas Surface & Model*. The result makes it easy — for people and for AI coding agents — to answer questions like "what depends on `VaultIndex`?" without reading the whole source tree.
+
+```bash
+uv tool install graphifyy          # or: pipx install graphifyy
+
+graphify update .                  # rebuild the graph from code (AST only, no LLM or API cost)
+graphify query "how does renaming a note update its links?"
+graphify path "NoteEditorView" "VaultIndex"
+graphify explain "WindowState"
+```
+
+Outputs go to `graphify-out/`, which is ignored by git and regenerated locally:
+
+| File | What it is |
+|------|-----------|
+| `graph.html` | Interactive graph — open it in a browser |
+| `GRAPH_REPORT.md` | Core abstractions ("god nodes"), communities and surprising connections |
+| `graph.json` | Raw graph data for queries and other tools |
+
+In [Claude Code](https://claude.com/claude-code), `/graphify .` runs the full pipeline (including the semantic pass over docs and images) and `CLAUDE.md` tells the agent to query the graph before browsing sources. Vendored, minified assets (`Resources/Web/*.min.js`) are left out of the graph because they would drown the project's own code.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome:
