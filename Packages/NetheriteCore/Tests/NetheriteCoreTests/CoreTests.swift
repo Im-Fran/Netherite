@@ -98,3 +98,67 @@ Footnote here[^1].
     #expect(Search.fuzzyScore("jt", "Japan Trip") != nil)
     #expect(Search.fuzzyScore("xz", "Japan Trip") == nil)
 }
+
+@Test func highlighterSpans() {
+    let t = "# Title\nSome **bold** and *it* with [[Note|alias]] and `code **x**` #tag\n- [x] done"
+    let spans = MarkdownHighlighter.spans(t)
+    let ns = t as NSString
+    func texts(_ k: StyleSpan.Kind) -> [String] { spans.filter { $0.kind == k }.map { ns.substring(with: $0.range) } }
+    #expect(texts(.heading(1)) == ["# Title"])
+    #expect(texts(.bold) == ["**bold**"])
+    #expect(texts(.italic) == ["*it*"])
+    #expect(texts(.inlineCode) == ["`code **x**`"])
+    #expect(texts(.tag) == ["#tag"])
+    #expect(texts(.task(done: true)) == ["[x]"])
+    #expect(texts(.link(target: "Note", embed: false)) == ["[[Note|alias]]"])
+    #expect(texts(.marker).contains("Note|"))
+}
+
+@Test func templates() {
+    var c = DateComponents(); c.year = 2024; c.month = 3; c.day = 9; c.hour = 14; c.minute = 5
+    let d = Calendar.current.date(from: c)!
+    #expect(Templates.render("# {{title}} {{date}} {{time}} {{date:YYYY/MM/DD}}", title: "T", date: d) == "# T 2024-03-09 14:05 2024/03/09")
+    var s = VaultSettings(); s.dailyNotes.folder = "Journal"; s.dailyNotes.format = "YYYY-MM-DD"
+    #expect(Templates.dailyNotePath(for: d, settings: s) == "Journal/2024-03-09.md")
+    #expect(Templates.unicodePattern("[Week] ww") == "'Week' ww")
+}
+
+@Test func rendersHTML() {
+    let files = ["Other.md", "img.png"]
+    let r = LinkResolver(files: files)
+    let ctx = RenderContext(
+        source: "A.md", resolve: { r.resolve($0, from: $1) },
+        readNote: { $0 == "Other.md" ? "# Sec\nembedded body\n# Next\nno" : nil },
+        linkHref: { p, t, _ in p.map { "open:\($0)" } ?? "new:\(t)" },
+        assetURL: { "asset:\($0)" }, tagHref: { "tag:\($0)" })
+    let md = """
+    ---
+    k: v
+    ---
+    Link [[Other|alias]] and [[Missing]] ==hi== #tag <b onclick="x()">b</b><script>alert(1)</script>
+    ![[img.png|100]]
+    ![[Other#Sec]]
+    `[[nope]]` $x^2$
+    > [!warning] Careful
+    > body
+    - [x] done
+    Ref[^a]
+
+    [^a]: foot
+    """
+    let html = HTMLRenderer.render(md, context: ctx)
+    #expect(html.contains("<table class=\"properties\">"))
+    #expect(html.contains("href=\"open:Other.md\""))
+    #expect(html.contains(">alias</a>"))
+    #expect(html.contains("is-unresolved\" href=\"new:Missing\""))
+    #expect(html.contains("<mark>hi</mark>"))
+    #expect(html.contains("href=\"tag:tag\""))
+    #expect(!html.contains("<script>alert") && !html.contains("onclick"))
+    #expect(html.contains("src=\"asset:img.png\" alt=\"100\" width=\"100\""))
+    #expect(html.contains("embedded body") && !html.contains("no</p>"))
+    #expect(html.contains("<code>[[nope]]</code>"))
+    #expect(html.contains("data-tex=\"x^2\""))
+    #expect(html.contains("data-callout=\"warning\"") && html.contains("Careful"))
+    #expect(html.contains("data-line=\"9\" checked"))
+    #expect(html.contains("id=\"fn-a\""))
+}

@@ -63,14 +63,17 @@ public final class VaultIndex {
     }
 
     /// Re-scans the folder structure and re-reads files whose modification date changed (external edits, iCloud).
-    public func refreshFromDisk() async {
+    /// Paths in `skipping` (unsaved editor buffers) keep their in-memory text.
+    public func refreshFromDisk(skipping: Set<String> = []) async {
         let vault = self.vault
-        let known = notes.mapValues(\.modified)
+        var known = notes.mapValues(\.modified)
+        for p in skipping { known[p] = .distantFuture }
         let (entries, changed) = await Task.detached {
             let entries = vault.entries()
             var changed: [String: NoteRecord] = [:]
             for e in entries where !e.isFolder && e.path.isMarkdown {
                 let mod = try? vault.url(for: e.path).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                if known[e.path] == .distantFuture { continue }
                 if known[e.path] == nil || mod != known[e.path] { if let r = Self.record(vault, e.path) { changed[e.path] = r } }
             }
             return (entries, changed)

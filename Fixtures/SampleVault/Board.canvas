@@ -1,0 +1,6 @@
+{"nodes":[
+ {"id":"a1","type":"text","text":"# Ideas\nCanvas **text** card","x":0,"y":0,"width":260,"height":140},
+ {"id":"a2","type":"file","file":"Welcome.md","x":340,"y":-40,"width":320,"height":260},
+ {"id":"a3","type":"link","url":"https://obsidian.md","x":0,"y":220,"width":260,"height":120,"color":"5"},
+ {"id":"g1","type":"group","label":"Group","x":-40,"y":-80,"width":740,"height":460}
+],"edges":[{"id":"e1","fromNode":"a1","fromSide":"right","toNode":"a2","toSide":"left","label":"see"}]}

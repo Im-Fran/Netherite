@@ -43,6 +43,15 @@ public struct Vault: Sendable, Hashable {
         return out.sorted { $0.0.localizedStandardCompare($1.0) == .orderedAscending }
     }
 
+    /// Asks iCloud to download evicted files (shown on disk as hidden `.Name.md.icloud` placeholders).
+    public func downloadPlaceholders() {
+        guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil, options: [.skipsPackageDescendants]) else { return }
+        for case let url as URL in e where url.pathExtension == "icloud" && url.lastPathComponent.hasPrefix(".") {
+            let name = String(url.deletingPathExtension().lastPathComponent.dropFirst())
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url.deletingLastPathComponent().appending(path: name))
+        }
+    }
+
     // MARK: Reading and writing (coordinated, so iCloud and other apps stay consistent)
 
     public func read(_ path: String) throws -> String {
