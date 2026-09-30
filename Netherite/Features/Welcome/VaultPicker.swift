@@ -17,6 +17,7 @@ struct VaultPicker: View {
 
     var body: some View {
         NavigationStack {
+            GeometryReader { geo in
             ScrollView {
                 VStack(spacing: 32) {
                     hero
@@ -24,10 +25,10 @@ struct VaultPicker: View {
                     // (692–932 pt, equal heights) when it fits, otherwise a column (iPhone, narrow split views).
                     VStack(spacing: 32) {
                         ViewThatFits(in: .horizontal) {
-                            HStack(spacing: 16) { cards }
+                            HStack(spacing: 16) { cards(compact: false) }
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(minWidth: Self.minRowWidth)
-                            VStack(spacing: 16) { cards }
+                            VStack(spacing: 12) { cards(compact: true) }
                         }
                         if !app.recents.isEmpty { recents }
                     }
@@ -38,7 +39,9 @@ struct VaultPicker: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 40)
-                .frame(maxWidth: .infinity)
+                // Centered vertically when everything fits (large screens); scrolls from the top otherwise.
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
             }
             .background(.background)
             #if os(iOS)
@@ -60,16 +63,16 @@ struct VaultPicker: View {
         .task { iCloudURL = await AppModel.iCloudDocuments() }
     }
 
-    @ViewBuilder private var cards: some View {
-        ActionCard(symbol: "plus.square.on.square", tint: .accentColor, title: "Create a Vault",
+    @ViewBuilder private func cards(compact: Bool) -> some View {
+        ActionCard(compact: compact, symbol: "plus.square.on.square", tint: .accentColor, title: "Create a Vault",
                    detail: iCloudURL == nil ? "A new folder for your notes on this device." : "A new folder for your notes, synced with iCloud Drive.") {
             creating = true
         }
-        ActionCard(symbol: "folder", tint: .blue, title: "Open a Folder",
+        ActionCard(compact: compact, symbol: "folder", tint: .blue, title: "Open a Folder",
                    detail: "Use any folder of Markdown files — including an Obsidian vault.") {
             importing = true
         }
-        ActionCard(symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
+        ActionCard(compact: compact, symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
                    detail: "A sample vault that teaches Netherite with interactive notes.") {
             openGuide()
         }
@@ -135,6 +138,8 @@ struct VaultPicker: View {
 
 /// A large tappable option on the start page.
 private struct ActionCard: View {
+    /// Row layout (icon beside the text) used when cards stack in a column on narrow screens.
+    var compact = false
     let symbol: String
     let tint: Color
     let title: LocalizedStringKey
@@ -142,22 +147,31 @@ private struct ActionCard: View {
     let action: () -> Void
     @State private var hovering = false
     @ScaledMetric private var iconBox: CGFloat = 44
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: symbol)
-                    .font(.title2)
-                    .foregroundStyle(tint)
-                    .frame(width: iconBox, height: iconBox)
-                    .background(tint.opacity(0.14), in: .rect(cornerRadius: 10, style: .continuous))
-                Text(title).font(.headline).foregroundStyle(.primary)
-                Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+            Group {
+                // At accessibility text sizes the icon would squeeze the text, so stack vertically instead.
+                if compact && !typeSize.isAccessibilitySize {
+                    HStack(alignment: .top, spacing: 14) {
+                        icon
+                        text
+                        Spacer(minLength: 0)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        icon
+                        text
+                        Spacer(minLength: 0)
+                    }
+                    .padding(18)
+                    // Bounded ideal width lets the row fit; maxHeight .infinity keeps every card in a row the same height.
+                    .frame(idealWidth: 220, maxWidth: .infinity, minHeight: 170, maxHeight: .infinity, alignment: .topLeading)
+                }
             }
-            .padding(18)
-            // Bounded ideal width lets the row fit; maxHeight .infinity keeps every card in a row the same height.
-            .frame(idealWidth: 220, maxWidth: .infinity, minHeight: 170, maxHeight: .infinity, alignment: .topLeading)
             .background(.background.secondary, in: .rect(cornerRadius: 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(hovering ? tint.opacity(0.6) : Color.clear, lineWidth: 1.5))
             .contentShape(.rect(cornerRadius: 16))
@@ -166,6 +180,21 @@ private struct ActionCard: View {
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var icon: some View {
+        Image(systemName: symbol)
+            .font(.title2)
+            .foregroundStyle(tint)
+            .frame(width: iconBox, height: iconBox)
+            .background(tint.opacity(0.14), in: .rect(cornerRadius: 10, style: .continuous))
+    }
+
+    private var text: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.headline).foregroundStyle(.primary)
+            Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
