@@ -46,6 +46,8 @@ targets:
       path: Netherite/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, es]
         LSApplicationCategoryType: public.app-category.productivity
         LSSupportsOpeningDocumentsInPlace: true
         UIFileSharingEnabled: true
@@ -96,6 +98,7 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleLocalizations: [en, es]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -136,6 +139,7 @@ targets:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleLocalizations: [en, es]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

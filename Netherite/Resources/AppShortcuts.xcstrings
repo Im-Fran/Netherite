@@ -1,0 +1,70 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Add to my daily note in ${applicationName}" : {
+      "localizations" : {
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Agregar a mi nota diaria en ${applicationName}",
+              "Añadir a mi nota diaria en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Create a note in ${applicationName}" : {
+      "localizations" : {
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Crear una nota en ${applicationName}",
+              "Nueva nota en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Open ${note} in ${applicationName}" : {
+      "localizations" : {
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Abrir ${note} en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Open today's note in ${applicationName}" : {
+      "localizations" : {
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Abrir la nota de hoy en ${applicationName}",
+              "Abrir mi nota diaria en ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Search notes in ${applicationName}" : {
+      "localizations" : {
+        "es" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Buscar notas en ${applicationName}",
+              "Buscar en mis notas en ${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
