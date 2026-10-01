@@ -9,7 +9,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "2"
+    CURRENT_PROJECT_VERSION: "3"
     DEVELOPMENT_TEAM: PX7HA29NR3
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -46,6 +46,8 @@ targets:
       path: Netherite/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [en, es]
         LSApplicationCategoryType: public.app-category.productivity
@@ -99,6 +101,8 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleLocalizations: [en, es]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
@@ -140,6 +144,8 @@ targets:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: Netherite
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleLocalizations: [en, es]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
