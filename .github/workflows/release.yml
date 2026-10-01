@@ -1,0 +1,98 @@
+name: Release
+
+# Every tag is archived with the App Store distribution signature for iOS/iPadOS
+# and macOS, and uploaded to TestFlight. Never a direct App Store submission:
+# the build sits there until someone promotes it, so shipping stays manual.
+#
+# Tag format: <version>[+<build>], with an optional leading "v".
+#   1.4.0+7  → version 1.4.0, build 7
+#   1.4.0    → version 1.4.0, build = latest on TestFlight + 1
+on:
+  push:
+    tags: ["*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build, e.g. 1.0.0+1"
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: TestFlight (${{ matrix.platform }})
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, mac]
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+      MATCH_REPOSITORY_URL: ${{ secrets.MATCH_REPOSITORY_URL }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The tag reaches the shell through the environment, never interpolated
+      # into the script: a ref name is attacker-shaped input.
+      - name: Read version from the tag
+        id: version
+        env:
+          RAW_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          TAG="$RAW_TAG"
+          case "$TAG" in
+            *[!A-Za-z0-9.+_-]*)
+              echo "Refusing tag with unexpected characters: $TAG" >&2
+              exit 1
+              ;;
+          esac
+          VERSION="${TAG#v}"
+          BUILD=""
+          case "$VERSION" in
+            *+*)
+              BUILD="${VERSION##*+}"
+              VERSION="${VERSION%%+*}"
+              ;;
+          esac
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Building $VERSION (${BUILD:-auto}) from $TAG"
+
+      # Ruby 4: Gemfile.lock is in bundler 4's format, which bundler 2.x cannot read.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcodegen --version
+
+      - name: Build and upload to TestFlight
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ steps.version.outputs.build }}
+        run: bundle exec fastlane "$PLATFORM" beta version:"$VERSION" ${BUILD:+build_number:"$BUILD"}
+
+      - name: Keep the package with the workflow run
+        uses: actions/upload-artifact@v7
+        with:
+          name: Netherite-${{ steps.version.outputs.version }}-${{ matrix.platform }}
+          path: |
+            build/*.ipa
+            build/*.pkg
+          if-no-files-found: error
