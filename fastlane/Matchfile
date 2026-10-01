@@ -1,0 +1,12 @@
+# Same private match repo as the other apps of the team: the distribution
+# certificates are per team, so one encrypted copy serves every app.
+git_url(ENV["MATCH_REPOSITORY_URL"])
+storage_mode("git")
+
+# The app and both extensions each need their own profile; the platform is
+# picked per lane.
+app_identifier([
+  "cl.franciscosolis.netherite",
+  "cl.franciscosolis.netherite.share",
+  "cl.franciscosolis.netherite.widgets"
+])
