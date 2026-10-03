@@ -4,6 +4,12 @@ name: Release
 # and macOS, and uploaded to TestFlight. Never a direct App Store submission:
 # the build sits there until someone promotes it, so shipping stays manual.
 #
+# The same tag also builds the Developer ID macOS app (notarized, with
+# OpenUpdater) and publishes it as the GitHub release v<version>:
+# Netherite.dmg for manual installs, Netherite.zip + .zip.sig for OpenUpdater.
+# The release drops the +build suffix: OpenUpdater compares it to
+# CFBundleShortVersionString. Versions with a "-" (1.4.0-beta.1) are pre-releases.
+#
 # Tag format: <version>[+<build>], with an optional leading "v".
 #   1.4.0+7  → version 1.4.0, build 7
 #   1.4.0    → version 1.4.0, build = latest on TestFlight + 1
@@ -22,13 +28,18 @@ concurrency:
 
 jobs:
   release:
-    name: TestFlight (${{ matrix.platform }})
+    name: ${{ matrix.name }}
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      contents: write # gh release create (Developer ID job)
     strategy:
       fail-fast: false
       matrix:
-        platform: [ios, mac]
+        include:
+          - { name: TestFlight iOS, platform: ios, lane: beta }
+          - { name: TestFlight macOS, platform: mac, lane: beta }
+          - { name: Developer ID macOS, platform: mac, lane: direct }
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -81,18 +92,25 @@ jobs:
           xcodebuild -version
           xcodegen --version
 
-      - name: Build and upload to TestFlight
+      # beta uploads to TestFlight (no workflow artifact: the App Store-signed
+      # .ipa/.pkg can't be installed outside the store); direct builds the
+      # notarized Developer ID .dmg/.zip.
+      - name: Build (${{ matrix.lane }})
         env:
           PLATFORM: ${{ matrix.platform }}
+          LANE: ${{ matrix.lane }}
           VERSION: ${{ steps.version.outputs.version }}
           BUILD: ${{ steps.version.outputs.build }}
-        run: bundle exec fastlane "$PLATFORM" beta version:"$VERSION" ${BUILD:+build_number:"$BUILD"}
+          OPENUPDATER_PRIVATE_KEY: ${{ matrix.lane == 'direct' && secrets.OPENUPDATER_PRIVATE_KEY || '' }}
+        run: bundle exec fastlane "$PLATFORM" "$LANE" version:"$VERSION" ${BUILD:+build_number:"$BUILD"}
 
-      - name: Keep the package with the workflow run
-        uses: actions/upload-artifact@v7
-        with:
-          name: Netherite-${{ steps.version.outputs.version }}-${{ matrix.platform }}
-          path: |
-            build/*.ipa
-            build/*.pkg
-          if-no-files-found: error
+      - name: Publish the GitHub release
+        if: matrix.lane == 'direct'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          PRERELEASE=""
+          case "$VERSION" in *-*) PRERELEASE="--prerelease" ;; esac
+          gh release create "v$VERSION" build/Netherite.dmg build/Netherite.zip build/Netherite.zip.sig \
+            --target "$GITHUB_SHA" --title "Netherite $VERSION" --generate-notes $PRERELEASE

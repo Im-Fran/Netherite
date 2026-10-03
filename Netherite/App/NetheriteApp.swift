@@ -1,11 +1,22 @@
 import SwiftUI
 import NetheriteCore
+#if DIRECT_DISTRIBUTION
+import OpenUpdater
+
+/// Developer ID builds update themselves from GitHub releases; App Store builds update through the store.
+let updater = Updater(repo: "Im-Fran/Netherite", publicKey: "81jZk+BvNeI9YjwFUjL6lNscyf17495dafZyqOMz5ME=")
+#endif
 
 @main
 struct NetheriteApp: App {
     @State private var app = AppModel.shared
 
-    init() { NetheriteTips.configure() }
+    init() {
+        NetheriteTips.configure()
+        #if DIRECT_DISTRIBUTION
+        updater.start()
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup(id: "vault", for: String.self) { $vaultPath in
@@ -29,7 +40,14 @@ struct NetheriteApp: App {
             .restorationBehavior(.disabled)
 
         Settings {
+            #if DIRECT_DISTRIBUTION
+            TabView {
+                Tab("Vault", systemImage: "folder") { SettingsRoot().environment(app) }
+                Tab("Updates", systemImage: "arrow.down.circle") { UpdaterSettingsView(updater: updater).frame(width: 460) }
+            }
+            #else
             SettingsRoot().environment(app)
+            #endif
         }
         #endif
     }
@@ -93,6 +111,11 @@ struct NetheriteCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        #if DIRECT_DISTRIBUTION
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { updater.checkNow() }
+        }
+        #endif
         CommandGroup(replacing: .newItem) {
             Button("New Note") { window?.newNote() }.keyboardShortcut("n").disabled(window == nil)
             Button("New Note in New Pane") {

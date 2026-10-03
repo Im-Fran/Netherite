@@ -1,4 +1,5 @@
-# Netherite — sign and ship the iOS/iPadOS and macOS builds to TestFlight.
+# Netherite — sign and ship the iOS/iPadOS and macOS builds to TestFlight, and
+# the Developer ID macOS build (notarized .dmg and .zip) for direct download.
 #
 # The Xcode project is generated from project.yml by XcodeGen and is not
 # committed, so every lane regenerates it first. Day-to-day builds sign
@@ -10,6 +11,8 @@ PROJECT = File.join(ROOT, "Netherite.xcodeproj")
 SCHEME = "Netherite"
 BUILD_DIR = "build"
 TEAM_ID = File.read(File.join(ROOT, "project.yml"))[/DEVELOPMENT_TEAM:\s*(\S+)/, 1]
+# The key the app checks updates against; the release zip must verify with it.
+UPDATER_PUBLIC_KEY = File.read(File.join(ROOT, "Netherite/App/NetheriteApp.swift"))[/publicKey: "([^"]+)"/, 1]
 
 # Target => bundle identifier; each one gets its own App Store profile.
 TARGETS = {
@@ -67,6 +70,7 @@ lane :certificates do |options|
   match(type: "appstore", platform: "ios", api_key: key, readonly: readonly)
   match(type: "appstore", platform: "macos", api_key: key, readonly: readonly,
         additional_cert_types: ["mac_installer_distribution"])
+  match(type: "developer_id", platform: "macos", api_key: key, readonly: readonly)
 end
 
 platform :ios do
@@ -126,6 +130,65 @@ platform :mac do
     UI.user_error!("no .pkg was produced") if pkg.nil?
     upload(pkg: pkg, api_key: key) unless options[:upload] == false
   end
+
+  # The App Store .pkg above is signed for the store only: Gatekeeper rejects it
+  # when opened directly. Direct downloads get their own build: Developer ID,
+  # no sandbox, OpenUpdater compiled in, notarized and stapled.
+  desc "Build the notarized Developer ID app as build/Netherite.dmg and build/Netherite.zip (+ .zip.sig for OpenUpdater)"
+  lane :direct do |options|
+    key = api_key
+    match(type: "developer_id", platform: "macos", api_key: key, readonly: true)
+    use_match_profiles(identity: "Developer ID Application")
+
+    out = File.join(ROOT, BUILD_DIR)
+    export = File.join(out, "direct")
+    build_mac_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      destination: "generic/platform=macOS",
+      sdk: "macosx",
+      export_method: "developer-id",
+      export_options: { provisioningProfiles: profile_mapping },
+      skip_package_pkg: true,
+      derived_data_path: "#{BUILD_DIR}/DerivedData",
+      output_directory: export,
+      archive_path: "#{BUILD_DIR}/Netherite-direct.xcarchive",
+      xcargs: [
+        version_xcargs(options, key, "osx"),
+        "NETHERITE_CONDITIONS=DIRECT_DISTRIBUTION",
+        "NETHERITE_ENTITLEMENTS=Netherite/NetheriteDirect.entitlements"
+      ].join(" ")
+    )
+    app = File.join(export, "Netherite.app")
+
+    # Notarize the app first: the zip OpenUpdater installs must carry the stapled ticket.
+    notarize(package: app, api_key: key)
+
+    zip = File.join(out, "Netherite.zip")
+    sh("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, zip)
+    openupdater("sign", zip, *[ENV["OPENUPDATER_PRIVATE_KEY"].to_s.empty? ? File.expand_path("~/.openupdater/netherite.key") : nil].compact)
+    openupdater("verify", zip, UPDATER_PUBLIC_KEY)
+
+    # The .dmg for people downloading by hand: the app plus an Applications link to drag it to.
+    dmg = File.join(out, "Netherite.dmg")
+    stage = File.join(out, "dmg")
+    sh("rm", "-rf", stage, dmg)
+    sh("mkdir", "-p", stage)
+    sh("ditto", app, File.join(stage, "Netherite.app"))
+    sh("ln", "-s", "/Applications", File.join(stage, "Applications"))
+    sh("hdiutil", "create", "-volname", "Netherite", "-srcfolder", stage, "-format", "UDZO", "-ov", dmg)
+    sh("codesign", "--sign", "Developer ID Application", "--timestamp", dmg)
+    notarize(package: dmg, api_key: key)
+  end
+end
+
+# openupdater-cli signs and verifies the update zip (Ed25519). The private key
+# comes from OPENUPDATER_PRIVATE_KEY on CI, or a key file locally.
+def openupdater(*args)
+  tool = File.join(ROOT, BUILD_DIR, "openupdater")
+  sh("git", "clone", "--depth", "1", "-b", "dev", "https://github.com/Im-Fran/openupdater", tool) unless File.directory?(tool)
+  sh("swift", "run", "-c", "release", "--package-path", tool, "openupdater-cli", *args)
 end
 
 # Only the bundle IDs this project signs: the mapping accumulates across
@@ -136,7 +199,7 @@ end
 
 # Switch every target's Release configuration to manual signing with its match
 # profile. Package targets stay untouched: they build static and don't sign.
-def use_match_profiles
+def use_match_profiles(identity: "Apple Distribution")
   TARGETS.each do |target, bundle_id|
     update_code_signing_settings(
       path: PROJECT,
@@ -144,7 +207,7 @@ def use_match_profiles
       targets: [target],
       build_configurations: ["Release"],
       team_id: TEAM_ID,
-      code_sign_identity: "Apple Distribution",
+      code_sign_identity: identity,
       bundle_identifier: bundle_id,
       profile_name: profile_mapping.fetch(bundle_id)
     )
