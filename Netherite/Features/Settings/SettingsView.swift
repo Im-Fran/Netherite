@@ -4,7 +4,9 @@ import NetheriteCore
 struct SettingsView: View {
     @Bindable var model: VaultModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isPresented) private var isPresented
     @State private var tipsReset = false
+    @State private var themeError: String?
 
     var body: some View {
         NavigationStack {
@@ -21,7 +23,7 @@ struct SettingsView: View {
                 }
                 Section("Appearance") {
                     Picker("Theme", selection: $model.settings.theme) {
-                        ForEach(model.themes) { Text($0.name).tag($0.name) }
+                        ForEach(model.themes) { Text($0.displayName).tag($0.name) }
                     }
                     LabeledContent("Custom themes") {
                         Text(".netherite/themes/*.json").font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -30,9 +32,9 @@ struct SettingsView: View {
                 }
                 Section("Daily notes") {
                     folderField("Folder", $model.settings.dailyNotes.folder)
-                    TextField("Date format", text: $model.settings.dailyNotes.format)
+                    textField("Date format", $model.settings.dailyNotes.format)
                     Text("Example: \(Templates.format(.now, model.settings.dailyNotes.format))").font(.caption).foregroundStyle(.secondary)
-                    TextField("Template file", text: $model.settings.dailyNotes.template)
+                    textField("Template file", $model.settings.dailyNotes.template)
                     Toggle("Open daily note on startup", isOn: $model.settings.dailyNotes.openOnStartup)
                 }
                 Section("Templates") {
@@ -41,8 +43,8 @@ struct SettingsView: View {
                 }
                 Section("Unique note creator") {
                     folderField("Folder", $model.settings.uniqueNote.folder)
-                    TextField("Name format", text: $model.settings.uniqueNote.format)
-                    TextField("Template file", text: $model.settings.uniqueNote.template)
+                    textField("Name format", $model.settings.uniqueNote.format)
+                    textField("Template file", $model.settings.uniqueNote.template)
                 }
                 Section("File recovery") {
                     Stepper("Snapshot every \(model.settings.snapshotIntervalMinutes) min", value: $model.settings.snapshotIntervalMinutes, in: 1...60)
@@ -63,10 +65,26 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            #if os(iOS)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            #endif
+            .toolbar {
+                #if os(iOS)
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                #else
+                if isPresented { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                #endif
+            }
+            .alert("Couldn't Create Theme", isPresented: Binding(get: { themeError != nil }, set: { if !$0 { themeError = nil } })) {
+                Button("OK") {}
+            } message: { Text(themeError ?? "") }
         }
+    }
+
+    /// On iOS a filled text field hides its placeholder, so show the label beside it.
+    @ViewBuilder private func textField(_ label: LocalizedStringKey, _ text: Binding<String>) -> some View {
+        #if os(iOS)
+        LabeledContent(label) { TextField(label, text: text).multilineTextAlignment(.trailing) }
+        #else
+        TextField(label, text: text)
+        #endif
     }
 
     private func folderField(_ label: LocalizedStringKey, _ binding: Binding<String>) -> some View {
@@ -81,14 +99,17 @@ struct SettingsView: View {
 
     private func createThemeFile() {
         var t = model.theme
-        t.name = "\(t.name) Custom"
+        t.name = String(localized: "\(t.displayName) Custom")
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let data = try? enc.encode(t) {
-            try? FileManager.default.createDirectory(at: model.vault.themesURL, withIntermediateDirectories: true)
-            try? data.write(to: model.vault.themesURL.appending(path: "\(t.name).json"))
+        do {
+            let data = try enc.encode(t)
+            try FileManager.default.createDirectory(at: model.vault.themesURL, withIntermediateDirectories: true)
+            try data.write(to: model.vault.themesURL.appending(path: "\(t.name).json"))
             model.reloadThemes()
             model.settings.theme = t.name
+        } catch {
+            themeError = error.localizedDescription
         }
     }
 }

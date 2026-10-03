@@ -449,6 +449,19 @@ private struct FilterEditor: View {
 
     static let ops = ["==", "!=", "contains", "starts with", ">", "<", "is empty", "is not empty", "has tag", "in folder"]
 
+    /// Display title for an operator; the raw value stays the tag used by `expression()`.
+    static func title(_ op: String) -> String {
+        switch op {
+        case "contains": String(localized: "contains")
+        case "starts with": String(localized: "starts with")
+        case "is empty": String(localized: "is empty")
+        case "is not empty": String(localized: "is not empty")
+        case "has tag": String(localized: "has tag")
+        case "in folder": String(localized: "in folder")
+        default: op
+        }
+    }
+
     var body: some View {
         Form {
             Picker("Match", selection: $any) {
@@ -471,7 +484,7 @@ private struct FilterEditor: View {
             }
             Section("Add rule") {
                 Picker("Property", selection: $property) { ForEach(keys, id: \.self) { Text($0).tag($0) } }
-                Picker("Operator", selection: $op) { ForEach(Self.ops, id: \.self) { Text($0).tag($0) } }
+                Picker("Operator", selection: $op) { ForEach(Self.ops, id: \.self) { Text(Self.title($0)).tag($0) } }
                 if !op.hasPrefix("is ") { TextField("Value", text: $value) }
                 Button("Add Rule", systemImage: "plus") { rules.append(expression()); value = "" }
             }

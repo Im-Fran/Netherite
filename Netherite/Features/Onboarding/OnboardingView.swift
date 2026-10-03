@@ -6,6 +6,8 @@ struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = 0
     @AccessibilityFocusState private var titleFocused: Bool
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .largeTitle) private var circle: CGFloat = 120
 
     struct Page: Identifiable {
         var id: Int
@@ -59,9 +61,9 @@ struct OnboardingView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     ZStack {
-                        Circle().fill(p.color.opacity(0.15)).frame(width: 120, height: 120)
+                        Circle().fill(p.color.opacity(0.15)).frame(width: circle, height: circle)
                         Image(systemName: p.symbol)
-                            .font(.system(size: 52, weight: .semibold))
+                            .font(.system(size: symbolSize, weight: .semibold))
                             .foregroundStyle(p.color)
                             .symbolEffect(.bounce, value: reduceMotion ? 0 : page)
                     }

@@ -58,7 +58,7 @@ extension VaultModel {
     @discardableResult
     func newBase(in folder: String) -> String? {
         let path = vault.availablePath(folder: folder, base: String(localized: "Untitled"), ext: "base")
-        return writeNew(path, "views:\n  - type: table\n    name: Table\n    order:\n      - file.name\n")
+        return writeNew(path, "views:\n  - type: table\n    name: \(String(localized: "Table"))\n    order:\n      - file.name\n")
     }
 
     private func writeNew(_ path: String, _ content: String) -> String? {

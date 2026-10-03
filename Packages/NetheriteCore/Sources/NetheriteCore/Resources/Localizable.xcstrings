@@ -61,6 +61,16 @@
         }
       }
     },
+    "Encrypted ZIP archives aren't supported." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los archivos ZIP cifrados no son compatibles."
+          }
+        }
+      }
+    },
     "Graph View" : {
       "localizations" : {
         "es" : {
@@ -161,6 +171,16 @@
         }
       }
     },
+    "System" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema"
+          }
+        }
+      }
+    },
     "The ZIP archive is damaged." : {
       "localizations" : {
         "es" : {
@@ -191,12 +211,12 @@
         }
       }
     },
-    "Unsupported ZIP feature: %@" : {
+    "This ZIP archive uses an unsupported compression method (%lld)." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Función de ZIP no compatible: %@"
+            "value" : "Este archivo ZIP usa un método de compresión no compatible (%lld)."
           }
         }
       }

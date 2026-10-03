@@ -9,6 +9,7 @@ struct VaultPicker: View {
     @State private var iCloudURL: URL?
     @State private var importing = false
     @State private var creating = false
+    @State private var openingGuide = false
     @State private var error: String?
 
     /// Three 300-pt cards plus gaps; the grid and the recents list share this width so their edges line up.
@@ -29,6 +30,12 @@ struct VaultPicker: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(minWidth: Self.minRowWidth)
                             VStack(spacing: 12) { cards(compact: true) }
+                        }
+                        .disabled(openingGuide)
+                        .overlay {
+                            if openingGuide {
+                                ProgressView("Preparing the Guide…").padding().background(.regularMaterial, in: .rect(cornerRadius: 12))
+                            }
                         }
                         if !app.recents.isEmpty { recents }
                     }
@@ -110,7 +117,7 @@ struct VaultPicker: View {
                                 .frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(r.name).foregroundStyle(.primary)
-                                Text(r.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                Text(location(r.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
@@ -128,8 +135,28 @@ struct VaultPicker: View {
         }
     }
 
+    /// Sandbox paths mean nothing on iOS, so show where the vault lives instead; macOS keeps the (abbreviated) path.
+    private func location(_ path: String) -> String {
+        #if os(iOS)
+        if path.contains("Mobile Documents") { return String(localized: "iCloud Drive") }
+        switch UIDevice.current.userInterfaceIdiom {
+        case .phone: return String(localized: "On This iPhone")
+        case .pad: return String(localized: "On This iPad")
+        default: return String(localized: "On This Device")
+        }
+        #else
+        // The sandbox's home is the app container, so abbreviate against the real home folder.
+        guard let pw = getpwuid(getuid()) else { return path }
+        let home = String(cString: pw.pointee.pw_dir)
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+        #endif
+    }
+
     private func openGuide() {
+        guard !openingGuide else { return }
+        openingGuide = true
         Task {
+            defer { openingGuide = false }
             let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
             do { onOpen(try app.createGuideVault(in: parent)) } catch { self.error = error.localizedDescription }
         }
