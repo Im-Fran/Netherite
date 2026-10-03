@@ -140,7 +140,7 @@ struct ImporterView: View {
     }
 
     private var defaultDestination: String {
-        "Imported/" + (sourceURL.map { $0.deletingPathExtension().lastPathComponent } ?? source.defaultFolderName)
+        String(localized: "Imported", comment: "Default import destination folder") + "/" + (sourceURL.map { $0.deletingPathExtension().lastPathComponent } ?? source.defaultFolderName)
     }
 
     private var confirmTitle: String {

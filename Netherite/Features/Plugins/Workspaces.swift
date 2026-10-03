@@ -44,6 +44,8 @@ struct WorkspacesView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var list: [Workspace] = []
+    @State private var confirmReplace: String?
+    @State private var confirmDelete: Workspace?
 
     var body: some View {
         NavigationStack {
@@ -65,14 +67,24 @@ struct WorkspacesView: View {
                             Spacer()
                             Button("Load") { window.loadWorkspace(w); dismiss() }
                         }
-                        .swipeActions { Button("Delete", role: .destructive) { window.deleteWorkspace(w); list = window.workspaces } }
-                        .contextMenu { Button("Delete", systemImage: "trash", role: .destructive) { window.deleteWorkspace(w); list = window.workspaces } }
+                        .swipeActions { Button("Delete", role: .destructive) { confirmDelete = w } }
+                        .contextMenu { Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = w } }
                     }
                 }
             }
             .formStyle(.grouped)
             .navigationTitle("Workspaces")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .confirmationDialog("Replace “\(confirmReplace ?? "")”?", isPresented: Binding(get: { confirmReplace != nil }, set: { if !$0 { confirmReplace = nil } }),
+                                titleVisibility: .visible, presenting: confirmReplace) { n in
+                Button("Replace", role: .destructive) { save(n) }
+            } message: { _ in
+                Text("A workspace with this name already exists. Replacing it saves the current layout in its place.")
+            }
+            .confirmationDialog("Delete “\(confirmDelete?.name ?? "")”?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+                                titleVisibility: .visible, presenting: confirmDelete) { w in
+                Button("Delete", role: .destructive) { window.deleteWorkspace(w); list = window.workspaces }
+            }
         }
         .frame(minWidth: 440, minHeight: 360)
         .onAppear { list = window.workspaces }
@@ -81,6 +93,10 @@ struct WorkspacesView: View {
     private func save() {
         let n = name.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty else { return }
+        if list.contains(where: { $0.name == n }) { confirmReplace = n } else { save(n) }
+    }
+
+    private func save(_ n: String) {
         window.saveWorkspace(named: n)
         list = window.workspaces
         name = ""

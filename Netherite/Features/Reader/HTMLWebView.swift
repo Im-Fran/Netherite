@@ -73,6 +73,8 @@ struct HTMLWebView {
     var onAction: (WebAction) -> Void = { _ in }
     /// For the web viewer: reports title and URL changes.
     var onNavigate: ((String?, URL?) -> Void)?
+    /// For the web viewer: reports loading start/finish and failures (`nil` error while loading or on success).
+    var onLoad: ((_ loading: Bool, _ error: Error?) -> Void)?
     var webViewRef: ((WKWebView) -> Void)?
 
     @MainActor final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -108,8 +110,23 @@ struct HTMLWebView {
             return .allow
         }
 
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            parent.onLoad?(true, nil)
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             parent.onNavigate?(webView.title, webView.url)
+            parent.onLoad?(false, nil)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(error) }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(error) }
+
+        private func failed(_ error: Error) {
+            // A cancelled load (new navigation, or one our policy cancelled) isn't a failure.
+            let cancelled = (error as NSError).domain == NSURLErrorDomain && (error as NSError).code == NSURLErrorCancelled
+            parent.onLoad?(false, cancelled ? nil : error)
         }
 
         func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {

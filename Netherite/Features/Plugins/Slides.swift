@@ -32,15 +32,16 @@ struct SlidesView: View {
                         vault: window.model.vault, onAction: { window.handle($0, from: path) })
                 .ignoresSafeArea()
             HStack(spacing: 16) {
-                Button("Previous Slide", systemImage: "chevron.left") { index = max(0, i - 1) }
+                Button { index = max(0, i - 1) } label: { Label("Previous Slide", systemImage: "chevron.left").hitTarget() }
                     .keyboardShortcut(.leftArrow, modifiers: [])
                     .disabled(i == 0)
                 Text("\(i + 1) / \(max(1, slides.count))").monospacedDigit().foregroundStyle(.secondary)
-                Button("Next Slide", systemImage: "chevron.right") { index = min(slides.count - 1, i + 1) }
+                    .accessibilityLabel("Slide \(i + 1) of \(max(1, slides.count))")
+                Button { index = min(slides.count - 1, i + 1) } label: { Label("Next Slide", systemImage: "chevron.right").hitTarget() }
                     .keyboardShortcut(.rightArrow, modifiers: [])
                     .disabled(i >= slides.count - 1)
                 Divider().frame(height: 20)
-                Button("End Presentation", systemImage: "xmark") { dismiss() }
+                Button { dismiss() } label: { Label("End Presentation", systemImage: "xmark").hitTarget() }
                     .keyboardShortcut(.escape, modifiers: [])
             }
             .labelStyle(.iconOnly)

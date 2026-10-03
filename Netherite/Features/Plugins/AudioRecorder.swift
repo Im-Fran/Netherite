@@ -8,15 +8,22 @@ final class AudioRecorderModel: NSObject, AVAudioRecorderDelegate {
     var elapsed: TimeInterval = 0
     var level: Float = 0
     var error: String?
+    var denied = false
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored let fileURL = URL.temporaryDirectory.appending(path: "netherite-recording-\(UUID().uuidString).m4a")
 
     func start() async {
         guard await AVAudioApplication.requestRecordPermission() else {
+            denied = true
+            #if os(iOS)
+            error = String(localized: "Microphone access is off. Allow it in Settings › Netherite › Microphone.")
+            #else
             error = String(localized: "Microphone access is off. Allow it in System Settings › Privacy & Security › Microphone.")
+            #endif
             return
         }
+        error = nil
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try? AVAudioSession.sharedInstance().setActive(true)
@@ -41,7 +48,7 @@ final class AudioRecorderModel: NSObject, AVAudioRecorderDelegate {
         } catch { self.error = error.localizedDescription }
     }
 
-    /// Stops and returns the recorded audio.
+    /// Stops and returns the recorded audio. The temporary file is kept until `discard()`.
     func stop() -> Data? {
         recorder?.stop()
         timer?.invalidate()
@@ -49,18 +56,33 @@ final class AudioRecorderModel: NSObject, AVAudioRecorderDelegate {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false)
         #endif
-        defer { try? FileManager.default.removeItem(at: fileURL) }
         return try? Data(contentsOf: fileURL)
     }
 
-    func cancel() { _ = stop() }
+    func discard() { try? FileManager.default.removeItem(at: fileURL) }
+
+    func cancel() { _ = stop(); discard() }
 }
 
 /// Records audio into the attachments folder and embeds it in the current note.
 struct AudioRecorderView: View {
     @Environment(WindowState.self) private var window
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var rec = AudioRecorderModel()
+    /// Recorded audio that couldn't be saved yet; kept so the user can retry.
+    @State private var unsaved: Data?
+    @State private var confirmDiscard = false
+
+    private var hasWork: Bool { (rec.recording && rec.elapsed > 3) || unsaved != nil }
+
+    private var settingsURL: URL? {
+        #if os(iOS)
+        URL(string: UIApplication.openSettingsURLString)
+        #else
+        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -72,13 +94,22 @@ struct AudioRecorderView: View {
                 .frame(maxWidth: 240)
                 .accessibilityValue(Text("\(Int(rec.level * 100)) percent"))
             if let e = rec.error { Text(e).font(.callout).foregroundStyle(.red).multilineTextAlignment(.center) }
+            if rec.denied, let settingsURL {
+                Button("Open Settings") { openURL(settingsURL) }
+            }
             HStack(spacing: 16) {
-                Button("Cancel", role: .cancel) { rec.cancel(); dismiss() }
+                Button("Cancel", role: .cancel) {
+                    if hasWork { confirmDiscard = true } else { rec.cancel(); dismiss() }
+                }
                 if rec.recording {
                     Button("Stop and Save", systemImage: "stop.fill", action: finish)
                         .buttonStyle(.borderedProminent).tint(.red)
                         .keyboardShortcut(.defaultAction)
-                } else {
+                } else if unsaved != nil {
+                    Button("Try Again", systemImage: "square.and.arrow.down", action: finish)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                } else if !rec.denied {
                     Button("Record", systemImage: "record.circle") { Task { await rec.start() } }
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
@@ -88,14 +119,29 @@ struct AudioRecorderView: View {
         }
         .padding(32)
         .frame(minWidth: 360)
+        .interactiveDismissDisabled(rec.recording || unsaved != nil)
+        .confirmationDialog("Discard Recording?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { rec.cancel(); dismiss() }
+        }
         .task { await rec.start() }
-        .onDisappear { if rec.recording { rec.cancel() } }
+        .onDisappear { rec.cancel() }
     }
 
     private func finish() {
-        guard let data = rec.stop() else { dismiss(); return }
+        guard let data = unsaved ?? rec.stop() else {
+            rec.error = String(localized: "The recording couldn't be read.")
+            return
+        }
         let name = String(localized: "Recording") + " " + Templates.format(.now, "yyyyMMddHHmmss")
-        guard let path = window.model.saveAttachment(data, name: name, ext: "m4a") else { dismiss(); return }
+        guard let path = window.model.saveAttachment(data, name: name, ext: "m4a") else {
+            unsaved = data
+            // Shown here instead of the window alert, which the sheet would hide.
+            rec.error = window.model.lastError ?? String(localized: "The recording couldn't be saved.")
+            window.model.lastError = nil
+            return
+        }
+        unsaved = nil
+        rec.discard()
         let embed = "![[\((path as NSString).lastPathComponent)]]"
         if let note = window.currentNote {
             if let e = window.editor, !window.pane.reading { e.insert(embed) }
