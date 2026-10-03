@@ -57,7 +57,8 @@ extension WindowState {
 
     // MARK: Graph
 
-    func openLocalGraph(for path: String) { open(.localGraph(path), newPane: panes.count < 2) }
+    /// In a new pane beside (or below, on iPhone) the note, or replacing the current pane.
+    func openLocalGraph(for path: String, newPane: Bool = true) { open(.localGraph(path), newPane: newPane && panes.count < 2) }
 
     // MARK: Note composer
 

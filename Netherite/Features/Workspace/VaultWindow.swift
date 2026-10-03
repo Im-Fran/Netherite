@@ -114,10 +114,13 @@ struct VaultWindow: View {
 /// Editor area: one pane, or two side by side.
 struct PanesView: View {
     @Environment(WindowState.self) private var window
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         if window.panes.count > 1 {
-            HStack(spacing: 0) {
+            // Side by side is too narrow on iPhone: stack panes top to bottom there.
+            let layout = sizeClass == .compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+            layout {
                 ForEach(window.panes) { pane in
                     PaneView(pane: pane)
                     if pane.id != window.panes.last?.id { Divider() }
@@ -228,7 +231,10 @@ struct PaneView: View {
             if window.panes.count > 1 { Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) } }
             Divider()
             if case .note(let n) = pane.current {
-                Button("Open Local Graph", systemImage: "circle.hexagongrid") { window.openLocalGraph(for: n) }
+                Menu("Open Local Graph", systemImage: "circle.hexagongrid") {
+                    Button("In New Pane", systemImage: "rectangle.split.2x1") { window.openLocalGraph(for: n) }
+                    Button("Full Window", systemImage: "rectangle") { window.openLocalGraph(for: n, newPane: false) }
+                }
                 Button("Start Presentation", systemImage: "play.rectangle") { window.presentingSlides = true }
             }
             Button(window.model.isBookmarked(p) ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark") {

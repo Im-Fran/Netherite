@@ -2469,6 +2469,16 @@
         }
       }
     },
+    "Full Window" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En ventana completa"
+          }
+        }
+      }
+    },
     "Get Started" : {
       "localizations" : {
         "es" : {
@@ -2851,6 +2861,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importando"
+          }
+        }
+      }
+    },
+    "In New Pane" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En panel nuevo"
           }
         }
       }
