@@ -70,6 +70,7 @@ struct RootView: View {
         .task(id: vaultPath) {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
+            window?.closeVault = { vaultPath = "" }
         }
     }
 }
@@ -103,38 +104,41 @@ struct NetheriteCommands: Commands {
             Divider()
             Button("Go to File…") { window?.sheet = .quickSwitcher }.keyboardShortcut("o").disabled(window == nil)
             Button("Command Palette…") { window?.sheet = .commandPalette }.keyboardShortcut("p").disabled(window == nil)
-            Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .option]).disabled(window == nil)
+            Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
         }
         CommandGroup(after: .saveItem) {
             Button("Save") { window?.model.flushAll() }.keyboardShortcut("s").disabled(window == nil)
         }
         CommandGroup(after: .textEditing) {
             Button("Search in All Files") {
-                window?.sidebarTab = .search; window?.columnVisibility = .all
+                window?.sidebarTab = .search; window?.columnVisibility = .all; window?.preferredCompactColumn = .sidebar
             }.keyboardShortcut("f", modifiers: [.command, .shift]).disabled(window == nil)
         }
         CommandMenu("Format") {
-            Button("Bold") { editor?.wrap("**") }.keyboardShortcut("b")
-            Button("Italic") { editor?.wrap("*") }.keyboardShortcut("i")
-            Button("Strikethrough") { editor?.wrap("~~") }.keyboardShortcut("x", modifiers: [.command, .shift])
-            Button("Highlight") { editor?.wrap("==") }.keyboardShortcut("h", modifiers: [.command, .shift])
-            Button("Inline Code") { editor?.wrap("`") }.keyboardShortcut("c", modifiers: [.command, .option])
-            Button("Internal Link") { editor?.wrap("[[", "]]") }.keyboardShortcut("k")
-            Divider()
-            ForEach(1...3, id: \.self) { level in
-                Button("Heading \(level)") { editor?.toggleLinePrefix(String(repeating: "#", count: level) + " ") }
-                    .keyboardShortcut(KeyEquivalent(Character("\(level)")), modifiers: .control)
+            Group {
+                Button("Bold") { editor?.wrap("**") }.keyboardShortcut("b")
+                Button("Italic") { editor?.wrap("*") }.keyboardShortcut("i")
+                Button("Strikethrough") { editor?.wrap("~~") }.keyboardShortcut("x", modifiers: [.command, .shift])
+                Button("Highlight") { editor?.wrap("==") }.keyboardShortcut("h", modifiers: [.command, .shift])
+                Button("Inline Code") { editor?.wrap("`") }.keyboardShortcut("c", modifiers: [.command, .option])
+                Button("Internal Link") { editor?.wrap("[[", "]]") }.keyboardShortcut("k")
+                Divider()
+                ForEach(1...3, id: \.self) { level in
+                    Button("Heading \(level)") { editor?.toggleLinePrefix(String(repeating: "#", count: level) + " ") }
+                        .keyboardShortcut(KeyEquivalent(Character("\(level)")), modifiers: .control)
+                }
+                Button("Bulleted List") { editor?.toggleLinePrefix("- ") }
+                Button("Numbered List") { editor?.toggleLinePrefix("1. ") }
+                Button("Checklist") { editor?.toggleLinePrefix("- [ ] ") }.keyboardShortcut("l")
+                Button("Quote") { editor?.toggleLinePrefix("> ") }
+                Divider()
+                Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .shift])
             }
-            Button("Bulleted List") { editor?.toggleLinePrefix("- ") }
-            Button("Numbered List") { editor?.toggleLinePrefix("1. ") }
-            Button("Checklist") { editor?.toggleLinePrefix("- [ ] ") }.keyboardShortcut("l")
-            Button("Quote") { editor?.toggleLinePrefix("> ") }
-            Divider()
-            Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .option])
+            .disabled(editor == nil)
         }
         CommandGroup(before: .sidebar) {
             Button("Toggle Reading View") { window?.pane.reading.toggle() }.keyboardShortcut("e").disabled(window?.currentNote == nil)
-            Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g").disabled(window == nil)
+            Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g", modifiers: [.command, .control]).disabled(window == nil)
             Button("Split Right") { window?.split() }.keyboardShortcut("\\").disabled(window == nil)
             Button("Toggle Inspector") { window?.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option]).disabled(window == nil)
             Divider()

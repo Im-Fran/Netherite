@@ -47,7 +47,11 @@ struct PaletteView: View {
                 .onKeyPress(.upArrow) { selection = max(0, selection - 1); return .handled }
                 .onKeyPress(.downArrow) { selection = min(list.count - 1, selection + 1); return .handled }
                 .onKeyPress(.return, phases: .down) { press in
-                    guard press.modifiers.contains(.command) || press.modifiers.contains(.shift) else { return .ignored }
+                    // ⇧↩ runs the "Create" item when the list offers one.
+                    if press.modifiers.contains(.shift), let i = list.firstIndex(where: { $0.id == "create" }) {
+                        run(list, at: i, alternate: false); return .handled
+                    }
+                    guard press.modifiers.contains(.command) else { return .ignored }
                     run(list, alternate: true); return .handled
                 }
                 .onKeyPress(.escape) { dismiss(); return .handled }
@@ -73,20 +77,23 @@ struct PaletteView: View {
                 .listStyle(.plain)
                 .onChange(of: selection) { proxy.scrollTo(selection) }
             }
+            #if os(macOS)
             if let footer {
                 Divider()
                 Text(footer).font(.caption).foregroundStyle(.secondary).padding(8)
             }
+            #endif
         }
         .onAppear { focused = true }
         .onChange(of: query) { selection = 0 }
         .accessibilityAction(.escape) { dismiss() }
     }
 
-    private func run(_ list: [PaletteItem], alternate: Bool) {
-        guard list.indices.contains(selection) else { return }
+    private func run(_ list: [PaletteItem], at index: Int? = nil, alternate: Bool) {
+        let i = index ?? selection
+        guard list.indices.contains(i) else { return }
         dismiss()
-        let item = list[selection]
+        let item = list[i]
         DispatchQueue.main.async { item.action(alternate) }
     }
 }
@@ -160,10 +167,10 @@ enum AppCommands {
             },
             .init(id: "switcher", title: String(localized: "Quick switcher: Open note"), symbol: "magnifyingglass", shortcut: "⌘O") { w.sheet = .quickSwitcher },
             .init(id: "search", title: String(localized: "Search: Search in all files"), symbol: "text.magnifyingglass", shortcut: "⇧⌘F") {
-                w.sidebarTab = .search; w.columnVisibility = .all
+                w.sidebarTab = .search; w.columnVisibility = .all; w.preferredCompactColumn = .sidebar
             },
-            .init(id: "graph", title: String(localized: "Graph view: Open graph view"), symbol: "point.3.connected.trianglepath.dotted", shortcut: "⌘G") { w.open(.graph) },
-            .init(id: "daily", title: String(localized: "Daily notes: Open today's daily note"), symbol: "calendar", shortcut: "⌥⌘D") { w.openDailyNote() },
+            .init(id: "graph", title: String(localized: "Graph view: Open graph view"), symbol: "point.3.connected.trianglepath.dotted", shortcut: "⌃⌘G") { w.open(.graph) },
+            .init(id: "daily", title: String(localized: "Daily notes: Open today's daily note"), symbol: "calendar", shortcut: "⇧⌘D") { w.openDailyNote() },
             .init(id: "daily-prev", title: String(localized: "Daily notes: Open previous daily note"), symbol: "chevron.backward") { w.openAdjacentDailyNote(-1) },
             .init(id: "daily-next", title: String(localized: "Daily notes: Open next daily note"), symbol: "chevron.forward") { w.openAdjacentDailyNote(1) },
             .init(id: "unique", title: String(localized: "Unique note creator: Create new unique note"), symbol: "number.square") { w.newUniqueNote() },
@@ -185,6 +192,7 @@ enum AppCommands {
             .init(id: "inspector", title: String(localized: "Toggle right sidebar"), symbol: "sidebar.right") { w.showInspector.toggle() },
             .init(id: "sidebar", title: String(localized: "Toggle left sidebar"), symbol: "sidebar.left") {
                 w.columnVisibility = w.columnVisibility == .detailOnly ? .all : .detailOnly
+                if w.columnVisibility == .all { w.preferredCompactColumn = .sidebar }
             },
             .init(id: "settings", title: String(localized: "Open settings"), symbol: "gearshape", shortcut: "⌘,") { w.sheet = .settings },
             .init(id: "reload", title: String(localized: "Reload vault from disk"), symbol: "arrow.clockwise") { Task { await w.model.refresh() } },
@@ -195,7 +203,7 @@ enum AppCommands {
                 .init(id: "bookmark", title: String(localized: "Bookmark current file"), symbol: "bookmark") { w.model.addBookmark(.file(path)) },
                 .init(id: "copylink", title: String(localized: "Copy link to file"), symbol: "link") { copyToPasteboard(w.model.linkText(to: path)) },
                 .init(id: "recovery", title: String(localized: "File recovery: Open snapshots"), symbol: "clock.arrow.circlepath") { w.sheet = .recovery(path) },
-                .init(id: "delete", title: String(localized: "Delete current file"), symbol: "trash") { w.trash(path) },
+                .init(id: "delete", title: String(localized: "Delete current file"), symbol: "trash") { w.pendingTrash = path },
             ]
         }
         if let note {
@@ -203,7 +211,7 @@ enum AppCommands {
                 .init(id: "read", title: String(localized: "Toggle reading view"), symbol: "book", shortcut: "⌘E") { w.pane.reading.toggle() },
                 .init(id: "localgraph", title: String(localized: "Graph view: Open local graph"), symbol: "circle.hexagongrid") { w.openLocalGraph(for: note) },
                 .init(id: "slides", title: String(localized: "Slides: Start presentation"), symbol: "play.rectangle") { w.presentingSlides = true },
-                .init(id: "template", title: String(localized: "Templates: Insert template"), symbol: "doc.on.doc", shortcut: "⌥⌘T") { w.sheet = .templates },
+                .init(id: "template", title: String(localized: "Templates: Insert template"), symbol: "doc.on.doc", shortcut: "⇧⌘T") { w.sheet = .templates },
                 .init(id: "merge", title: String(localized: "Note composer: Merge current file with another file"), symbol: "arrow.triangle.merge") { w.sheet = .merge(note) },
             ]
         }

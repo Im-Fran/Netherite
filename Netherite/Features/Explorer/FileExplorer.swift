@@ -30,7 +30,6 @@ struct FileNode: Identifiable, Hashable {
 struct FileExplorer: View {
     @Environment(WindowState.self) private var window
     @State private var expanded: Set<String> = []
-    @State private var confirmDelete: String?
 
     var body: some View {
         @Bindable var window = window
@@ -43,10 +42,13 @@ struct FileExplorer: View {
             paths.forEach { window.move($0, toFolder: "") }
             return true
         }
-        .contextMenu { folderMenu("") }
+        // Empty-area menu; a plain `.contextMenu` would lift the whole list on iOS.
+        .contextMenu(forSelectionType: String.self) { selection in
+            if selection.isEmpty { folderMenu("") }
+        }
         .onChange(of: window.explorerSelection) { _, new in
-            guard let new, index.files.contains(new), window.currentPath != new else { return }
-            window.open(path: new)
+            guard let new, index.files.contains(new) else { return }
+            if window.currentPath != new { window.open(path: new) } else { window.preferredCompactColumn = .detail }
         }
         .onChange(of: window.currentPath) { _, path in
             guard let path else { return }
@@ -64,11 +66,6 @@ struct FileExplorer: View {
                 ProgressView()
             }
         }
-        .confirmationDialog("Delete “\(confirmDelete?.noteName ?? "")”?", isPresented: .init(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
-            Button("Move to Trash", role: .destructive) { if let p = confirmDelete { window.trash(p) } }
-        } message: {
-            Text("You can restore it from the Trash.")
-        }
     }
 
     private func row(_ node: FileNode) -> AnyView {
@@ -79,6 +76,11 @@ struct FileExplorer: View {
                     ForEach(node.children) { row($0) }
                 } label: {
                     Label(node.name, systemImage: "folder")
+                        #if os(iOS)
+                        // Tapping a folder only expands it; selecting it would push the empty detail on iPhone.
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation { if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) } } }
+                        #endif
                         .dropDestination(for: String.self) { paths, _ in
                             paths.filter { $0 != node.path }.forEach { window.move($0, toFolder: node.path) }
                             expanded.insert(node.path)
@@ -86,8 +88,12 @@ struct FileExplorer: View {
                         }
                 }
                 .tag(node.path)
+                #if os(iOS)
+                .selectionDisabled()
+                #endif
                 .draggable(node.path)
                 .contextMenu { folderMenu(node.path); itemMenu(node.path) }
+                .swipeActions(allowsFullSwipe: false) { swipeMenu(node.path) }
             )
         }
         return AnyView(
@@ -96,6 +102,7 @@ struct FileExplorer: View {
                 .tag(node.path)
                 .draggable(node.path)
                 .contextMenu { itemMenu(node.path) }
+                .swipeActions(allowsFullSwipe: false) { swipeMenu(node.path) }
         )
     }
 
@@ -125,7 +132,13 @@ struct FileExplorer: View {
         Button("Reveal in Finder", systemImage: "finder") { NSWorkspace.shared.activateFileViewerSelecting([window.model.vault.url(for: path)]) }
         #endif
         Divider()
-        Button("Delete…", systemImage: "trash", role: .destructive) { confirmDelete = path }
+        Button("Delete…", systemImage: "trash", role: .destructive) { window.pendingTrash = path }
+    }
+
+    /// No `.destructive` role: it would animate the row away before the user confirms.
+    @ViewBuilder private func swipeMenu(_ path: String) -> some View {
+        Button("Delete…", systemImage: "trash") { window.pendingTrash = path }.tint(.red)
+        Button("Rename…", systemImage: "pencil") { window.sheet = .rename(path) }
     }
 }
 
@@ -149,7 +162,7 @@ struct RenameSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Rename", action: commit).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) }
             }
         }
-        .frame(minWidth: 360, minHeight: 160)
+        .macOnly { $0.frame(minWidth: 360, minHeight: 160) }
         .onAppear { name = window.model.index.folders.contains(path) ? (path as NSString).lastPathComponent : path.noteName }
     }
 

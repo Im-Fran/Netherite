@@ -11,7 +11,7 @@ struct VaultWindow: View {
 
     var body: some View {
         @Bindable var window = window
-        NavigationSplitView(columnVisibility: $window.columnVisibility) {
+        NavigationSplitView(columnVisibility: $window.columnVisibility, preferredCompactColumn: $window.preferredCompactColumn) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 400)
         } detail: {
@@ -31,13 +31,25 @@ struct VaultWindow: View {
         #else
         .fullScreenCover(isPresented: $window.presentingSlides) { slides }
         #endif
+        .confirmationDialog("Delete “\(window.pendingTrash?.noteName ?? "")”?",
+                            isPresented: Binding(get: { window.pendingTrash != nil }, set: { if !$0 { window.pendingTrash = nil } }),
+                            titleVisibility: .visible, presenting: window.pendingTrash) { p in
+            Button("Move to Trash", role: .destructive) { window.trash(p) }
+        } message: { _ in
+            Text("You can restore it from the Trash.")
+        }
         .alert("Something Went Wrong", isPresented: Binding(get: { window.model.lastError != nil }, set: { if !$0 { window.model.lastError = nil } })) {
             Button("OK") { window.model.lastError = nil }
         } message: {
             Text(window.model.lastError ?? "")
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { window.model.flushAll() } else { Task { await window.model.refresh() } }
+            // A suspended app shouldn't keep a file presenter registered (it can stall coordinated writes from extensions).
+            switch phase {
+            case .active: window.model.resumeWatching()
+            case .background: window.model.flushAll(); window.model.suspendWatching()
+            default: window.model.flushAll()
+            }
         }
         .task {
             if sizeClass == .compact { window.showInspector = false }
@@ -48,7 +60,7 @@ struct VaultWindow: View {
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: path) }
+            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: SystemIntegration.path(fromIdentifier: path).path) }
         }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
@@ -65,7 +77,14 @@ struct VaultWindow: View {
         switch sheet {
         case .quickSwitcher: QuickSwitcher()
         case .commandPalette: CommandPalette()
-        case .settings: SettingsView(model: window.model).frame(minWidth: 520, minHeight: 520)
+        case .settings:
+            // SettingsView only has a Done button on iOS; give the Mac sheet a way out.
+            SettingsView(model: window.model).macOnly {
+                $0.frame(minWidth: 520, minHeight: 520)
+                    .safeAreaInset(edge: .bottom) {
+                        HStack { Spacer(); Button("Done") { window.sheet = nil }.keyboardShortcut(.defaultAction) }.padding()
+                    }
+            }
         case .rename(let p): RenameSheet(path: p)
         case .templates: TemplatePicker()
         case .importer: ImporterView()
@@ -86,7 +105,7 @@ struct VaultWindow: View {
         case "new":
             if let p = window.model.newNote(named: q["name"], content: q["content"] ?? "") { window.open(path: p) }
         case "daily": window.openDailyNote()
-        case "search": window.searchQuery = q["query"] ?? ""; window.sidebarTab = .search
+        case "search": window.searchQuery = q["query"] ?? ""; window.sidebarTab = .search; window.preferredCompactColumn = .sidebar
         default: break
         }
     }
@@ -145,13 +164,16 @@ struct PaneView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if window.focusedPaneID == pane.id || window.panes.count == 1 {
-            ToolbarItemGroup(placement: .navigation) {
-                Button("Back", systemImage: "chevron.backward") { pane.back() }
-                    .disabled(!pane.canGoBack)
-                    .keyboardShortcut("[", modifiers: .command)
-                Button("Forward", systemImage: "chevron.forward") { pane.forward() }
-                    .disabled(!pane.canGoForward)
-                    .keyboardShortcut("]", modifiers: .command)
+            // On iPhone, history and the inspector toggle move into the More menu to keep the bar uncluttered.
+            if !compact {
+                ToolbarItemGroup(placement: .navigation) {
+                    Button("Back", systemImage: "chevron.backward") { pane.back() }
+                        .disabled(!pane.canGoBack)
+                        .keyboardShortcut("[", modifiers: .command)
+                    Button("Forward", systemImage: "chevron.forward") { pane.forward() }
+                        .disabled(!pane.canGoForward)
+                        .keyboardShortcut("]", modifiers: .command)
+                }
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 #if os(iOS)
@@ -174,17 +196,30 @@ struct PaneView: View {
                     Label("More", systemImage: "ellipsis.circle")
                 }
                 .popoverTip(window.toolbarTip(GraphTip.self, onboarded: onboarded), arrowEdge: .top)
-                Button("Toggle Inspector", systemImage: "sidebar.right") {
-                    window.showInspector.toggle()
-                    NetheriteTips.donate(NetheriteTips.inspectorUsed)
+                .popoverTip(compact ? window.toolbarTip(BacklinksTip.self, onboarded: onboarded) : nil, arrowEdge: .top)
+                if !compact {
+                    Button("Toggle Inspector", systemImage: "sidebar.right", action: toggleInspector)
+                        .help("Show or hide backlinks, outline and properties")
+                        .popoverTip(window.toolbarTip(BacklinksTip.self, onboarded: onboarded), arrowEdge: .top)
                 }
-                .help("Show or hide backlinks, outline and properties")
-                .popoverTip(window.toolbarTip(BacklinksTip.self, onboarded: onboarded), arrowEdge: .top)
             }
         }
     }
 
+    private var compact: Bool { sizeClass == .compact }
+
+    private func toggleInspector() {
+        window.showInspector.toggle()
+        NetheriteTips.donate(NetheriteTips.inspectorUsed)
+    }
+
     @ViewBuilder private var moreMenu: some View {
+        if compact {
+            Button("Back", systemImage: "chevron.backward") { pane.back() }.disabled(!pane.canGoBack)
+            Button("Forward", systemImage: "chevron.forward") { pane.forward() }.disabled(!pane.canGoForward)
+            Button("Toggle Inspector", systemImage: "sidebar.right", action: toggleInspector)
+            Divider()
+        }
         if let p = pane.current?.path {
             Button("Open in New Pane", systemImage: "rectangle.split.2x1") { window.split() }
             if window.panes.count > 1 { Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) } }
@@ -204,7 +239,7 @@ struct PaneView: View {
             Button("Reveal in Finder", systemImage: "finder") { NSWorkspace.shared.activateFileViewerSelecting([window.model.vault.url(for: p)]) }
             #endif
             Divider()
-            Button("Delete", systemImage: "trash", role: .destructive) { window.trash(p) }
+            Button("Delete…", systemImage: "trash", role: .destructive) { window.pendingTrash = p }
         } else if window.panes.count > 1 {
             Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) }
         }

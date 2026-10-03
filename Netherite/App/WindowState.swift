@@ -136,6 +136,12 @@ final class WindowState {
     var showInspector = false
     #endif
     var columnVisibility: NavigationSplitViewVisibility = .all
+    /// Which column a collapsed (iPhone) split view shows: opening something shows the detail.
+    var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
+    /// Returns this window to the vault picker (set by RootView; iOS has no File › Open Vault… on iPhone).
+    @ObservationIgnored var closeVault: (() -> Void)?
+    /// File awaiting the "Move to Trash" confirmation shown by the vault window.
+    var pendingTrash: String?
     var sheet: ActiveSheet? {
         didSet {
             switch sheet {
@@ -185,6 +191,7 @@ final class WindowState {
     func open(_ d: Destination, line: Int? = nil, newPane: Bool = false) {
         if newPane { split() }
         pane.open(d, line: line)
+        preferredCompactColumn = .detail
         if let p = d.path { model.noteDidOpen(p); explorerSelection = p }
         switch d {
         case .note: NetheriteTips.donate(NetheriteTips.noteOpened)

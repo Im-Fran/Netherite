@@ -299,7 +299,7 @@ struct GraphView: View {
     private func open(_ n: GraphNode, newPane: Bool) {
         switch n.kind {
         case .note, .attachment: window.open(path: n.id, newPane: newPane)
-        case .tag: window.searchQuery = "tag:\(n.label.dropFirst())"; window.sidebarTab = .search; window.columnVisibility = .all
+        case .tag: window.searchQuery = "tag:\(n.label.dropFirst())"; window.sidebarTab = .search; window.columnVisibility = .all; window.preferredCompactColumn = .sidebar
         case .unresolved: window.follow(NoteParser.splitWiki(String(n.id.dropFirst("unresolved:".count)), isEmbed: false), from: nil, newPane: newPane)
         }
     }
