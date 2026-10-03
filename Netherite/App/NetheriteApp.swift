@@ -12,7 +12,7 @@ struct NetheriteApp: App {
             RootView(vaultPath: $vaultPath)
                 .environment(app)
         } defaultValue: {
-            AppModel.shared.lastVaultPath ?? ""
+            AppModel.shared.launchVaultPath
         }
         .commands { NetheriteCommands() }
         // Links (netherite://…, Spotlight) go to an existing window instead of spawning a new one.
@@ -67,6 +67,19 @@ struct RootView: View {
         #else
         .fullScreenCover(isPresented: Binding(get: { !hasSeenOnboarding }, set: { if !$0 { hasSeenOnboarding = true } })) { OnboardingView() }
         #endif
+        .task {
+            // Restored windows keep their last vault; the launch preference wins for the first one.
+            guard !app.launchApplied else { return }
+            app.launchApplied = true
+            vaultPath = app.launchVaultPath
+            await app.refreshTrash()
+            await app.refreshStorage()
+        }
+        .onChange(of: app.open.keys.sorted()) { _, keys in
+            // The vault was deleted or moved into iCloud from Settings: follow it, or go back to the start page.
+            guard let window, case let key = AppModel.key(window.model.vault.root), !keys.contains(key) else { return }
+            vaultPath = app.relocated[key] ?? ""
+        }
         .task(id: vaultPath) {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
@@ -75,15 +88,11 @@ struct RootView: View {
     }
 }
 
-/// macOS Settings window: edits the most recently used vault.
+/// macOS Settings window: app settings plus the most recently used vault's preferences.
 struct SettingsRoot: View {
     @Environment(AppModel.self) private var app
     var body: some View {
-        if let path = app.lastVaultPath, let model = app.model(forPath: path) {
-            SettingsView(model: model).frame(width: 560, height: 560)
-        } else {
-            ContentUnavailableView("Open a Vault to Change Its Settings", systemImage: "gearshape").frame(width: 400, height: 240)
-        }
+        SettingsView(model: app.lastVaultPath.flatMap { app.model(forPath: $0) })
     }
 }
 
@@ -101,6 +110,9 @@ struct NetheriteCommands: Commands {
             Button("New Window") { openWindow(id: "vault", value: window?.model.vault.root.path(percentEncoded: false) ?? "") }
                 .keyboardShortcut("n", modifiers: [.command, .option])
             Button("Open Vault…") { openWindow(id: "vault", value: "") }
+            Divider()
+            Button("Import Files…") { window?.importTarget = "" }.keyboardShortcut("i", modifiers: [.command, .shift]).disabled(window == nil)
+            Button("Export Vault…") { window?.export("") }.disabled(window == nil)
             Divider()
             Button("Go to File…") { window?.sheet = .quickSwitcher }.keyboardShortcut("o").disabled(window == nil)
             Button("Command Palette…") { window?.sheet = .commandPalette }.keyboardShortcut("p").disabled(window == nil)

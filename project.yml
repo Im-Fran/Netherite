@@ -23,7 +23,11 @@ targets:
     type: application
     supportedDestinations: [macOS, iOS]
     sources:
-      - Netherite
+      - path: Netherite
+        excludes: [Settings.bundle]
+      # The system Settings app page exists only on iOS/iPadOS; the Mac uses the Settings window.
+      - path: Netherite/Settings.bundle
+        destinationFilters: [iOS]
     dependencies:
       - package: NetheriteCore
         product: NetheriteCore

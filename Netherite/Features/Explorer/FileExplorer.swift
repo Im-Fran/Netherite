@@ -127,6 +127,10 @@ struct FileExplorer: View {
         Button("New Base", systemImage: "tablecells") {
             if let p = window.model.newBase(in: folder) { window.open(path: p) }
         }
+        Button("Import Files…", systemImage: "square.and.arrow.down") { window.importTarget = folder }
+        if folder.isEmpty {
+            Button("Export Vault…", systemImage: "square.and.arrow.up.on.square") { window.export("") }
+        }
         Divider()
     }
 
@@ -136,6 +140,7 @@ struct FileExplorer: View {
             Button("Bookmark", systemImage: "bookmark") { window.model.addBookmark(.file(path)) }
         }
         Button("Rename…", systemImage: "pencil") { window.sheet = .rename(path) }
+        Button("Export…", systemImage: "square.and.arrow.up.on.square") { window.export(path) }
         #if os(macOS)
         Button("Reveal in Finder", systemImage: "finder") { NSWorkspace.shared.activateFileViewerSelecting([window.model.vault.url(for: path)]) }
         #endif

@@ -7,6 +7,7 @@ struct RecentVault: Codable, Hashable, Identifiable {
     var bookmark: Data?
     var lastOpened: Date
     var id: String { path }
+    var isInICloud: Bool { path.contains("/Mobile Documents/") }
 }
 
 /// App-wide state: known vaults and the open `VaultModel`s shared by every window of the same vault.
@@ -17,6 +18,14 @@ final class AppModel {
 
     private(set) var recents: [RecentVault] = []
     private(set) var open: [String: VaultModel] = [:]
+    /// Size and sync state of known vaults, keyed by path (refreshed by `refreshStorage`).
+    private(set) var storage: [String: VaultStorage] = [:]
+    /// Vaults in Recently Deleted (refreshed by `refreshTrash`).
+    private(set) var trashed: [VaultTrash.Item] = []
+    /// Where a vault moved (into iCloud), so windows showing it follow it instead of closing.
+    private(set) var relocated: [String: String] = [:]
+    /// The launch preference is applied once, to the first window.
+    var launchApplied = false
     var lastError: String?
 
     private init() {
@@ -32,6 +41,15 @@ final class AppModel {
 
     var lastVaultPath: String? { recents.max { $0.lastOpened < $1.lastOpened }?.path }
 
+    /// Vault to show on launch, per Settings › General (also in the system Settings app on iOS); "" is the start page.
+    var launchVaultPath: String {
+        switch UserDefaults.standard.string(forKey: "launchBehavior") {
+        case "picker": ""
+        case "vault": UserDefaults.standard.string(forKey: "launchVaultPath").flatMap { p in recents.first { $0.path == p }?.path } ?? lastVaultPath ?? ""
+        default: lastVaultPath ?? ""
+        }
+    }
+
     // MARK: iCloud
 
     /// `…/Mobile Documents/iCloud~cl~franciscosolis~netherite/Documents`, or nil when iCloud is off / unsigned build.
@@ -42,7 +60,7 @@ final class AppModel {
     }
 
     /// Local fallback location for new vaults.
-    static var localDocuments: URL { URL.documentsDirectory }
+    nonisolated static var localDocuments: URL { URL.documentsDirectory }
 
     // MARK: Opening
 
@@ -135,7 +153,137 @@ final class AppModel {
         persist()
     }
 
-    private func touch(_ url: URL, bookmark: Data?) {
+    // MARK: Managing vaults
+
+    /// Folders Netherite creates vaults in; their vaults can go to Recently Deleted.
+    nonisolated static func vaultParents() async -> [URL] {
+        [await iCloudDocuments(), localDocuments].compactMap { $0 }
+    }
+
+    private func close(_ path: String) {
+        open[path]?.flushAll()
+        open[path] = nil
+    }
+
+    /// Moves a vault to Recently Deleted (permanently deleted after 90 days). Vaults in folders Netherite didn't
+    /// create go to the system Trash on the Mac; on iOS those can only be removed from the list.
+    func trashVault(_ recent: RecentVault) async throws {
+        let url = URL(filePath: recent.path, directoryHint: .isDirectory)
+        let parents = await Self.vaultParents().map(Self.key)
+        if parents.contains(Self.key(url.deletingLastPathComponent())) {
+            close(recent.path)
+            try await Task.detached { try VaultTrash.trash(url) }.value
+        } else {
+            #if os(macOS)
+            close(recent.path)
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            #else
+            throw CocoaError(.fileWriteNoPermission, userInfo: [NSLocalizedDescriptionKey: String(localized: "“\(recent.name)” is in a folder Netherite didn’t create. Remove it from the list, then delete the folder in the Files app.")])
+            #endif
+        }
+        forget(recent)
+        await refreshTrash()
+    }
+
+    /// Permanently deletes vaults trashed over 90 days ago and reloads Recently Deleted.
+    func refreshTrash() async {
+        let parents = await Self.vaultParents()
+        trashed = await Task.detached {
+            VaultTrash.purge(in: parents)
+            return VaultTrash.items(in: parents)
+        }.value
+        publishSettingsSummary()
+    }
+
+    func restore(_ item: VaultTrash.Item) async throws {
+        let url = try await Task.detached { try VaultTrash.restore(item) }.value
+        touch(url, bookmark: makeBookmark(url))
+        await refreshTrash()
+    }
+
+    func deleteForever(_ item: VaultTrash.Item) async throws {
+        try await Task.detached { try VaultTrash.delete(item) }.value
+        await refreshTrash()
+    }
+
+    /// Moves a vault stored on this device into iCloud Drive; the system uploads it from there.
+    func moveToICloud(_ recent: RecentVault) async throws {
+        guard let docs = await Self.iCloudDocuments() else { throw Self.iCloudUnavailable }
+        let source = URL(filePath: recent.path, directoryHint: .isDirectory)
+        let target = docs.appending(path: Vault(root: docs).availablePath(folder: "", base: recent.name, ext: ""), directoryHint: .isDirectory)
+        close(recent.path)
+        try await Task.detached {
+            try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+            try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
+        }.value
+        recents.removeAll { $0.path == recent.path }
+        relocated[recent.path] = Self.key(target)
+        touch(target, bookmark: makeBookmark(target))
+        await refreshStorage([Self.key(target)])
+    }
+
+    /// Copies a folder picked in Files/Finder into iCloud Drive as a new vault, and opens it.
+    func importFolderToICloud(_ source: URL) async throws -> VaultModel {
+        guard let docs = await Self.iCloudDocuments() else { throw Self.iCloudUnavailable }
+        let access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
+        let path = try await Task.detached { () throws -> String in
+            try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+            return try Vault(root: docs).importItems([source], into: "")[0]
+        }.value
+        return openVault(at: docs.appending(path: path, directoryHint: .isDirectory))
+    }
+
+    private static var iCloudUnavailable: CocoaError {
+        CocoaError(.ubiquitousFileUnavailable, userInfo: [NSLocalizedDescriptionKey: String(localized: "iCloud Drive isn’t available. Sign in to iCloud and turn on iCloud Drive for Netherite.")])
+    }
+
+    /// Rescans the size and sync state of the given vaults (every known vault by default).
+    func refreshStorage(_ paths: [String]? = nil) async {
+        let paths = paths ?? recents.map(\.path)
+        let results = await Task.detached {
+            paths.map { p in (p, FileManager.default.isReadableFile(atPath: p) ? VaultStorage.scan(URL(filePath: p, directoryHint: .isDirectory)) : nil) }
+        }.value
+        for (p, s) in results { storage[p] = s }
+        publishSettingsSummary()
+    }
+
+    /// The info rows of Netherite's page in the system Settings app (iOS) read these defaults.
+    private func publishSettingsSummary() {
+        let known = recents.compactMap { r in storage[r.path].map { (r, $0) } }
+        func summary(_ list: [(RecentVault, VaultStorage)]) -> String {
+            "\(list.count) · " + list.reduce(Int64(0)) { $0 + $1.1.bytes }.formatted(.byteCount(style: .file))
+        }
+        let d = UserDefaults.standard
+        d.set(summary(known.filter { $0.0.isInICloud }), forKey: "info.icloud")
+        d.set(summary(known.filter { !$0.0.isInICloud }), forKey: "info.local")
+        d.set("\(trashed.count)", forKey: "info.trash")
+        d.set(Self.versionString, forKey: "info.version")
+    }
+
+    static var versionString: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return "\(info["CFBundleShortVersionString"] as? String ?? "") (\(info["CFBundleVersion"] as? String ?? ""))"
+    }
+
+    /// Where a vault lives, for people: sandbox paths mean nothing on iOS, so name the place instead;
+    /// the Mac shows the folder path, abbreviated against the real home folder (the sandbox's home is the container).
+    static func displayLocation(_ path: String) -> String {
+        #if os(iOS)
+        if path.contains("/Mobile Documents/") { return String(localized: "iCloud Drive") }
+        switch UIDevice.current.userInterfaceIdiom {
+        case .phone: return String(localized: "On This iPhone")
+        case .pad: return String(localized: "On This iPad")
+        default: return String(localized: "On This Device")
+        }
+        #else
+        guard let pw = getpwuid(getuid()) else { return path }
+        let home = String(cString: pw.pointee.pw_dir)
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+        #endif
+    }
+
+    func touch(_ url: URL, bookmark: Data?) {
         let path = Self.key(url)
         var r = recents.first { $0.path == path } ?? RecentVault(name: url.lastPathComponent, path: path, bookmark: nil, lastOpened: .now)
         r.lastOpened = .now

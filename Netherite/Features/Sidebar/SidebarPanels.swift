@@ -26,6 +26,8 @@ struct SidebarView: View {
             case .bookmarks: BookmarksPanel()
             case .tags: TagsPanel()
             }
+            Divider()
+            VaultSyncFooter(vault: window.model.vault)
         }
         .navigationTitle(window.model.name)
         .toolbar {
@@ -34,6 +36,9 @@ struct SidebarView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Menu("Vault", systemImage: "books.vertical") {
                     Button("Settings", systemImage: "gearshape") { window.sheet = .settings }
+                    Button("Import Files…", systemImage: "square.and.arrow.down") { window.importTarget = "" }
+                    Button("Export Vault…", systemImage: "square.and.arrow.up.on.square") { window.export("") }
+                    Divider()
                     Button("Switch Vault…", systemImage: "arrow.left.arrow.right") { window.model.flushAll(); window.closeVault?() }
                 }
             }

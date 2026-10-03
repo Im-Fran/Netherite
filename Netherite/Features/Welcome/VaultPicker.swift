@@ -6,11 +6,17 @@ struct VaultPicker: View {
     let onOpen: (VaultModel) -> Void
     @Environment(AppModel.self) private var app
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("showGuideOnStartPage") private var showGuide = true
     @State private var iCloudURL: URL?
     @State private var importing = false
     @State private var creating = false
     @State private var openingGuide = false
     @State private var error: String?
+    @State private var showingSettings = false
+    /// Folder picked with Open a Folder, waiting for "open in place" or "copy into iCloud".
+    @State private var pickedFolder: URL?
+    @State private var copying = false
+    @State private var pendingTrash: RecentVault?
 
     /// Three 300-pt cards plus gaps; the grid and the recents list share this width so their edges line up.
     private static let contentWidth: CGFloat = 3 * 300 + 2 * 16
@@ -41,8 +47,11 @@ struct VaultPicker: View {
                     }
                     .frame(maxWidth: Self.contentWidth)
 
-                    Button("Take the Welcome Tour", systemImage: "play.circle") { hasSeenOnboarding = false }
-                        .buttonStyle(.borderless)
+                    if showGuide {
+                        Button("Take the Welcome Tour", systemImage: "play.circle") { hasSeenOnboarding = false }
+                            .buttonStyle(.borderless)
+                            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation { showGuide = false } } }
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 40)
@@ -54,13 +63,48 @@ struct VaultPicker: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    #if os(macOS)
+                    SettingsLink { Label("Settings", systemImage: "gearshape") }
+                    #else
+                    Button("Settings", systemImage: "gearshape") { showingSettings = true }
+                    #endif
+                }
+            }
+            .overlay { if copying { ProgressView("Copying to iCloud…").padding().background(.regularMaterial, in: .rect(cornerRadius: 12)) } }
+        }
+        .sheet(isPresented: $showingSettings) { SettingsView() }
+        .confirmationDialog("Open “\(pickedFolder?.lastPathComponent ?? "")”", isPresented: Binding(get: { pickedFolder != nil }, set: { if !$0 { pickedFolder = nil } }),
+                            titleVisibility: .visible, presenting: pickedFolder) { url in
+            Button("Copy into iCloud Drive") { copyToICloud(url) }
+            Button("Open in Place") { onOpen(app.openVault(at: url)) }
+        } message: { _ in
+            Text("Copying it into iCloud Drive syncs the vault to your other devices; the original folder stays where it is.")
+        }
+        .confirmationDialog("Delete “\(pendingTrash?.name ?? "")”?", isPresented: Binding(get: { pendingTrash != nil }, set: { if !$0 { pendingTrash = nil } }),
+                            titleVisibility: .visible, presenting: pendingTrash) { r in
+            Button("Move to Recently Deleted", role: .destructive) {
+                Task { do { try await app.trashVault(r) } catch { self.error = error.localizedDescription } }
+            }
+        } message: { _ in
+            Text("The vault and all its notes move to Recently Deleted on every device. You can restore it for 90 days.")
+        }
+        .task {
+            while !Task.isCancelled {
+                await app.refreshStorage()
+                try? await Task.sleep(for: .seconds(10))
+            }
         }
         .sheet(isPresented: $creating) {
             CreateVaultSheet(iCloudURL: iCloudURL) { onOpen($0) }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.folder]) { result in
             switch result {
-            case .success(let url): onOpen(app.openVault(at: url))
+            // Offer to move outside folders into iCloud, so they sync like vaults created here.
+            case .success(let url):
+                if iCloudURL != nil && !url.path(percentEncoded: false).contains("/Mobile Documents/") { pickedFolder = url }
+                else { onOpen(app.openVault(at: url)) }
             case .failure(let e): error = e.localizedDescription
             }
         }
@@ -79,9 +123,12 @@ struct VaultPicker: View {
                    detail: "Use any folder of Markdown files — including an Obsidian vault.") {
             importing = true
         }
-        ActionCard(compact: compact, symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
-                   detail: "A sample vault that teaches Netherite with interactive notes.") {
-            openGuide()
+        if showGuide {
+            ActionCard(compact: compact, symbol: "graduationcap", tint: .orange, title: "Explore the Guide",
+                       detail: "A sample vault that teaches Netherite with interactive notes.") {
+                openGuide()
+            }
+            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation { showGuide = false } } }
         }
     }
 
@@ -112,12 +159,11 @@ struct VaultPicker: View {
                         if let m = app.model(forPath: r.path) { onOpen(m) } else { error = String(localized: "“\(r.name)” couldn't be opened.") }
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: r.path.contains("Mobile Documents") ? "icloud" : "folder")
-                                .foregroundStyle(.tint)
+                            SyncStatusIcon(status: app.storage[r.path]?.status, isInICloud: r.isInICloud)
                                 .frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(r.name).foregroundStyle(.primary)
-                                Text(location(r.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                Text(AppModel.displayLocation(r.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
@@ -127,7 +173,10 @@ struct VaultPicker: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .contextMenu { Button("Remove from List", role: .destructive) { app.forget(r) } }
+                    .contextMenu {
+                        Button("Remove from List", systemImage: "minus.circle") { app.forget(r) }
+                        Button("Move to Recently Deleted", systemImage: "trash", role: .destructive) { pendingTrash = r }
+                    }
                     if r.id != app.recents.last?.id { Divider().padding(.leading, 50) }
                 }
             }
@@ -135,21 +184,12 @@ struct VaultPicker: View {
         }
     }
 
-    /// Sandbox paths mean nothing on iOS, so show where the vault lives instead; macOS keeps the (abbreviated) path.
-    private func location(_ path: String) -> String {
-        #if os(iOS)
-        if path.contains("Mobile Documents") { return String(localized: "iCloud Drive") }
-        switch UIDevice.current.userInterfaceIdiom {
-        case .phone: return String(localized: "On This iPhone")
-        case .pad: return String(localized: "On This iPad")
-        default: return String(localized: "On This Device")
+    private func copyToICloud(_ url: URL) {
+        copying = true
+        Task {
+            defer { copying = false }
+            do { onOpen(try await app.importFolderToICloud(url)) } catch { self.error = error.localizedDescription }
         }
-        #else
-        // The sandbox's home is the app container, so abbreviate against the real home folder.
-        guard let pw = getpwuid(getuid()) else { return path }
-        let home = String(cString: pw.pointee.pw_dir)
-        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
-        #endif
     }
 
     private func openGuide() {
