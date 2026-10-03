@@ -35,7 +35,8 @@ struct SidebarView: View {
             // iPhone has no menu bar, so Settings and switching vaults need a visible entry point.
             ToolbarItem(placement: .topBarLeading) {
                 Menu("Vault", systemImage: "books.vertical") {
-                    Button("Settings", systemImage: "gearshape") { window.sheet = .settings }
+                    Button("Vault Settings", systemImage: "slider.horizontal.3") { window.sheet = .vaultSettings(nil) }
+                    Button("Netherite Settings", systemImage: "gearshape") { window.sheet = .settings }
                     Button("Import Files…", systemImage: "square.and.arrow.down") { window.importTarget = "" }
                     Button("Export Vault…", systemImage: "square.and.arrow.up.on.square") { window.export("") }
                     Divider()

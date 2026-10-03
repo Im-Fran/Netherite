@@ -197,6 +197,7 @@ enum AppCommands {
                 if w.columnVisibility == .all { w.preferredCompactColumn = .sidebar }
             },
             .init(id: "settings", title: String(localized: "Open settings"), symbol: "gearshape", shortcut: "⌘,") { w.sheet = .settings },
+            .init(id: "vaultSettings", title: String(localized: "Open vault settings"), symbol: "slider.horizontal.3", shortcut: "⌥⌘,") { w.sheet = .vaultSettings(nil) },
             .init(id: "reload", title: String(localized: "Reload vault from disk"), symbol: "arrow.clockwise") { Task { await w.model.refresh() } },
         ]
         if let path {

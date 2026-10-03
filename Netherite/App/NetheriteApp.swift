@@ -88,11 +88,11 @@ struct RootView: View {
     }
 }
 
-/// macOS Settings window: app settings plus the most recently used vault's preferences.
+/// macOS Settings window: Netherite's own settings (each vault's are in its window, under Vault Settings…).
 struct SettingsRoot: View {
     @Environment(AppModel.self) private var app
     var body: some View {
-        SettingsView(model: app.lastVaultPath.flatMap { app.model(forPath: $0) })
+        SettingsView()
     }
 }
 
@@ -117,6 +117,10 @@ struct NetheriteCommands: Commands {
             Button("Go to File…") { window?.sheet = .quickSwitcher }.keyboardShortcut("o").disabled(window == nil)
             Button("Command Palette…") { window?.sheet = .commandPalette }.keyboardShortcut("p").disabled(window == nil)
             Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
+        }
+        CommandGroup(after: .appSettings) {
+            Button("Vault Settings…") { window?.sheet = .vaultSettings(nil) }
+                .keyboardShortcut(",", modifiers: [.command, .option]).disabled(window == nil)
         }
         CommandGroup(after: .saveItem) {
             Button("Save") { window?.model.flushAll() }.keyboardShortcut("s").disabled(window == nil)

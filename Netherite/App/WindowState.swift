@@ -111,12 +111,13 @@ enum SidebarTab: String, CaseIterable, Identifiable, Codable {
 }
 
 enum ActiveSheet: Identifiable {
-    case quickSwitcher, commandPalette, settings, rename(String), templates, importer, publish, workspaces, recovery(String), audio, merge(String), openURL
+    case quickSwitcher, commandPalette, settings, vaultSettings(VaultSettingsPage?), rename(String), templates, importer, publish, workspaces, recovery(String), audio, merge(String), openURL
     var id: String {
         switch self {
         case .rename(let p): "rename:\(p)"
         case .recovery(let p): "recovery:\(p)"
         case .merge(let p): "merge:\(p)"
+        case .vaultSettings: "vaultSettings"
         default: "\(self)"
         }
     }

@@ -105,16 +105,13 @@ struct FileRecoveryView: View {
     }
 
     private var list: some View {
-        List(selection: $selection) {
-            Section {
-                ForEach(snapshots) { s in
-                    NavigationLink(value: s) { SnapshotRow(snapshot: s) }
-                }
-            } footer: {
-                if !snapshots.isEmpty {
-                    Text("Snapshots are kept for \(window.model.settings.snapshotRetentionDays) days and stored only on this device.")
-                }
-            }
+        Group {
+            #if os(macOS)
+            List(selection: $selection) { rows }
+            #else
+            // No selection binding here: with one, iOS takes the tap as a selection and the links never push.
+            List { rows }
+            #endif
         }
         .navigationTitle(path.noteName)
         #if os(iOS)
@@ -127,6 +124,18 @@ struct FileRecoveryView: View {
             }
         }
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+    }
+
+    private var rows: some View {
+        Section {
+            ForEach(snapshots) { s in
+                NavigationLink(value: s) { SnapshotRow(snapshot: s) }
+            }
+        } footer: {
+            if !snapshots.isEmpty {
+                Text("Snapshots are kept for \(window.model.settings.snapshotRetentionDays) days and stored only on this device.")
+            }
+        }
     }
 }
 

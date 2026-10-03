@@ -88,12 +88,13 @@ struct VaultWindow: View {
         case .commandPalette: CommandPalette()
         case .settings:
             // SettingsView only has a Done button on iOS; give the Mac sheet a way out.
-            SettingsView(model: window.model).macOnly {
+            SettingsView().macOnly {
                 $0.frame(minWidth: 520, minHeight: 520)
                     .safeAreaInset(edge: .bottom) {
                         HStack { Spacer(); Button("Done") { window.sheet = nil }.keyboardShortcut(.defaultAction) }.padding().background(.bar)
                     }
             }
+        case .vaultSettings(let page): VaultSettingsView(model: window.model, initialPage: page)
         case .rename(let p): RenameSheet(path: p)
         case .templates: TemplatePicker()
         case .importer: ImporterView()
