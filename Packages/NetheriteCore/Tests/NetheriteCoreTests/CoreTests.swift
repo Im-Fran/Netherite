@@ -93,6 +93,7 @@ Footnote here[^1].
     #expect(Search.run(SearchQuery("[status:draft]"), in: notes).map(\.path) == ["b.md"])
     #expect(Search.run(SearchQuery("task:milk"), in: notes).map(\.path) == ["a.md"])
     #expect(Search.run(SearchQuery("\"hello world\""), in: notes).map(\.path) == ["a.md"])
+    #expect(Search.run(SearchQuery("“hello world”"), in: notes).map(\.path) == ["a.md"])
     #expect(Search.run(SearchQuery("/wor.d/"), in: notes).map(\.path) == ["a.md"])
     #expect(Search.run(SearchQuery("zzz OR there"), in: notes).map(\.path) == ["b.md"])
     #expect(Search.fuzzyScore("jt", "Japan Trip") != nil)

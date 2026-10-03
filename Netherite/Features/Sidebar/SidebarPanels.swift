@@ -74,6 +74,9 @@ struct SearchPanel: View {
                     .textFieldStyle(.plain)
                     .focused($focused)
                     .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
                 Toggle(isOn: $caseSensitive) {
                     Text("Aa")
                         #if os(iOS)

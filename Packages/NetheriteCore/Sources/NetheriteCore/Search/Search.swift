@@ -24,7 +24,9 @@ public struct SearchQuery: Sendable {
         self.caseSensitive = caseSensitive
         var out: [Term] = []
         var pendingOr = false
-        for tok in Self.tokenize(raw) {
+        // iOS keyboards type smart quotes; treat them as the straight quotes the syntax uses.
+        let straight = String(raw.map { "“”„«»".contains($0) ? "\"" : $0 })
+        for tok in Self.tokenize(straight) {
             if tok == "OR" { pendingOr = true; continue }
             guard let term = Self.term(tok) else { continue }
             if pendingOr, let last = out.popLast() { out.append(.or(last, term)) } else { out.append(term) }
