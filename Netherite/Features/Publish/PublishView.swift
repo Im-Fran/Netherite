@@ -18,6 +18,7 @@ struct PublishView: View {
     @State private var deployedURL: URL?
     @State private var error: String?
     @State private var buildProgress: Double?
+    @State private var task: Task<Void, Never>?
 
     private var model: VaultModel { window.model }
     private var notes: [String] { model.index.markdownFiles }
@@ -87,6 +88,9 @@ struct PublishView: View {
             .navigationTitle("Publish")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { save(); dismiss() }.disabled(busy) }
+                if busy {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { task?.cancel() } }
+                }
             }
         }
         #if os(macOS)
@@ -97,7 +101,7 @@ struct PublishView: View {
             token = Keychain.cloudflareToken ?? ""
         }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .folder,
-                      defaultFilename: options.siteName.isEmpty ? "\(model.name) Site" : options.siteName) { result in
+                      defaultFilename: options.siteName.isEmpty ? String(localized: "\(model.name) Site") : options.siteName) { result in
             if case .failure(let e) = result { error = e.localizedDescription }
             else { status = String(localized: "Site exported.") }
         }
@@ -122,13 +126,16 @@ struct PublishView: View {
     private func exportToFolder() {
         save()
         busy = true
-        Task {
+        task = Task {
             defer { busy = false }
             do {
                 let dir = try await buildSite()
+                try Task.checkCancellation()
                 exportDocument = SiteFolder(wrapper: try FileWrapper(url: dir))
                 exporting = true
-            } catch { self.error = error.localizedDescription }
+            } catch {
+                if Task.isCancelled { status = String(localized: "Cancelled.") } else { self.error = error.localizedDescription }
+            }
         }
     }
 
@@ -149,7 +156,7 @@ struct PublishView: View {
         deployedURL = nil
         busy = true
         deploying = true
-        Task {
+        task = Task {
             defer { busy = false; deploying = false }
             do {
                 let dir = try await buildSite()
@@ -158,8 +165,10 @@ struct PublishView: View {
                 status = String(localized: "Deployed.")
                 try? FileManager.default.removeItem(at: dir)
             } catch {
-                self.error = error.localizedDescription
-                status = nil
+                if Task.isCancelled { status = String(localized: "Cancelled.") } else {
+                    self.error = error.localizedDescription
+                    status = nil
+                }
             }
         }
     }

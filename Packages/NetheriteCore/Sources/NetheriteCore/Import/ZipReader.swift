@@ -13,11 +13,12 @@ public struct ZipReader {
     }
 
     public enum ZipError: Error, LocalizedError {
-        case notAZip, unsupported(String), corrupt
+        case notAZip, encrypted, unsupportedMethod(Int), corrupt
         public var errorDescription: String? {
             switch self {
             case .notAZip: String(localized: "The file isn't a ZIP archive.", bundle: .module)
-            case .unsupported(let m): String(localized: "Unsupported ZIP feature: \(m)", bundle: .module)
+            case .encrypted: String(localized: "Encrypted ZIP archives aren't supported.", bundle: .module)
+            case .unsupportedMethod(let m): String(localized: "This ZIP archive uses an unsupported compression method (\(m)).", bundle: .module)
             case .corrupt: String(localized: "The ZIP archive is damaged.", bundle: .module)
             }
         }
@@ -55,7 +56,7 @@ public struct ZipReader {
             let nameBytes = Array(bytes[(p + 46)..<(p + 46 + nameLen)])
             // Bit 11 = UTF-8 names; otherwise CP437, which is ASCII-compatible for the common case.
             let name = String(decoding: nameBytes, as: UTF8.self)
-            if flags & 1 != 0 { throw ZipError.unsupported("encryption") }
+            if flags & 1 != 0 { throw ZipError.encrypted }
             if !name.hasSuffix("/") && !name.hasPrefix("__MACOSX/") && !(name as NSString).lastPathComponent.hasPrefix("._") {
                 entries.append(Entry(path: name, method: method, compressedSize: csize, size: size, localOffset: local))
             }
@@ -73,7 +74,7 @@ public struct ZipReader {
         switch e.method {
         case 0: return raw
         case 8: return try Self.inflate(raw, expected: e.size)
-        default: throw ZipError.unsupported("method \(e.method)")
+        default: throw ZipError.unsupportedMethod(Int(e.method))
         }
     }
 

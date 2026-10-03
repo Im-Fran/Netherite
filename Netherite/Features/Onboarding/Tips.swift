@@ -169,7 +169,7 @@ nonisolated struct DailyNoteTip: Tip {
     var title: Text { Text("Today's Note") }
     var message: Text? {
         #if os(macOS)
-        Text("One note per day for journaling and quick capture. Press ⌥⌘D anytime.")
+        Text("One note per day for journaling and quick capture. Press ⇧⌘D anytime.")
         #else
         Text("One note per day for journaling and quick capture.")
         #endif

@@ -29,18 +29,31 @@ struct SidebarView: View {
         }
         .navigationTitle(window.model.name)
         .toolbar {
-            ToolbarItemGroup {
-                Button("Go to File", systemImage: "magnifyingglass") { window.sheet = .quickSwitcher }
-                    .help("Go to file (⌘O)")
-                    .popoverTip(window.toolbarTip(QuickSwitcherTip.self, onboarded: onboarded), arrowEdge: .top)
-                Button("Command Palette", systemImage: "command") { window.sheet = .commandPalette }
-                    .help("Command palette (⌘P)")
-                    .popoverTip(window.toolbarTip(CommandPaletteTip.self, onboarded: onboarded), arrowEdge: .top)
-                Button("New Note", systemImage: "square.and.pencil") { window.newNote() }
-                    .keyboardShortcut("n")
-                    .help("New note (⌘N)")
+            #if os(iOS)
+            // iPhone has no menu bar, so Settings and switching vaults need a visible entry point.
+            ToolbarItem(placement: .topBarLeading) {
+                Menu("Vault", systemImage: "books.vertical") {
+                    Button("Settings", systemImage: "gearshape") { window.sheet = .settings }
+                    Button("Switch Vault…", systemImage: "arrow.left.arrow.right") { window.model.flushAll(); window.closeVault?() }
+                }
             }
+            ToolbarItemGroup(placement: .topBarTrailing) { sidebarActions }
+            #else
+            ToolbarItemGroup { sidebarActions }
+            #endif
         }
+    }
+
+    @ViewBuilder private var sidebarActions: some View {
+        Button("Go to File", systemImage: "magnifyingglass") { window.sheet = .quickSwitcher }
+            .help("Go to file (⌘O)")
+            .popoverTip(window.toolbarTip(QuickSwitcherTip.self, onboarded: onboarded), arrowEdge: .top)
+        Button("Command Palette", systemImage: "command") { window.sheet = .commandPalette }
+            .help("Command palette (⌘P)")
+            .popoverTip(window.toolbarTip(CommandPaletteTip.self, onboarded: onboarded), arrowEdge: .top)
+        Button("New Note", systemImage: "square.and.pencil") { window.newNote() }
+            .keyboardShortcut("n")
+            .help("New note (⌘N)")
     }
 }
 
@@ -61,18 +74,33 @@ struct SearchPanel: View {
                     .textFieldStyle(.plain)
                     .focused($focused)
                     .autocorrectionDisabled()
-                Toggle(isOn: $caseSensitive) { Text("Aa") }
-                    .toggleStyle(.button)
-                    .help("Match case")
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                Toggle(isOn: $caseSensitive) {
+                    Text("Aa")
+                        #if os(iOS)
+                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                        #endif
+                }
+                .toggleStyle(.button)
+                .accessibilityLabel("Match Case")
+                .help("Match case")
                 Menu {
                     Button("Bookmark Search", systemImage: "bookmark") { window.model.addBookmark(.search(window.searchQuery)) }
                         .disabled(window.searchQuery.isEmpty)
                     Divider()
                     Text("Operators: tag: path: file: line: task: [prop:value] \"phrase\" -exclude OR /regex/")
-                } label: { Image(systemName: "ellipsis.circle") }
-                    .menuStyle(.button)
-                    .buttonStyle(.borderless)
-                    .fixedSize()
+                } label: {
+                    Label("Search Options", systemImage: "ellipsis.circle")
+                        .labelStyle(.iconOnly)
+                        #if os(iOS)
+                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                        #endif
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .fixedSize()
             }
             .padding(8)
             .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
@@ -99,6 +127,14 @@ struct SearchPanel: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+            }
+            .overlay {
+                if window.searchQuery.isEmpty {
+                    ContentUnavailableView("Search Your Vault", systemImage: "magnifyingglass",
+                                           description: Text("Find text, tags and properties across all your notes."))
+                } else if hits.isEmpty {
+                    ContentUnavailableView.search(text: window.searchQuery)
                 }
             }
         }

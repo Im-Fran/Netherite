@@ -31,6 +31,16 @@
         }
       }
     },
+    "Clipped image" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imagen recortada"
+          }
+        }
+      }
+    },
     "Clipping" : {
       "localizations" : {
         "es" : {
@@ -47,6 +57,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recortando página…"
+          }
+        }
+      }
+    },
+    "Clippings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recortes"
           }
         }
       }
@@ -77,6 +97,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo descargar la página, así que solo se guardará el enlace."
+          }
+        }
+      }
+    },
+    "New note in %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva nota en %@"
           }
         }
       }

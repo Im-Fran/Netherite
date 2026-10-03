@@ -10,20 +10,38 @@ struct WebViewer: View {
     @State private var title: String?
     @State private var current: URL?
     @State private var webView: WKWebView?
+    @State private var loading = false
+    @State private var loadError: Error?
+    @State private var clipping = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Button("Back", systemImage: "chevron.backward") { webView?.goBack() }.disabled(!(webView?.canGoBack ?? false))
-                Button("Forward", systemImage: "chevron.forward") { webView?.goForward() }.disabled(!(webView?.canGoForward ?? false))
-                Button("Reload", systemImage: "arrow.clockwise") { webView?.reload() }
+                Button { webView?.goBack() } label: { Label("Previous Page", systemImage: "chevron.backward").hitTarget() }
+                    .disabled(!(webView?.canGoBack ?? false))
+                Button { webView?.goForward() } label: { Label("Next Page", systemImage: "chevron.forward").hitTarget() }
+                    .disabled(!(webView?.canGoForward ?? false))
+                if loading {
+                    ProgressView().controlSize(.small).hitTarget().accessibilityLabel("Loading")
+                } else {
+                    Button(action: reload) { Label("Reload", systemImage: "arrow.clockwise").hitTarget() }
+                }
                 TextField("Address", text: $address)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
+                    #if os(iOS)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .submitLabel(.go)
+                    #endif
                     .onSubmit { window.openURL(address) }
-                Button("Save as Note", systemImage: "square.and.arrow.down", action: saveAsNote)
-                    .help("Create a note linking to this page")
-                Link(destination: current ?? url) { Label("Open in Browser", systemImage: "safari") }
+                if clipping {
+                    ProgressView().controlSize(.small).hitTarget().accessibilityLabel("Saving as Note")
+                } else {
+                    Button(action: saveAsNote) { Label("Save as Note", systemImage: "square.and.arrow.down").hitTarget() }
+                        .help("Create a note linking to this page")
+                }
+                Link(destination: current ?? url) { Label("Open in Browser", systemImage: "safari").hitTarget() }
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
@@ -31,17 +49,43 @@ struct WebViewer: View {
             Divider()
             HTMLWebView(html: nil, url: url, vault: window.model.vault,
                         onNavigate: { t, u in title = t; current = u; address = u?.absoluteString ?? address },
+                        onLoad: { l, e in loading = l; loadError = e },
                         webViewRef: { wv in DispatchQueue.main.async { webView = wv } })
+                .overlay {
+                    if let loadError {
+                        ContentUnavailableView {
+                            Label("Couldn't Load Page", systemImage: "exclamationmark.triangle")
+                        } description: {
+                            Text(loadError.localizedDescription)
+                        } actions: {
+                            Button("Reload", action: reload)
+                        }
+                        .background(.background)
+                    }
+                }
         }
         .onAppear { address = url.absoluteString }
     }
 
+    /// Reloads the page, or retries the URL that failed to load.
+    private func reload() {
+        if let failed = loadError.map({ $0 as NSError })?.userInfo[NSURLErrorFailingURLErrorKey] as? URL {
+            loadError = nil
+            webView?.load(URLRequest(url: failed))
+        } else {
+            webView?.reload()
+        }
+    }
+
     private func saveAsNote() {
         let u = current ?? url
-        let name = (title?.isEmpty == false ? title! : (u.host() ?? "Web page"))
+        let name = (title?.isEmpty == false ? title! : (u.host() ?? String(localized: "Web page")))
             .replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "-", options: .regularExpression)
+        clipping = true
         Task {
-            let body = await WebClipper.clip(webView: webView) ?? ""
+            defer { clipping = false }
+            // Falls back to a link-only note when the page can't be clipped. Creation failures surface in the window alert.
+            let body = await WebClipper.clip(webView: webView) ?? "[\(title ?? name)](\(u.absoluteString))"
             let content = "---\nsource: \(u.absoluteString)\nclipped: \(Frontmatter.dateString(.now))\n---\n# \(title ?? name)\n\n\(body)\n"
             if let p = window.model.newNote(named: String(name.prefix(80)), content: content) { window.open(path: p, newPane: true) }
         }
@@ -76,5 +120,16 @@ enum WebClipper {
     static func clip(webView: WKWebView?) async -> String? {
         guard let webView else { return nil }
         return try? await webView.evaluateJavaScript(script) as? String
+    }
+}
+
+extension View {
+    /// Keeps icon-only controls at least 44pt square on iOS (HIG minimum hit target).
+    func hitTarget() -> some View {
+        #if os(iOS)
+        frame(minWidth: 44, minHeight: 44).contentShape(.rect)
+        #else
+        self
+        #endif
     }
 }

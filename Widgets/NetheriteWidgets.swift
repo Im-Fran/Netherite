@@ -26,8 +26,9 @@ struct VaultEntry: TimelineEntry {
 
 struct VaultProvider: TimelineProvider {
     func placeholder(in context: Context) -> VaultEntry {
-        VaultEntry(date: .now, vaultName: "Vault", dailyTitle: Templates.format(.now, "yyyy-MM-dd"),
-                   dailyExcerpt: String(localized: "Today's thoughts…"), recents: ["Welcome.md", "Ideas.md", "Projects/Trip.md"])
+        VaultEntry(date: .now, vaultName: String(localized: "Vault"), dailyTitle: Templates.format(.now, "yyyy-MM-dd"),
+                   dailyExcerpt: String(localized: "Today's thoughts…"),
+                   recents: [String(localized: "Welcome"), String(localized: "Ideas"), String(localized: "Projects") + "/" + String(localized: "Trip")].map { $0 + ".md" })
     }
 
     func getSnapshot(in context: Context, completion: @escaping (VaultEntry) -> Void) { completion(entry()) }
@@ -104,6 +105,7 @@ struct DailyNoteView: View {
                 Text(entry.dailyExcerpt.isEmpty ? String(localized: "Nothing written yet today.") : entry.dailyExcerpt)
                     .font(.caption)
                     .foregroundStyle(entry.dailyExcerpt.isEmpty ? .secondary : .primary)
+                    .privacySensitive()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -132,7 +134,8 @@ struct RecentNotesView: View {
 
     private var limit: Int {
         switch family {
-        case .systemSmall: 3
+        // Small widgets are one tap target (widgetURL opens the most recent note), so show only that note.
+        case .systemSmall: 1
         case .systemLarge: 8
         default: 4
         }
@@ -146,7 +149,7 @@ struct RecentNotesView: View {
                 Label(entry.vaultName ?? "", systemImage: "clock").font(.caption.bold()).foregroundStyle(.tint).lineLimit(1).widgetAccentable()
                 ForEach(entry.recents.prefix(limit), id: \.self) { path in
                     Link(destination: openURL(path)) {
-                        Label(path.noteName, systemImage: "doc.text").font(.subheadline).lineLimit(1)
+                        Label(path.noteName, systemImage: "doc.text").font(.subheadline).lineLimit(1).privacySensitive()
                     }
                 }
                 if entry.recents.isEmpty { Text("No notes yet").font(.caption).foregroundStyle(.secondary) }

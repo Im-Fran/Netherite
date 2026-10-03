@@ -126,11 +126,22 @@ public struct Vault: Sendable, Hashable {
         try result.get()
     }
 
-    /// Moves to the system Trash when possible; otherwise deletes.
+    /// Vault-local trash (Obsidian's convention), used where the system Trash isn't available (iOS).
+    public static let trashFolder = ".trash"
+
+    /// Moves to the system Trash when possible; otherwise into the vault's `.trash` folder. Never deletes.
     public func trash(_ path: String) throws {
-        let u = url(for: path)
-        do { try FileManager.default.trashItem(at: u, resultingItemURL: nil) }
-        catch { try FileManager.default.removeItem(at: u) }
+        do { try FileManager.default.trashItem(at: url(for: path), resultingItemURL: nil) }
+        catch { try moveToVaultTrash(path) }
+    }
+
+    /// Moves a file or folder into `.trash` (hidden, so never listed or indexed), renaming on clashes.
+    @discardableResult
+    public func moveToVaultTrash(_ path: String) throws -> String {
+        let name = (path as NSString).lastPathComponent as NSString
+        let target = availablePath(folder: Self.trashFolder, base: name.deletingPathExtension, ext: name.pathExtension)
+        try move(path, to: target)
+        return target
     }
 }
 

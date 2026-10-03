@@ -7,6 +7,7 @@ struct CanvasEditor: View {
     let path: String
     @Environment(WindowState.self) private var window
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model: CanvasModel?
 
     var body: some View {
@@ -21,6 +22,8 @@ struct CanvasEditor: View {
         .onChange(of: undoManager, initial: true) { model?.undoManager = undoManager }
         .onChange(of: model == nil) { model?.undoManager = undoManager }
         .onDisappear { model?.save() }
+        // Flush the debounced save before iOS suspends the app.
+        .onChange(of: scenePhase) { if $1 != .active { model?.save() } }
     }
 }
 

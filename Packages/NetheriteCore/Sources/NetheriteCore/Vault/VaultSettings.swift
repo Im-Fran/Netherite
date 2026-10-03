@@ -79,6 +79,8 @@ public struct Theme: Codable, Hashable, Sendable, Identifiable {
     public var fontScale: Double?
     public var lineHeight: Double?
     public var id: String { name }
+    /// Localized title for built-in themes; `name` stays the stored id.
+    public var displayName: String { name == "System" ? String(localized: "System", bundle: .module) : name }
 
     public static let netherite = Theme(
         name: "Netherite", accent: .init("#635385", "#B09EDB"), link: .init("#5B4A8E", "#B7A6E6"),

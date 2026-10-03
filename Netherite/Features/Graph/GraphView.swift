@@ -132,6 +132,9 @@ struct GraphView: View {
     @State private var draggingNode: String?
     @State private var hovered: String?
     @State private var showSettings = false
+    @State private var viewSize: CGSize = .zero
+    /// Once the user pans, zooms or drags, stop re-fitting the view when the layout settles.
+    @State private var userMoved = false
 
     private var model: VaultModel { window.model }
     private var zoom: CGFloat { scale * gestureScale }
@@ -141,7 +144,7 @@ struct GraphView: View {
             canvas(size: geo.size)
                 .gesture(dragGesture(size: geo.size))
                 .simultaneousGesture(MagnifyGesture()
-                    .onChanged { gestureScale = $0.magnification }
+                    .onChanged { userMoved = true; gestureScale = $0.magnification }
                     .onEnded { scale = clampZoom(scale * $0.magnification); gestureScale = 1 })
                 .onTapGesture(coordinateSpace: .local) { tap($0, size: geo.size) }
                 #if os(macOS)
@@ -149,6 +152,8 @@ struct GraphView: View {
                     if case .active(let p) = phase { hovered = sim.hit(toWorld(p, size: geo.size), scale: zoom)?.id } else { hovered = nil }
                 }
                 #endif
+                .onAppear { viewSize = geo.size }
+                .onChange(of: geo.size) { _, s in viewSize = s }
         }
         .background(.background)
         .overlay(alignment: .topTrailing) { controls.padding(12) }
@@ -160,9 +165,12 @@ struct GraphView: View {
             }
             sim.settings = settings
             sim.load(GraphData.build(from: model.index, settings: settings, focus: focus), reduceMotion: reduceMotion)
+            if reduceMotion && !userMoved { fit() }
         }
         .task(id: sim.generation) {
+            // Keep the view fitted to the layout while it settles, until the user takes over.
             while !Task.isCancelled && sim.tick() {
+                if !userMoved { fit() }
                 try? await Task.sleep(for: .milliseconds(16))
             }
         }
@@ -259,9 +267,20 @@ struct GraphView: View {
 
     private func clampZoom(_ z: CGFloat) -> CGFloat { min(max(z, 0.1), 6) }
 
+    /// Centres the layout and zooms so it fills the view (with room for labels), never past 2×.
+    private func fit() {
+        let pts = sim.positions.values
+        guard viewSize.width > 0, let minX = pts.map(\.x).min(), let maxX = pts.map(\.x).max(),
+              let minY = pts.map(\.y).min(), let maxY = pts.map(\.y).max() else { return }
+        let w = maxX - minX + 160, h = maxY - minY + 80   // label margins
+        scale = min(clampZoom(min(viewSize.width / w, viewSize.height / h)), 2)
+        offset = CGSize(width: -(minX + maxX) / 2 * scale, height: -(minY + maxY) / 2 * scale)
+    }
+
     private func dragGesture(size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 3)
             .onChanged { v in
+                userMoved = true
                 if panStart == nil && draggingNode == nil {
                     if let n = sim.hit(toWorld(v.startLocation, size: size), scale: zoom) {
                         draggingNode = n.id
@@ -299,7 +318,7 @@ struct GraphView: View {
     private func open(_ n: GraphNode, newPane: Bool) {
         switch n.kind {
         case .note, .attachment: window.open(path: n.id, newPane: newPane)
-        case .tag: window.searchQuery = "tag:\(n.label.dropFirst())"; window.sidebarTab = .search; window.columnVisibility = .all
+        case .tag: window.searchQuery = "tag:\(n.label.dropFirst())"; window.sidebarTab = .search; window.columnVisibility = .all; window.preferredCompactColumn = .sidebar
         case .unresolved: window.follow(NoteParser.splitWiki(String(n.id.dropFirst("unresolved:".count)), isEmbed: false), from: nil, newPane: newPane)
         }
     }
@@ -326,9 +345,9 @@ struct GraphView: View {
     private var controls: some View {
         VStack(alignment: .trailing, spacing: 8) {
             HStack(spacing: 4) {
-                iconButton("Zoom Out", "minus.magnifyingglass") { scale = clampZoom(scale / 1.3) }
-                iconButton("Zoom In", "plus.magnifyingglass") { scale = clampZoom(scale * 1.3) }
-                iconButton("Reset View", "scope") { scale = 1; offset = .zero }
+                iconButton("Zoom Out", "minus.magnifyingglass") { userMoved = true; scale = clampZoom(scale / 1.3) }
+                iconButton("Zoom In", "plus.magnifyingglass") { userMoved = true; scale = clampZoom(scale * 1.3) }
+                iconButton("Reset View", "scope") { userMoved = false; fit() }
                 iconButton("Graph Settings", "slider.horizontal.3") { showSettings.toggle() }
                     .popoverTip(GraphControlsTip(), arrowEdge: .trailing)
             }

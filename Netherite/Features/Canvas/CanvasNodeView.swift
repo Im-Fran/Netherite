@@ -107,6 +107,15 @@ struct CanvasNodeView: View {
 
     // MARK: Handles
 
+    private func connectLabel(_ side: CanvasSide) -> Text {
+        switch side {
+        case .top: Text("Connect from top side")
+        case .right: Text("Connect from right side")
+        case .bottom: Text("Connect from bottom side")
+        case .left: Text("Connect from left side")
+        }
+    }
+
     private var handles: some View {
         GeometryReader { geo in
             let f = CGRect(origin: .zero, size: geo.size)
@@ -124,7 +133,7 @@ struct CanvasNodeView: View {
                             .onChanged { v in model.pendingEdge = (node.id, side, v.location) }
                             .onEnded { v in model.pendingEdge = nil; model.connect(from: node.id, side: side, toPoint: v.location) }
                     )
-                    .accessibilityLabel("Connect from \(side.rawValue) side")
+                    .accessibilityLabel(connectLabel(side))
             }
             if selected {
                 Image(systemName: "arrow.down.right")

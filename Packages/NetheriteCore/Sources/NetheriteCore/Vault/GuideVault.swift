@@ -35,7 +35,7 @@ public enum GuideVault {
         5. [[Visual thinking]] — Canvas and Bases
         6. [[Keyboard shortcuts]]
 
-        When you're done, create your own vault from **File › Open Vault…**.
+        When you're done, create your own vault from **File › Open Vault…**
         """),
         ("Writing notes.md", """
         ---
@@ -81,7 +81,7 @@ public enum GuideVault {
         - Link to a heading with `[[Writing notes#Callouts]]`.
         - Show another note inside this one with `![[Keyboard shortcuts]]`.
         - Open the **right sidebar** to see **backlinks**: every note that links here.
-        - Open the **graph view** (⌘G) to see how your notes connect.
+        - Open the **graph view** (⌃⌘G) to see how your notes connect.
 
         Next: [[Organizing]]
         """),
@@ -108,9 +108,9 @@ public enum GuideVault {
         ---
         # Daily notes and templates
 
-        Press ⌥⌘D to open **today's note** — a note named after the date, perfect for journaling and quick capture. Its folder and format are in Settings.
+        Press ⇧⌘D to open **today's note** — a note named after the date, perfect for journaling and quick capture. Its folder and format are in Settings.
 
-        **Templates** are notes in the `Templates` folder. Insert one with ⌥⌘T or `/`. Use `{{title}}`, `{{date}}` and `{{time}}` as placeholders — see [[Templates/Meeting]].
+        **Templates** are notes in the `Templates` folder. Insert one with ⇧⌘T or `/`. Use `{{title}}`, `{{date}}` and `{{time}}` as placeholders — see [[Templates/Meeting]].
 
         Next: [[Visual thinking]]
         """),
@@ -138,8 +138,8 @@ public enum GuideVault {
         | New note | ⌘N |
         | Reading view | ⌘E |
         | Search everywhere | ⇧⌘F |
-        | Graph view | ⌘G |
-        | Today's note | ⌥⌘D |
+        | Graph view | ⌃⌘G |
+        | Today's note | ⇧⌘D |
 
         On iPhone and iPad, the same actions are in the toolbar and the ⋯ menu.
 
@@ -203,7 +203,7 @@ public enum GuideVault {
         5. [[Pensamiento visual]]: lienzos y bases
         6. [[Atajos de teclado]]
 
-        Cuando termines, crea tu propia bóveda desde **Archivo › Abrir bóveda…**.
+        Cuando termines, crea tu propia bóveda desde **Archivo › Abrir bóveda…**
         """),
         ("Escribir notas.md", """
         ---
@@ -249,7 +249,7 @@ public enum GuideVault {
         - Enlaza a un título con `[[Escribir notas#Callouts]]`.
         - Muestra otra nota dentro de esta con `![[Atajos de teclado]]`.
         - Abre la **barra lateral derecha** para ver los **enlaces entrantes**: las notas que enlazan aquí.
-        - Abre la **vista de grafo** (⌘G) para ver cómo se conectan tus notas.
+        - Abre la **vista de grafo** (⌃⌘G) para ver cómo se conectan tus notas.
 
         Siguiente: [[Organizar]]
         """),
@@ -276,9 +276,9 @@ public enum GuideVault {
         ---
         # Notas diarias y plantillas
 
-        Pulsa ⌥⌘D para abrir la **nota de hoy**: una nota con la fecha como nombre, ideal para un diario o apuntes rápidos. Su carpeta y formato están en Ajustes.
+        Pulsa ⇧⌘D para abrir la **nota de hoy**: una nota con la fecha como nombre, ideal para un diario o apuntes rápidos. Su carpeta y formato están en Ajustes.
 
-        Las **plantillas** son notas de la carpeta `Templates`. Inserta una con ⌥⌘T o con `/`. Usa `{{title}}`, `{{date}}` y `{{time}}` como marcadores; mira [[Templates/Reunión]].
+        Las **plantillas** son notas de la carpeta `Templates`. Inserta una con ⇧⌘T o con `/`. Usa `{{title}}`, `{{date}}` y `{{time}}` como marcadores; mira [[Templates/Reunión]].
 
         Siguiente: [[Pensamiento visual]]
         """),
@@ -306,8 +306,8 @@ public enum GuideVault {
         | Nueva nota | ⌘N |
         | Vista de lectura | ⌘E |
         | Buscar en todo | ⇧⌘F |
-        | Vista de grafo | ⌘G |
-        | Nota de hoy | ⌥⌘D |
+        | Vista de grafo | ⌃⌘G |
+        | Nota de hoy | ⇧⌘D |
 
         En iPhone y iPad, las mismas acciones están en la barra de herramientas y el menú ⋯.
 

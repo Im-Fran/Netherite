@@ -48,8 +48,11 @@ struct InspectorView: View {
                 }
             } else {
                 ContentUnavailableView("No Note Open", systemImage: "doc.text")
+                    .frame(maxHeight: .infinity)
             }
         }
+        // Fill the column so the tab picker stays pinned to the top.
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -151,6 +154,7 @@ struct OutgoingLinksView: View {
 struct OutlineView: View {
     let path: String
     @Environment(WindowState.self) private var window
+    @ScaledMetric private var indent: CGFloat = 14
 
     var body: some View {
         let headings = window.model.index.notes[path]?.parsed.headings ?? []
@@ -159,7 +163,7 @@ struct OutlineView: View {
             Button { window.pane.open(.note(path), line: h.line) } label: {
                 Text(h.text)
                     .font(h.level == minLevel ? .body.weight(.semibold) : .body)
-                    .padding(.leading, CGFloat(h.level - minLevel) * 14)
+                    .padding(.leading, CGFloat(h.level - minLevel) * indent)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
             }
@@ -242,7 +246,7 @@ struct PropertiesEditor: View {
                 .contextMenu {
                     Menu("Property Type") {
                         ForEach(PropertyValue.Kind.allCases, id: \.self) { k in
-                            Button(k.rawValue.capitalized) { set(p.key, convert(p.value, to: k), in: props) }
+                            Button(k.label) { set(p.key, convert(p.value, to: k), in: props) }
                         }
                     }
                     Button("Remove", systemImage: "trash", role: .destructive) { save(props.filter { $0.key != p.key }) }
@@ -307,5 +311,17 @@ struct PropertiesEditor: View {
     private func save(_ props: [Property]) {
         let text = window.model.text(of: path)
         window.model.edit(path, text: Frontmatter.replacing(in: text, with: props))
+    }
+}
+
+private extension PropertyValue.Kind {
+    var label: LocalizedStringKey {
+        switch self {
+        case .text: "Text"
+        case .number: "Number"
+        case .checkbox: "Checkbox"
+        case .date: "Date"
+        case .list: "List"
+        }
     }
 }
