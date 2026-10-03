@@ -72,17 +72,23 @@ public enum ColorVision: String, CaseIterable, Codable, Sendable {
     /// The stand-in as a light/dark pair for marks (graph, canvas, sync), at least 3:1 (WCAG non-text contrast)
     /// against the surfaces they sit on. The whole palette shifts by one amount, so hues keep their lightness order.
     public func pair(_ hue: Hue) -> Theme.Pair? {
-        guard let i = Hue.allCases.firstIndex(of: hue), !palette.isEmpty else { return nil }
-        let colors = palette.compactMap(RGB.init(hex:))
-        func shifted(on bg: RGB) -> String {
+        Self.marks[self]?[Hue.allCases.firstIndex(of: hue)!]
+    }
+
+    /// Mark pairs per mode, computed once (canvas and graph read them on every render).
+    private static let marks: [ColorVision: [Theme.Pair]] = Dictionary(uniqueKeysWithValues: allCases.compactMap { v in
+        let colors = v.palette.compactMap(RGB.init(hex:))
+        guard !colors.isEmpty else { return nil }
+        func shifted(on bg: RGB) -> [String] {
             let target: RGB = bg.luminance > 0.179 ? .black : .white
             var t = 0.0
             func mixed(_ c: RGB) -> RGB { RGB(hex: c.mixed(with: target, t).hex)! }
             while t < 1, colors.contains(where: { mixed($0).contrast(with: bg) < 3 }) { t += 0.02 }
-            return mixed(colors[i]).hex
+            return colors.map { mixed($0).hex }
         }
-        return Theme.Pair(shifted(on: Self.surfaces.light), shifted(on: Self.surfaces.dark))
-    }
+        let (light, dark) = (shifted(on: surfaces.light), shifted(on: surfaces.dark))
+        return (v, zip(light, dark).map { Theme.Pair($0, $1) })
+    })
 
     /// Lowest-contrast surfaces marks are drawn on: grouped/canvas gray in light mode, elevated gray in dark.
     static let surfaces = (light: RGB(hex: "#F2F2F7")!, dark: RGB(hex: "#2C2C2E")!)
