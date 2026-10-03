@@ -51,10 +51,11 @@ struct EditorStyler {
     }
     var maxEmbedWidth: CGFloat = 560
 
+    /// Body size: the platform default times the theme's scale (which carries Text Size, see `NoteEditorView`).
     #if os(macOS)
     var baseSize: CGFloat { 15 * (theme.fontScale ?? 1) }
     #else
-    var baseSize: CGFloat { PlatformFont.preferredFont(forTextStyle: .body).pointSize * (theme.fontScale ?? 1) }
+    var baseSize: CGFloat { 17 * (theme.fontScale ?? 1) }
     #endif
 
     func font(size: CGFloat? = nil, bold: Bool = false, italic: Bool = false, mono: Bool = false) -> PlatformFont {
@@ -63,7 +64,8 @@ struct EditorStyler {
         if mono {
             f = theme.monoFont.flatMap { PlatformFont(name: $0, size: s * 0.92) } ?? .monospacedSystemFont(ofSize: s * 0.92, weight: bold ? .semibold : .regular)
         } else {
-            f = theme.textFont.flatMap { PlatformFont(name: $0, size: s) } ?? .systemFont(ofSize: s, weight: bold ? .bold : .regular)
+            f = theme.textFont.flatMap { PlatformFont(name: $0, size: s) }
+                ?? PlatformFont.systemFont(ofSize: s, weight: bold ? .bold : .regular).design(theme.textFont)
             if bold, theme.textFont != nil { f = f.with(traits: .bold) }
         }
         return italic ? f.with(traits: .italic) : f
@@ -91,15 +93,17 @@ struct EditorStyler {
     var tagColor: PlatformColor { .pair(theme.tag, fallback: .accent) }
     var highlightColor: PlatformColor { .pair(theme.highlight, fallback: .systemYellow.withAlphaComponent(0.35)) }
 
-    static func calloutColor(_ type: String) -> PlatformColor {
-        switch type {
-        case "tip", "hint", "important", "success", "check", "done": .systemGreen
-        case "warning", "caution", "attention", "question", "help", "faq": .systemOrange
-        case "danger", "error", "failure", "fail", "missing", "bug": .systemRed
+    func calloutColor(_ type: String) -> PlatformColor {
+        let category = Theme.calloutCategory(type)
+        let fallback: PlatformColor = switch category {
+        case "tip": .systemGreen
+        case "warning": .systemOrange
+        case "danger": .systemRed
         case "example": .systemPurple
-        case "quote", "cite": .systemGray
+        case "quote": .systemGray
         default: .systemBlue
         }
+        return .pair(theme.callouts?[category], fallback: fallback)
     }
 
     /// Paragraph style that makes hidden lines take (almost) no vertical space.
@@ -321,12 +325,12 @@ struct EditorStyler {
             s.addAttributes([.foregroundColor: PlatformColor.secondaryLabel, .paragraphStyle: indented], range: r)
         case .callout(let type):
             // Title text in label colour: tinted system colours fall below 4.5:1 on light backgrounds; the tint stays on the fill.
-            let c = Self.calloutColor(type)
+            let c = calloutColor(type)
             s.addAttributes([.foregroundColor: PlatformColor.label, .font: font(bold: true), .backgroundColor: c.withAlphaComponent(0.10),
                              .paragraphStyle: indented], range: r)
         case .table: break
         case .calloutBody(let type):
-            s.addAttributes([.backgroundColor: Self.calloutColor(type).withAlphaComponent(0.06), .paragraphStyle: indented,
+            s.addAttributes([.backgroundColor: calloutColor(type).withAlphaComponent(0.06), .paragraphStyle: indented,
                              .foregroundColor: PlatformColor.label], range: r)
         case .listMarker: s.addAttribute(.foregroundColor, value: PlatformColor.accent, range: r)
         case .task(let done):
@@ -352,6 +356,22 @@ struct EditorStyler {
 }
 
 extension PlatformFont {
+    /// Applies a generic family from the theme (`ui-serif`, `ui-rounded`, `ui-monospace`) as a system design.
+    func design(_ family: String?) -> PlatformFont {
+        let design: PlatformFontDescriptor.SystemDesign? = switch family {
+        case "ui-serif": .serif
+        case "ui-rounded": .rounded
+        case "ui-monospace": .monospaced
+        default: nil
+        }
+        guard let design, let d = fontDescriptor.withDesign(design) else { return self }
+        #if os(macOS)
+        return NSFont(descriptor: d, size: pointSize) ?? self
+        #else
+        return UIFont(descriptor: d, size: pointSize)
+        #endif
+    }
+
     enum Trait { case bold, italic }
     func with(traits t: Trait) -> PlatformFont {
         #if os(macOS)

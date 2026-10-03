@@ -7,6 +7,8 @@ struct PaletteItem: Identifiable {
     var subtitle: String?
     var symbol: String
     var shortcut: String?
+    /// Consecutive items with the same section are listed under its header.
+    var section: String? = nil
     var action: (_ alternate: Bool) -> Void
 }
 
@@ -57,22 +59,14 @@ struct PaletteView: View {
                 .onKeyPress(.escape) { dismiss(); return .handled }
             Divider()
             ScrollViewReader { proxy in
-                List(Array(list.enumerated()), id: \.element.id) { i, item in
-                    Button { selection = i; run(list, alternate: false) } label: {
-                        HStack {
-                            Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 20)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(item.title).lineLimit(1)
-                                if let s = item.subtitle { Text(s).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
-                            }
-                            Spacer()
-                            if let k = item.shortcut { Text(k).font(.caption.monospaced()).foregroundStyle(.secondary) }
+                List {
+                    ForEach(Array(Self.sections(list).enumerated()), id: \.offset) { _, group in
+                        Section {
+                            ForEach(group, id: \.1.id) { i, item in row(list, i, item) }
+                        } header: {
+                            if let s = group.first?.1.section { Text(s) }
                         }
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(i == selection ? Color.accentColor.opacity(0.18) : Color.clear)
-                    .id(i)
                 }
                 .listStyle(.plain)
                 .onChange(of: selection) { proxy.scrollTo(selection) }
@@ -87,6 +81,33 @@ struct PaletteView: View {
         .onAppear { focused = true }
         .onChange(of: query) { selection = 0 }
         .accessibilityAction(.escape) { dismiss() }
+    }
+
+    /// Runs of items sharing a section, keeping their index in the flat list (used for keyboard selection).
+    private static func sections(_ list: [PaletteItem]) -> [[(Int, PaletteItem)]] {
+        var out: [[(Int, PaletteItem)]] = []
+        for (i, item) in list.enumerated() {
+            if let last = out.last?.last, last.1.section == item.section { out[out.count - 1].append((i, item)) } else { out.append([(i, item)]) }
+        }
+        return out
+    }
+
+    private func row(_ list: [PaletteItem], _ i: Int, _ item: PaletteItem) -> some View {
+        Button { selection = i; run(list, alternate: false) } label: {
+            HStack {
+                Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.title).lineLimit(1)
+                    if let s = item.subtitle { Text(s).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                }
+                Spacer()
+                if let k = item.shortcut { Text(k).font(.caption.monospaced()).foregroundStyle(.secondary) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(i == selection ? Color.accentColor.opacity(0.18) : Color.clear)
+        .id(i)
     }
 
     private func run(_ list: [PaletteItem], at index: Int? = nil, alternate: Bool) {
@@ -153,6 +174,8 @@ struct AppCommand: Identifiable {
     var title: String
     var symbol: String
     var shortcut: String?
+    /// Hidden while this plugin is turned off for the vault.
+    var plugin: CorePlugin? = nil
     var run: () -> Void
 }
 
@@ -169,23 +192,32 @@ enum AppCommands {
             .init(id: "search", title: String(localized: "Search: Search in all files"), symbol: "text.magnifyingglass", shortcut: "⇧⌘F") {
                 w.sidebarTab = .search; w.columnVisibility = .all; w.preferredCompactColumn = .sidebar
             },
-            .init(id: "graph", title: String(localized: "Graph view: Open graph view"), symbol: "point.3.connected.trianglepath.dotted", shortcut: "⌃⌘G") { w.open(.graph) },
-            .init(id: "daily", title: String(localized: "Daily notes: Open today's daily note"), symbol: "calendar", shortcut: "⇧⌘D") { w.openDailyNote() },
-            .init(id: "daily-prev", title: String(localized: "Daily notes: Open previous daily note"), symbol: "chevron.backward") { w.openAdjacentDailyNote(-1) },
-            .init(id: "daily-next", title: String(localized: "Daily notes: Open next daily note"), symbol: "chevron.forward") { w.openAdjacentDailyNote(1) },
-            .init(id: "unique", title: String(localized: "Unique note creator: Create new unique note"), symbol: "number.square") { w.newUniqueNote() },
-            .init(id: "random", title: String(localized: "Random note: Open random note"), symbol: "shuffle") { w.openRandomNote() },
-            .init(id: "canvas", title: String(localized: "Canvas: Create new canvas"), symbol: "rectangle.3.group") {
+            .init(id: "graph", title: String(localized: "Graph view: Open graph view"), symbol: "point.3.connected.trianglepath.dotted", shortcut: "⌃⌘G", plugin: .graph) { w.open(.graph) },
+            .init(id: "daily", title: String(localized: "Daily notes: Open today's daily note"), symbol: "calendar", shortcut: "⇧⌘D", plugin: .dailyNotes) { w.openDailyNote() },
+            .init(id: "daily-prev", title: String(localized: "Daily notes: Open previous daily note"), symbol: "chevron.backward", plugin: .dailyNotes) { w.openAdjacentDailyNote(-1) },
+            .init(id: "daily-next", title: String(localized: "Daily notes: Open next daily note"), symbol: "chevron.forward", plugin: .dailyNotes) { w.openAdjacentDailyNote(1) },
+            .init(id: "unique", title: String(localized: "Unique note creator: Create new unique note"), symbol: "number.square", plugin: .uniqueNote) { w.newUniqueNote() },
+            .init(id: "random", title: String(localized: "Random note: Open random note"), symbol: "shuffle", plugin: .randomNote) { w.openRandomNote() },
+            .init(id: "canvas", title: String(localized: "Canvas: Create new canvas"), symbol: "rectangle.3.group", plugin: .canvas) {
                 if let p = w.model.newCanvas(in: w.model.settings.newNoteFolder) { w.open(path: p) }
             },
-            .init(id: "base", title: String(localized: "Bases: Create new base"), symbol: "tablecells") {
+            .init(id: "base", title: String(localized: "Bases: Create new base"), symbol: "tablecells", plugin: .bases) {
                 if let p = w.model.newBase(in: w.model.settings.newNoteFolder) { w.open(path: p) }
             },
-            .init(id: "workspaces", title: String(localized: "Workspaces: Manage workspaces"), symbol: "rectangle.3.offgrid") { w.sheet = .workspaces },
-            .init(id: "web", title: String(localized: "Web viewer: Open URL"), symbol: "globe") { w.promptWebURL() },
-            .init(id: "record", title: String(localized: "Audio recorder: Start recording"), symbol: "mic") { w.sheet = .audio },
+            .init(id: "database", title: String(localized: "Bases: Create new database"), symbol: "tablecells.badge.ellipsis", plugin: .bases) {
+                w.sheet = .newDatabase(w.model.settings.newNoteFolder)
+            },
+            .init(id: "meeting", title: String(localized: "Meeting notes: New meeting note"), symbol: "person.2", plugin: .meetingNotes) { w.sheet = .meetingNote },
+            .init(id: "fromTemplate", title: String(localized: "Templates: New note from template"), symbol: "doc.badge.plus", plugin: .templates) {
+                w.sheet = .newFromTemplate(w.model.settings.newNoteFolder)
+            },
+            .init(id: "workspaces", title: String(localized: "Workspaces: Manage workspaces"), symbol: "rectangle.3.offgrid", plugin: .workspaces) { w.sheet = .workspaces },
+            .init(id: "web", title: String(localized: "Web viewer: Open URL"), symbol: "globe", plugin: .webViewer) { w.promptWebURL() },
+            .init(id: "record", title: String(localized: "Audio recorder: Start recording"), symbol: "mic", plugin: .audioRecorder) { w.sheet = .audio },
             .init(id: "import", title: String(localized: "Importer: Import notes"), symbol: "square.and.arrow.down") { w.sheet = .importer },
-            .init(id: "publish", title: String(localized: "Publish: Publish vault"), symbol: "paperplane") { w.sheet = .publish },
+            .init(id: "importFiles", title: String(localized: "Import files into vault"), symbol: "square.and.arrow.down.on.square") { w.importTarget = "" },
+            .init(id: "exportVault", title: String(localized: "Export vault"), symbol: "square.and.arrow.up.on.square") { w.export("") },
+            .init(id: "publish", title: String(localized: "Publish: Publish vault"), symbol: "paperplane", plugin: .publish) { w.sheet = .publish },
             .init(id: "split", title: String(localized: "Split right"), symbol: "rectangle.split.2x1", shortcut: "⌘\\") { w.split() },
             .init(id: "back", title: String(localized: "Navigate back"), symbol: "chevron.backward", shortcut: "⌘[") { w.pane.back() },
             .init(id: "forward", title: String(localized: "Navigate forward"), symbol: "chevron.forward", shortcut: "⌘]") { w.pane.forward() },
@@ -195,6 +227,7 @@ enum AppCommands {
                 if w.columnVisibility == .all { w.preferredCompactColumn = .sidebar }
             },
             .init(id: "settings", title: String(localized: "Open settings"), symbol: "gearshape", shortcut: "⌘,") { w.sheet = .settings },
+            .init(id: "vaultSettings", title: String(localized: "Open vault settings"), symbol: "slider.horizontal.3", shortcut: "⌥⌘,") { w.sheet = .vaultSettings(nil) },
             .init(id: "reload", title: String(localized: "Reload vault from disk"), symbol: "arrow.clockwise") { Task { await w.model.refresh() } },
         ]
         if let path {
@@ -202,17 +235,17 @@ enum AppCommands {
                 .init(id: "rename", title: String(localized: "Rename file"), symbol: "pencil") { w.sheet = .rename(path) },
                 .init(id: "bookmark", title: String(localized: "Bookmark current file"), symbol: "bookmark") { w.model.addBookmark(.file(path)) },
                 .init(id: "copylink", title: String(localized: "Copy link to file"), symbol: "link") { copyToPasteboard(w.model.linkText(to: path)) },
-                .init(id: "recovery", title: String(localized: "File recovery: Open snapshots"), symbol: "clock.arrow.circlepath") { w.sheet = .recovery(path) },
+                .init(id: "recovery", title: String(localized: "File recovery: Open snapshots"), symbol: "clock.arrow.circlepath", plugin: .fileRecovery) { w.sheet = .recovery(path) },
                 .init(id: "delete", title: String(localized: "Delete current file"), symbol: "trash") { w.pendingTrash = path },
             ]
         }
         if let note {
             c += [
                 .init(id: "read", title: String(localized: "Toggle reading view"), symbol: "book", shortcut: "⌘E") { w.pane.reading.toggle() },
-                .init(id: "localgraph", title: String(localized: "Graph view: Open local graph"), symbol: "circle.hexagongrid") { w.openLocalGraph(for: note) },
-                .init(id: "slides", title: String(localized: "Slides: Start presentation"), symbol: "play.rectangle") { w.presentingSlides = true },
-                .init(id: "template", title: String(localized: "Templates: Insert template"), symbol: "doc.on.doc", shortcut: "⇧⌘T") { w.sheet = .templates },
-                .init(id: "merge", title: String(localized: "Note composer: Merge current file with another file"), symbol: "arrow.triangle.merge") { w.sheet = .merge(note) },
+                .init(id: "localgraph", title: String(localized: "Graph view: Open local graph"), symbol: "circle.hexagongrid", plugin: .graph) { w.openLocalGraph(for: note) },
+                .init(id: "slides", title: String(localized: "Slides: Start presentation"), symbol: "play.rectangle", plugin: .slides) { w.presentingSlides = true },
+                .init(id: "template", title: String(localized: "Templates: Insert template"), symbol: "doc.on.doc", shortcut: "⇧⌘T", plugin: .templates) { w.sheet = .templates },
+                .init(id: "merge", title: String(localized: "Note composer: Merge current file with another file"), symbol: "arrow.triangle.merge", plugin: .noteComposer) { w.sheet = .merge(note) },
             ]
         }
         if let e, note != nil {
@@ -228,7 +261,7 @@ enum AppCommands {
                 .init(id: "bullet", title: String(localized: "Toggle bullet list"), symbol: "list.bullet") { e.toggleLinePrefix("- ") },
                 .init(id: "numbered", title: String(localized: "Toggle numbered list"), symbol: "list.number") { e.toggleLinePrefix("1. ") },
                 .init(id: "quote", title: String(localized: "Toggle blockquote"), symbol: "text.quote") { e.toggleLinePrefix("> ") },
-                .init(id: "extract", title: String(localized: "Note composer: Extract selection to new note"), symbol: "scissors") { w.extractSelection(e) },
+                .init(id: "extract", title: String(localized: "Note composer: Extract selection to new note"), symbol: "scissors", plugin: .noteComposer) { w.extractSelection(e) },
             ]
             for level in 1...6 {
                 c.append(.init(id: "h\(level)", title: String(localized: "Set heading \(level)"), symbol: "textformat.size", shortcut: level <= 3 ? "⌃\(level)" : nil) {
@@ -236,7 +269,7 @@ enum AppCommands {
                 })
             }
         }
-        return c
+        return c.filter { $0.plugin.map(w.model.settings.isEnabled) ?? true }
     }
 }
 

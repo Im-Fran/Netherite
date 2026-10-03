@@ -26,6 +26,7 @@ struct SidebarView: View {
             case .bookmarks: BookmarksPanel()
             case .tags: TagsPanel()
             }
+            VaultSyncFooter(vault: window.model.vault) { window.sheet = .vaultSettings(.sync) }
         }
         .navigationTitle(window.model.name)
         .toolbar {
@@ -33,7 +34,11 @@ struct SidebarView: View {
             // iPhone has no menu bar, so Settings and switching vaults need a visible entry point.
             ToolbarItem(placement: .topBarLeading) {
                 Menu("Vault", systemImage: "books.vertical") {
-                    Button("Settings", systemImage: "gearshape") { window.sheet = .settings }
+                    Button("Vault Settings", systemImage: "slider.horizontal.3") { window.sheet = .vaultSettings(nil) }
+                    Button("Netherite Settings", systemImage: "gearshape") { window.sheet = .settings }
+                    Button("Import Files…", systemImage: "square.and.arrow.down") { window.importTarget = "" }
+                    Button("Export Vault…", systemImage: "square.and.arrow.up.on.square") { window.export("") }
+                    Divider()
                     Button("Switch Vault…", systemImage: "arrow.left.arrow.right") { window.model.flushAll(); window.closeVault?() }
                 }
             }
@@ -69,7 +74,7 @@ struct SearchPanel: View {
         @Bindable var window = window
         VStack(spacing: 0) {
             HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                 TextField("Search", text: $window.searchQuery)
                     .textFieldStyle(.plain)
                     .focused($focused)

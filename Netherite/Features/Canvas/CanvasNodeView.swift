@@ -281,7 +281,10 @@ private struct CanvasNodeAccessibility: ViewModifier {
                 Button(String(localized: "Connect…")) { model.connectingFrom = node.id }
                 Button(String(localized: "No Color")) { model.setColor(nil, for: node.id) }
                 ForEach(CanvasColor.presets, id: \.id) { p in
-                    Button(String(localized: "Color: \(String(localized: p.name))")) { model.setColor(p.id, for: node.id) }
+                    Button(String(localized: "Color: \(String(localized: p.name))")) {
+                        model.setColor(p.id, for: node.id)
+                        announce(String(localized: "Color: \(String(localized: p.name))"))
+                    }
                 }
             }
     }
@@ -298,6 +301,8 @@ private struct CanvasNodeAccessibility: ViewModifier {
         content
             .accessibilityElement(children: .combine)
             .accessibilityLabel(title)
+            // The card color is otherwise only visible: say it.
+            .accessibilityValue(CanvasColor.name(node.color).map { String(localized: "Color: \($0)") } ?? "")
             .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
             .accessibilityAction(named: "Open") { activate() }
             .accessibilityAction(named: "Delete") { model.selection = [node.id]; model.deleteSelection() }

@@ -233,7 +233,10 @@ struct PropertiesEditor: View {
         HStack {
             TextField("Add property", text: $newKey)
                 .onSubmit(add)
-            Button("Add", systemImage: "plus", action: add).labelStyle(.iconOnly).disabled(newKey.isEmpty)
+            Button(action: add) { Label("Add Property", systemImage: "plus").labelStyle(.iconOnly).hitTarget() }
+                .buttonStyle(.borderless)
+                .help("Add Property")
+                .disabled(newKey.isEmpty)
         }
     }
 

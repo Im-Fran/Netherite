@@ -12,10 +12,11 @@ settings:
     CURRENT_PROJECT_VERSION: "3"
     DEVELOPMENT_TEAM: PX7HA29NR3
     CODE_SIGN_STYLE: Automatic
+    # Notarization (the Developer ID build on each GitHub Release) requires it.
+    ENABLE_HARDENED_RUNTIME: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_EMIT_LOC_STRINGS: YES
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
-    ENABLE_HARDENED_RUNTIME: YES
 packages:
   NetheriteCore:
     path: Packages/NetheriteCore
@@ -27,7 +28,11 @@ targets:
     type: application
     supportedDestinations: [macOS, iOS]
     sources:
-      - Netherite
+      - path: Netherite
+        excludes: [Settings.bundle]
+      # The system Settings app page exists only on iOS/iPadOS; the Mac uses the Settings window.
+      - path: Netherite/Settings.bundle
+        destinationFilters: [iOS]
     dependencies:
       - package: NetheriteCore
         product: NetheriteCore

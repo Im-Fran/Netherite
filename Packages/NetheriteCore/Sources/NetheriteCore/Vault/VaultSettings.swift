@@ -15,6 +15,9 @@ public struct VaultSettings: Codable, Hashable, Sendable {
     public var uniqueNote = UniqueNote()
     public var snapshotIntervalMinutes = 5
     public var snapshotRetentionDays = 7
+    /// Ids of turned-off `CorePlugin`s; unknown ids are kept but ignored.
+    public var disabledPlugins: Set<String> = []
+    public var meetingNotes = MeetingNotes()
 
     public struct DailyNotes: Codable, Hashable, Sendable {
         public var folder = "Daily"
@@ -26,6 +29,21 @@ public struct VaultSettings: Codable, Hashable, Sendable {
         public var folder = ""
         public var format = "yyyyMMddHHmm"
         public var template = ""
+    }
+    public struct MeetingNotes: Codable, Hashable, Sendable {
+        public var folder = "Meetings"
+        /// Date prefix of the note name (`yyyy-MM-dd Title`).
+        public var format = "yyyy-MM-dd"
+        public var template = ""
+
+        public init() {}
+        public init(from decoder: Decoder) throws {
+            self.init()
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? c.decode(String.self, forKey: .folder) { folder = v }
+            if let v = try? c.decode(String.self, forKey: .format) { format = v }
+            if let v = try? c.decode(String.self, forKey: .template) { template = v }
+        }
     }
 
     public init() {}
@@ -40,6 +58,7 @@ public struct VaultSettings: Codable, Hashable, Sendable {
         d(.defaultToReadingMode, &defaultToReadingMode); d(.useWikilinks, &useWikilinks); d(.dailyNotes, &dailyNotes)
         d(.templatesFolder, &templatesFolder); d(.uniqueNote, &uniqueNote)
         d(.snapshotIntervalMinutes, &snapshotIntervalMinutes); d(.snapshotRetentionDays, &snapshotRetentionDays)
+        d(.disabledPlugins, &disabledPlugins); d(.meetingNotes, &meetingNotes)
     }
 }
 
@@ -59,49 +78,4 @@ public extension Vault {
     }
 
     var settings: VaultSettings { loadConfig("app.json", fallback: VaultSettings()) }
-}
-
-/// A theme is a small JSON file in `.netherite/themes/`. Colors are hex strings with light/dark variants.
-public struct Theme: Codable, Hashable, Sendable, Identifiable {
-    public struct Pair: Codable, Hashable, Sendable {
-        public var light: String
-        public var dark: String
-        public init(_ light: String, _ dark: String) { self.light = light; self.dark = dark }
-    }
-    public var name: String
-    public var accent: Pair?
-    public var link: Pair?
-    public var tag: Pair?
-    public var highlight: Pair?
-    public var background: Pair?
-    public var textFont: String?
-    public var monoFont: String?
-    public var fontScale: Double?
-    public var lineHeight: Double?
-    public var id: String { name }
-    /// Localized title for built-in themes; `name` stays the stored id.
-    public var displayName: String { name == "System" ? String(localized: "System", bundle: .module) : name }
-
-    public static let netherite = Theme(
-        name: "Netherite", accent: .init("#635385", "#B09EDB"), link: .init("#5B4A8E", "#B7A6E6"),
-        tag: .init("#6E5A9E", "#C4B5F0"), highlight: .init("#F4E27A", "#6B5B1F"))
-    public static let system = Theme(name: "System")
-
-    public init(name: String, accent: Pair? = nil, link: Pair? = nil, tag: Pair? = nil, highlight: Pair? = nil,
-                background: Pair? = nil, textFont: String? = nil, monoFont: String? = nil, fontScale: Double? = nil, lineHeight: Double? = nil) {
-        self.name = name; self.accent = accent; self.link = link; self.tag = tag; self.highlight = highlight
-        self.background = background; self.textFont = textFont; self.monoFont = monoFont; self.fontScale = fontScale; self.lineHeight = lineHeight
-    }
-}
-
-public extension Vault {
-    var themesURL: URL { configURL.appending(path: "themes", directoryHint: .isDirectory) }
-
-    /// Built-in themes plus any `*.json` in `.netherite/themes/`.
-    func themes() -> [Theme] {
-        let custom = ((try? FileManager.default.contentsOfDirectory(at: themesURL, includingPropertiesForKeys: nil)) ?? [])
-            .filter { $0.pathExtension == "json" }
-            .compactMap { try? JSONDecoder().decode(Theme.self, from: Data(contentsOf: $0)) }
-        return [.netherite, .system] + custom.filter { $0.name != "Netherite" && $0.name != "System" }
-    }
 }

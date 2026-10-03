@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>StringsTable</key>
+	<string>Root</string>
+	<key>PreferenceSpecifiers</key>
+	<array>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Startup</string>
+			<key>FooterText</key>
+			<string>Choose a specific vault in Netherite › Settings › General.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSMultiValueSpecifier</string>
+			<key>Title</key>
+			<string>Open on Launch</string>
+			<key>Key</key>
+			<string>launchBehavior</string>
+			<key>DefaultValue</key>
+			<string>last</string>
+			<key>Titles</key>
+			<array>
+				<string>Last Opened Vault</string>
+				<string>Start Page</string>
+				<string>A Specific Vault</string>
+			</array>
+			<key>Values</key>
+			<array>
+				<string>last</string>
+				<string>picker</string>
+				<string>vault</string>
+			</array>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Start Page</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Show the Guide and Welcome Tour</string>
+			<key>Key</key>
+			<string>showGuideOnStartPage</string>
+			<key>DefaultValue</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Help</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Show Welcome Tour on Next Launch</string>
+			<key>Key</key>
+			<string>hasSeenOnboarding</string>
+			<key>DefaultValue</key>
+			<true/>
+			<key>TrueValue</key>
+			<false/>
+			<key>FalseValue</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Show Tips Again on Next Launch</string>
+			<key>Key</key>
+			<string>resetTipsOnLaunch</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Storage</string>
+			<key>FooterText</key>
+			<string>Updated while Netherite is open. Deleted vaults are removed for good after 90 days.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTitleValueSpecifier</string>
+			<key>Title</key>
+			<string>iCloud Drive</string>
+			<key>Key</key>
+			<string>info.icloud</string>
+			<key>DefaultValue</key>
+			<string>—</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTitleValueSpecifier</string>
+			<key>Title</key>
+			<string>On This Device</string>
+			<key>Key</key>
+			<string>info.local</string>
+			<key>DefaultValue</key>
+			<string>—</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTitleValueSpecifier</string>
+			<key>Title</key>
+			<string>Recently Deleted</string>
+			<key>Key</key>
+			<string>info.trash</string>
+			<key>DefaultValue</key>
+			<string>0</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>About</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTitleValueSpecifier</string>
+			<key>Title</key>
+			<string>Version</string>
+			<key>Key</key>
+			<string>info.version</string>
+			<key>DefaultValue</key>
+			<string>—</string>
+		</dict>
+	</array>
+</dict>
+</plist>

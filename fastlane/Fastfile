@@ -6,6 +6,8 @@
 # automatically with the team in project.yml; only these lanes switch the
 # targets to the match profiles, on the regenerated (throwaway) project.
 
+require_relative "changelog"
+
 ROOT = File.expand_path("..", __dir__)
 PROJECT = File.join(ROOT, "Netherite.xcodeproj")
 SCHEME = "Netherite"
@@ -13,6 +15,8 @@ BUILD_DIR = "build"
 TEAM_ID = File.read(File.join(ROOT, "project.yml"))[/DEVELOPMENT_TEAM:\s*(\S+)/, 1]
 # The key the app checks updates against; the release zip must verify with it.
 UPDATER_PUBLIC_KEY = File.read(File.join(ROOT, "Netherite/App/NetheriteApp.swift"))[/publicKey: "([^"]+)"/, 1]
+CHANGELOG = File.join(ROOT, "CHANGELOG.md")
+REPO_URL = "https://github.com/Im-Fran/Netherite"
 
 # Target => bundle identifier; each one gets its own App Store profile.
 TARGETS = {
@@ -70,7 +74,42 @@ lane :certificates do |options|
   match(type: "appstore", platform: "ios", api_key: key, readonly: readonly)
   match(type: "appstore", platform: "macos", api_key: key, readonly: readonly,
         additional_cert_types: ["mac_installer_distribution"])
+  # Developer ID signs the notarized .app attached to each GitHub Release.
   match(type: "developer_id", platform: "macos", api_key: key, readonly: readonly)
+end
+
+# dev is protected, so a release is two steps: a PR with the stamped
+# changelog, then a tag on dev once it is merged (the tag is what CI ships).
+desc "Stamp the Unreleased changelog as a version on a release/x.y.z branch and push it for a PR"
+desc "Usage: fastlane release version:1.2.0"
+lane :release do |options|
+  version = release_version(options)
+  ensure_git_status_clean
+
+  text = File.read(CHANGELOG, encoding: "UTF-8")
+  UI.user_error!("## [Unreleased] in CHANGELOG.md is empty") if Changelog.section(text, "Unreleased").to_s.empty?
+
+  sh("git", "switch", "-c", "release/#{version}")
+  File.write(CHANGELOG, Changelog.stamp(text, version, Time.now.strftime("%Y-%m-%d"), REPO_URL))
+  project_yml = File.join(ROOT, "project.yml")
+  File.write(project_yml, File.read(project_yml).sub(/MARKETING_VERSION: "[^"]*"/, %(MARKETING_VERSION: "#{version}")))
+
+  git_commit(path: [CHANGELOG, project_yml], message: "chore(release): #{version}")
+  push_to_git_remote(remote_branch: "release/#{version}")
+  UI.success("Open a PR into dev: #{REPO_URL}/pull/new/release/#{version}")
+  UI.success("Once merged: fastlane tag version:#{version}")
+end
+
+desc "Tag a merged release on dev and push the tag, which starts the CI build"
+desc "Usage: fastlane tag version:1.2.0"
+lane :tag do |options|
+  version = release_version(options)
+  ensure_git_status_clean
+  sh("git", "switch", "dev")
+  sh("git", "pull", "--ff-only")
+  UI.user_error!("CHANGELOG.md on dev has no #{version} yet: merge the release PR first") unless Changelog.section(File.read(CHANGELOG, encoding: "UTF-8"), version)
+  add_git_tag(tag: version, message: version)
+  push_git_tags(tag: version)
 end
 
 platform :ios do
@@ -93,7 +132,7 @@ platform :ios do
       xcargs: version_xcargs(options, key, "ios")
     )
 
-    upload(ipa: ipa, api_key: key) unless options[:upload] == false
+    upload(ipa: ipa, api_key: key, version: options[:version], build: options[:build_number]) unless options[:upload] == false
   end
 end
 
@@ -128,7 +167,7 @@ platform :mac do
 
     pkg = lane_context[SharedValues::PKG_OUTPUT_PATH]
     UI.user_error!("no .pkg was produced") if pkg.nil?
-    upload(pkg: pkg, api_key: key) unless options[:upload] == false
+    upload(pkg: pkg, api_key: key, version: options[:version], build: options[:build_number]) unless options[:upload] == false
   end
 
   # The App Store .pkg above is signed for the store only: Gatekeeper rejects it
@@ -141,26 +180,39 @@ platform :mac do
     use_match_profiles(identity: "Developer ID Application")
 
     out = File.join(ROOT, BUILD_DIR)
-    export = File.join(out, "direct")
+    archive = File.join(out, "Netherite-direct.xcarchive")
     build_mac_app(
       project: PROJECT,
       scheme: SCHEME,
       configuration: "Release",
       destination: "generic/platform=macOS",
       sdk: "macosx",
-      export_method: "developer-id",
-      export_options: { provisioningProfiles: profile_mapping },
       skip_package_pkg: true,
       derived_data_path: "#{BUILD_DIR}/DerivedData",
-      output_directory: export,
-      archive_path: "#{BUILD_DIR}/Netherite-direct.xcarchive",
+      output_directory: File.join(out, "archived"),
+      archive_path: archive,
       xcargs: [
         version_xcargs(options, key, "osx"),
         "NETHERITE_CONDITIONS=DIRECT_DISTRIBUTION",
         "NETHERITE_ENTITLEMENTS=Netherite/NetheriteDirect.entitlements"
       ].join(" ")
     )
+    # gym never re-exports a macOS archive for Developer ID: it copies the
+    # archived .app as is. So export it directly.
+    export = File.join(out, "direct")
+    options_plist = File.join(out, "DeveloperIDExportOptions.plist")
+    File.write(options_plist, {
+      "method" => "developer-id",
+      "signingStyle" => "manual",
+      "signingCertificate" => "Developer ID Application",
+      "teamID" => TEAM_ID,
+      "provisioningProfiles" => profile_mapping
+    }.to_plist)
+    sh("rm", "-rf", export)
+    sh("xcodebuild", "-exportArchive", "-archivePath", archive, "-exportOptionsPlist", options_plist, "-exportPath", export)
     app = File.join(export, "Netherite.app")
+    # Leaves build/release-notes.md for the GitHub Release.
+    release_notes(options[:version], options[:build_number])
 
     # Notarize the app first: the zip OpenUpdater installs must carry the stapled ticket.
     notarize(package: app, api_key: key)
@@ -234,11 +286,30 @@ def version_xcargs(options, key, platform)
   args.join(" ")
 end
 
-def upload(api_key:, **package)
+def upload(api_key:, version:, build:, **package)
+  notes = release_notes(version, build)
   upload_to_testflight(
     api_key: api_key,
-    # Processing takes minutes on Apple's side and nothing here depends on it.
-    skip_waiting_for_build_processing: true,
+    changelog: notes,
+    # TestFlight only takes the notes once the build is processed; without
+    # notes nothing here depends on processing, so don't wait for it.
+    skip_waiting_for_build_processing: notes.nil?,
     **package
   )
+end
+
+def release_version(options)
+  version = options[:version].to_s
+  UI.user_error!("pass version:x.y.z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+  version
+end
+
+# The CHANGELOG section of version+build, else of the version (Unreleased when
+# it has neither yet). Also left in build/release-notes.md for the GitHub Release.
+def release_notes(version, build = nil)
+  section = Changelog.build_section(File.read(CHANGELOG, encoding: "UTF-8"), version, build)
+  return nil if section.to_s.empty?
+  File.write(File.join(ROOT, BUILD_DIR, "release-notes.md"), section)
+  # TestFlight rejects "What to Test" over 4000 characters.
+  Changelog.release_notes(section)[0, 4000]
 end

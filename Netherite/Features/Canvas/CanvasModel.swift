@@ -349,10 +349,20 @@ final class CanvasModel {
 
 /// Obsidian's six preset colors plus hex strings.
 enum CanvasColor {
-    static let presets: [(id: String, name: LocalizedStringResource, color: Color)] = [
-        ("1", "Red", .red), ("2", "Orange", .orange), ("3", "Yellow", .yellow),
-        ("4", "Green", .green), ("5", "Cyan", .cyan), ("6", "Purple", .purple),
-    ]
+    /// The presets as drawn: color-blind-safe stand-ins when Accessibility › Color Filters is on.
+    static var presets: [(id: String, name: LocalizedStringResource, color: Color)] {
+        let a = A11y.shared
+        return [
+            ("1", "Red", a.color(.red, .red)), ("2", "Orange", a.color(.orange, .orange)), ("3", "Yellow", a.color(.yellow, .yellow)),
+            ("4", "Green", a.color(.green, .green)), ("5", "Cyan", a.color(.cyan, .cyan)), ("6", "Purple", a.color(.purple, .purple)),
+        ]
+    }
+
+    /// Spoken name of a card or edge color: the preset's name, or "Custom" for a hex color.
+    static func name(_ value: String?) -> String? {
+        guard let value else { return nil }
+        return presets.first { $0.id == value }.map { String(localized: $0.name) } ?? String(localized: "Custom")
+    }
 
     static func color(_ value: String?) -> Color? {
         guard let value else { return nil }

@@ -111,12 +111,15 @@ enum SidebarTab: String, CaseIterable, Identifiable, Codable {
 }
 
 enum ActiveSheet: Identifiable {
-    case quickSwitcher, commandPalette, settings, rename(String), templates, importer, publish, workspaces, recovery(String), audio, merge(String), openURL
+    case quickSwitcher, commandPalette, settings, vaultSettings(VaultSettingsPage?), rename(String), templates, importer, publish, workspaces, recovery(String), audio, merge(String), openURL
+    /// Plugin sheets; the string is the folder to create in.
+    case meetingNote, newDatabase(String), newFromTemplate(String)
     var id: String {
         switch self {
         case .rename(let p): "rename:\(p)"
         case .recovery(let p): "recovery:\(p)"
         case .merge(let p): "merge:\(p)"
+        case .vaultSettings: "vaultSettings"
         default: "\(self)"
         }
     }
@@ -151,6 +154,10 @@ final class WindowState {
             }
         }
     }
+    /// Item being exported (`""` = the whole vault).
+    var exportRequest: ExportRequest?
+    /// Folder that files picked by "Import Files…" are copied into.
+    var importTarget: String?
     var searchQuery = ""
     var explorerSelection: String?
     var presentingSlides = false
@@ -257,6 +264,26 @@ final class WindowState {
     func trash(_ path: String) {
         model.trash(path)
         panes.forEach { $0.removePath(path) }
+    }
+
+    func export(_ path: String) {
+        model.flushAll()
+        exportRequest = ExportRequest(vault: model.vault, path: path)
+    }
+
+    /// Copies files picked in Files/Finder into `importTarget` (in an iCloud vault they then upload).
+    func importFiles(_ urls: [URL]) async {
+        let folder = importTarget ?? ""
+        let vault = model.vault
+        let access = urls.map { $0.startAccessingSecurityScopedResource() }
+        defer { for (u, a) in zip(urls, access) where a { u.stopAccessingSecurityScopedResource() } }
+        do {
+            let paths = try await Task.detached { try vault.importItems(urls, into: folder) }.value
+            await model.refresh()
+            if paths.count == 1, model.index.files.contains(paths[0]) { open(path: paths[0]) } else { explorerSelection = folder.isEmpty ? nil : folder }
+        } catch {
+            model.lastError = error.localizedDescription
+        }
     }
 
     func openRandomNote() {

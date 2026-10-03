@@ -59,7 +59,7 @@ private func openURL(_ path: String) -> URL {
 private struct NoVaultView: View {
     var body: some View {
         VStack(spacing: 6) {
-            Image(systemName: "diamond").font(.title2).foregroundStyle(.tint).widgetAccentable()
+            Image(systemName: "diamond").font(.title2).foregroundStyle(.tint).widgetAccentable().accessibilityHidden(true)
             Text("Open a vault in Netherite").font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)
         }
     }

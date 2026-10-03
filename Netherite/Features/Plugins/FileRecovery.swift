@@ -79,35 +79,127 @@ struct FileRecoveryView: View {
     @State private var snapshots: [SnapshotStore.Snapshot] = []
 
     var body: some View {
-        NavigationSplitView {
-            List(snapshots, selection: $selection) { s in
-                Text(s.date.formatted(date: .abbreviated, time: .shortened)).tag(s)
+        Group {
+            #if os(macOS)
+            NavigationSplitView {
+                list.navigationSplitViewColumnWidth(min: 220, ideal: 240)
+            } detail: {
+                if let s = selection { SnapshotDetail(path: path, snapshot: s) } else {
+                    ContentUnavailableView("Select a Snapshot", systemImage: "clock")
+                }
             }
-            .navigationTitle(path.noteName)
-            .overlay { if snapshots.isEmpty { ContentUnavailableView("No Snapshots Yet", systemImage: "clock.arrow.circlepath") } }
-        } detail: {
-            if let s = selection, let text = try? String(contentsOf: s.url, encoding: .utf8) {
-                ScrollView {
-                    Text(text).font(.body.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding()
-                }
-                .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        Button("Copy", systemImage: "doc.on.doc") { copyToPasteboard(text) }
-                        Button("Restore", systemImage: "arrow.uturn.backward") {
-                            SnapshotStore(vault: window.model.vault).save(window.model.text(of: path), for: path)
-                            window.model.edit(path, text: text)
-                            window.model.save(path)
-                            dismiss()
-                        }
-                        .help("Replace the current note with this snapshot (the current version is snapshotted first)")
-                    }
-                }
-            } else {
-                ContentUnavailableView("Select a Snapshot", systemImage: "clock")
+            .frame(minWidth: 700, minHeight: 460)
+            #else
+            // iPhone and iPad: a list that pushes each snapshot. (A forced 700-pt split view clipped the text here.)
+            NavigationStack {
+                list.navigationDestination(for: SnapshotStore.Snapshot.self) { SnapshotDetail(path: path, snapshot: $0) }
+            }
+            #endif
+        }
+        .onAppear {
+            snapshots = SnapshotStore(vault: window.model.vault).snapshots(for: path)
+            #if os(macOS)
+            selection = snapshots.first
+            #endif
+        }
+    }
+
+    private var list: some View {
+        Group {
+            #if os(macOS)
+            List(selection: $selection) { rows }
+            #else
+            // No selection binding here: with one, iOS takes the tap as a selection and the links never push.
+            List { rows }
+            #endif
+        }
+        .navigationTitle(path.noteName)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .overlay {
+            if snapshots.isEmpty {
+                ContentUnavailableView("No Snapshots Yet", systemImage: "clock.arrow.circlepath",
+                                       description: Text("Netherite saves a copy of this note every \(window.model.settings.snapshotIntervalMinutes) min while it changes."))
             }
         }
-        .frame(minWidth: 700, minHeight: 460)
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
-        .onAppear { snapshots = SnapshotStore(vault: window.model.vault).snapshots(for: path); selection = snapshots.first }
+    }
+
+    private var rows: some View {
+        Section {
+            ForEach(snapshots) { s in
+                NavigationLink(value: s) { SnapshotRow(snapshot: s) }
+            }
+        } footer: {
+            if !snapshots.isEmpty {
+                Text("Snapshots are kept for \(window.model.settings.snapshotRetentionDays) days and stored only on this device.")
+            }
+        }
+    }
+}
+
+private struct SnapshotRow: View {
+    let snapshot: SnapshotStore.Snapshot
+    @State private var preview = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(snapshot.date.formatted(date: .abbreviated, time: .shortened)).font(.headline)
+                Spacer()
+                Text(snapshot.date, format: .relative(presentation: .named)).font(.caption).foregroundStyle(.secondary)
+            }
+            if !preview.isEmpty {
+                Text(preview).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            }
+        }
+        .padding(.vertical, 2)
+        .task {
+            // First lines of text, without heading marks.
+            let text = (try? String(contentsOf: snapshot.url, encoding: .utf8)) ?? ""
+            preview = text.split(whereSeparator: \.isNewline).prefix(3)
+                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.joined(separator: " ")
+        }
+    }
+}
+
+private struct SnapshotDetail: View {
+    let path: String
+    let snapshot: SnapshotStore.Snapshot
+    @Environment(WindowState.self) private var window
+    @State private var confirmRestore = false
+
+    var body: some View {
+        let text = (try? String(contentsOf: snapshot.url, encoding: .utf8)) ?? ""
+        ScrollView {
+            Text(text)
+                .font(.callout)
+                .fontDesign(.monospaced)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+        }
+        .navigationTitle(snapshot.date.formatted(date: .abbreviated, time: .shortened))
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("Copy", systemImage: "doc.on.doc") { copyToPasteboard(text) }
+                Button("Restore", systemImage: "arrow.uturn.backward") { confirmRestore = true }
+                    .help("Replace the current note with this snapshot (the current version is snapshotted first)")
+            }
+        }
+        .confirmationDialog("Restore This Snapshot?", isPresented: $confirmRestore, titleVisibility: .visible) {
+            Button("Restore") {
+                SnapshotStore(vault: window.model.vault).save(window.model.text(of: path), for: path)
+                window.model.edit(path, text: text)
+                window.model.save(path)
+                window.sheet = nil
+            }
+        } message: {
+            Text("The current version of the note is saved as a snapshot first, so you can go back.")
+        }
     }
 }

@@ -149,6 +149,56 @@ swift test
 
 ---
 
+## 📝 Changelog & Releases
+
+Every user-visible change is recorded in [`CHANGELOG.md`](CHANGELOG.md), which follows [Keep a Changelog](https://keepachangelog.com). Releases are cut from it with [fastlane](https://fastlane.tools) and shipped by GitHub Actions.
+
+### Recording changes
+
+Add entries under `## [Unreleased]` as you work, in the section that fits — one bullet per change, written for users:
+
+```markdown
+## [Unreleased]
+
+### Added
+- Pin notes to the top of the file explorer.
+
+### Fixed
+- Links to renamed headings no longer break.
+```
+
+Sections: `Added` ✨, `Changed` 🔄, `Deprecated` ⚠️, `Removed` 🗑️, `Fixed` 🐛, `Security` 🔒 — the emoji is added to the release notes automatically. In Claude Code, a Stop hook (`.claude/hooks/changelog-check.sh`) asks the agent to update `Unreleased` whenever it leaves app changes without a changelog entry.
+
+### Cutting a release
+
+`dev` is protected, so a release takes a PR and then a tag:
+
+```bash
+bundle install
+bundle exec fastlane release version:0.2.0
+```
+
+The `release` lane requires a clean tree and a non-empty `Unreleased` section. On a new `release/0.2.0` branch it moves those entries to `## [0.2.0] - <date>`, sets `MARKETING_VERSION` in `project.yml`, commits `chore(release): 0.2.0` and pushes the branch. Open the PR into `dev` and merge it, then:
+
+```bash
+bundle exec fastlane tag version:0.2.0
+```
+
+`tag` pulls `dev`, checks that the changelog has the version and pushes the `0.2.0` tag. The tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
+
+1. Builds iOS/iPadOS and macOS, uploads both to **TestFlight** and fills in *What to Test* with that version's changelog (with emojis). The build number is one past the latest on TestFlight.
+2. Re-exports the macOS archive with **Developer ID**, notarizes it and attaches `Netherite-<version>-macOS.zip` to the tag's **GitHub Release**, using the same changelog section as the release notes.
+
+Tags are `<version>[+<build>]` (e.g. `0.2.0` or `0.2.0+7` to force a build number); a tag with a build uses a `## [0.2.0+7]` changelog section when there is one, otherwise `## [0.2.0]`. A build can be re-run from the **Actions** tab with *Run workflow* and the tag name. Nothing is submitted to the App Store: promoting a TestFlight build stays manual.
+
+### One-time setup
+
+- Certificates and profiles live in a private [match](https://docs.fastlane.tools/actions/match/) repo. Create or refresh them (App Store **and** Developer ID) with `bundle exec fastlane certificates`; CI only reads them.
+- Repository secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_CONTENT` (base64 App Store Connect API key, also used for notarization), `MATCH_REPOSITORY_URL`, `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTHORIZATION`.
+- Locally, copy `fastlane/.env.example` to `fastlane/.env`.
+
+---
+
 ## ⌨️ Command-line tool
 
 The `netherite` CLI ships in the core package and works on any vault folder:

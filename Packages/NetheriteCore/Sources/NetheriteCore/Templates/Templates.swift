@@ -9,9 +9,9 @@ public enum Templates {
         return index.markdownFiles.filter { $0.hasPrefix(folder + "/") }
     }
 
-    /// Replaces `{{title}}`, `{{date}}`, `{{time}}`, `{{date:FORMAT}}` and `{{time:FORMAT}}`.
-    public static func render(_ template: String, title: String, date: Date = .now) -> String {
-        let re = try! NSRegularExpression(pattern: #"\{\{\s*(title|date|time)(?::([^}]*))?\s*\}\}"#, options: .caseInsensitive)
+    /// Replaces `{{title}}`, `{{date}}`, `{{time}}`, `{{date:FORMAT}}`, `{{time:FORMAT}}` and `{{attendees}}` (comma separated).
+    public static func render(_ template: String, title: String, date: Date = .now, attendees: [String] = []) -> String {
+        let re = try! NSRegularExpression(pattern: #"\{\{\s*(title|date|time|attendees)(?::([^}]*))?\s*\}\}"#, options: .caseInsensitive)
         let ns = template as NSString
         var out = "", last = 0
         for m in re.matches(in: template, range: NSRange(location: 0, length: ns.length)) {
@@ -21,6 +21,7 @@ public enum Templates {
             switch key {
             case "title": out += title
             case "date": out += format(date, fmt ?? "yyyy-MM-dd")
+            case "attendees": out += attendees.joined(separator: ", ")
             default: out += format(date, fmt ?? "HH:mm")
             }
             last = NSMaxRange(m.range)
