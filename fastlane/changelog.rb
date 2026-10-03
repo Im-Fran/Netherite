@@ -19,6 +19,12 @@ module Changelog
     match && match[1].strip
   end
 
+  # Section for a build: `## [version+build]` first, then `## [version]`, then Unreleased.
+  def build_section(text, version, build = nil)
+    candidates = [build && version && "#{version}+#{build}", version, "Unreleased"].compact
+    candidates.lazy.map { |name| section(text, name) }.find { |body| !body.to_s.empty? }
+  end
+
   # Markdown section → plain text for TestFlight's "What to Test".
   def release_notes(section)
     section.lines.map do |line|
@@ -61,6 +67,10 @@ if __FILE__ == $PROGRAM_NAME
 
   raise "unreleased" unless Changelog.section(sample, "Unreleased") == "### Added\n- Dark mode"
   raise "last section stops at links" unless Changelog.section(sample, "0.1.0") == "### Fixed\n- A crash"
+  raise "build falls back to version" unless Changelog.build_section(sample, "0.1.0", 3) == "### Fixed\n- A crash"
+  raise "build falls back to unreleased" unless Changelog.build_section(sample, "9.9.9", 1) == "### Added\n- Dark mode"
+  with_build = sample.sub("## [0.1.0]", "## [0.1.0+2] - 2026-10-02\n\n### Fixed\n- A hang\n\n## [0.1.0]")
+  raise "build section" unless Changelog.build_section(with_build, "0.1.0", "2") == "### Fixed\n- A hang"
   raise "missing" unless Changelog.section(sample, "9.9.9").nil?
   raise "notes" unless Changelog.release_notes("### Added\n- Dark mode\n  - nested") == "✨ Added\n• Dark mode\n  • nested"
 
