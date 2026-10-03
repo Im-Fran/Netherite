@@ -12,12 +12,17 @@ struct SharedInput {
 @MainActor @Observable
 final class ClipModel {
     enum Destination: String, CaseIterable, Identifiable { case newNote, dailyNote; var id: String { rawValue } }
+    /// Folder for new clippings; the same localized name is shown in the picker.
+    static let folder = String(localized: "Clippings")
 
     var title = ""
     var body = ""
     var tags = ""
     var destination: Destination = .newNote
     var loading = true
+    /// The shared items are read; only the page download may still be running.
+    var itemsLoaded = false
+    @ObservationIgnored private var fetch: Task<Void, Never>?
     var error: String?
     var fetchFailed = false
     var fallbackBody: String {
@@ -40,21 +45,39 @@ final class ClipModel {
                 input.text = (input.text.map { $0 + "\n\n" } ?? "") + text
             }
         }
+        itemsLoaded = true
         if let url = input.url {
             title = url.host() ?? ""
-            if let (data, _) = try? await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 10)), let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
-                let clip = HTMLToMarkdown.convert(html, baseURL: url)
-                if !clip.title.isEmpty { title = clip.title }
-                body = [clip.description.map { "> \($0)" }, input.text, clip.markdown].compactMap { $0 }.joined(separator: "\n\n")
-            } else {
-                fetchFailed = true
-                body = fallbackBody
-            }
+            let task = Task { await fetchPage(url) }
+            fetch = task
+            await task.value
         } else {
             body = input.text ?? ""
             title = String((input.text ?? String(localized: "Clipping")).split(separator: "\n").first ?? "").prefix(60).description
         }
         if title.isEmpty { title = String(localized: "Clipping") }
+        loading = false
+    }
+
+    private func fetchPage(_ url: URL) async {
+        if let (data, _) = try? await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 10)), !Task.isCancelled,
+           let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
+            let clip = HTMLToMarkdown.convert(html, baseURL: url)
+            if !clip.title.isEmpty { title = clip.title }
+            body = [clip.description.map { "> \($0)" }, input.text, clip.markdown].compactMap { $0 }.joined(separator: "\n\n")
+        } else if !Task.isCancelled {
+            fetchFailed = true
+            body = fallbackBody
+        }
+    }
+
+    /// Stops a page download still in progress so the clip is saved with just the link.
+    func skipFetch() {
+        guard loading, itemsLoaded else { return }
+        fetch?.cancel()
+        if title.isEmpty { title = String(localized: "Clipping") }
+        fetchFailed = true
+        body = fallbackBody
         loading = false
     }
 
@@ -72,7 +95,7 @@ final class ClipModel {
         do {
             var parts: [String] = []
             for img in input.images {
-                let path = vault.availablePath(folder: vault.settings.attachmentFolder, base: "Clipped image", ext: img.ext)
+                let path = vault.availablePath(folder: vault.settings.attachmentFolder, base: String(localized: "Clipped image"), ext: img.ext)
                 try vault.write(img.data, to: path)
                 parts.append("![[\((path as NSString).lastPathComponent)]]")
             }
@@ -87,7 +110,7 @@ final class ClipModel {
                 if !tagList.isEmpty { props.append(Property(key: "tags", value: .list(tagList))) }
                 let content = Frontmatter.replacing(in: parts.joined(separator: "\n\n") + "\n", with: props)
                 let name = title.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "-", options: .regularExpression)
-                try vault.createNote(in: "Clippings", named: String(name.prefix(100)), content: content)
+                try vault.createNote(in: Self.folder, named: String(name.prefix(100)), content: content)
             case .dailyNote:
                 let link = input.url.map { "[\(title)](\($0.absoluteString))" } ?? title
                 let tagText = tagList.map { " #\($0)" }.joined()
@@ -116,7 +139,7 @@ struct ClipView: View {
                 Section {
                     TextField("Title", text: $model.title)
                     Picker("Save to", selection: $model.destination) {
-                        Text("New note in Clippings").tag(ClipModel.Destination.newNote)
+                        Text("New note in \(ClipModel.folder)").tag(ClipModel.Destination.newNote)
                         Text("Today's daily note").tag(ClipModel.Destination.dailyNote)
                     }
                     TextField("Tags", text: $model.tags, prompt: Text("reading, ideas"))
@@ -157,8 +180,9 @@ struct ClipView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { done(false) } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { if model.save() { done(true) } }
-                        .disabled(model.loading || model.vault == nil)
+                    // Saving while the page downloads keeps just the link.
+                    Button("Save") { model.skipFetch(); if model.save() { done(true) } }
+                        .disabled(!model.itemsLoaded || model.vault == nil)
                 }
             }
         }
