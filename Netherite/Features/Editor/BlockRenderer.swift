@@ -17,6 +17,7 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
         var width: CGFloat
         var dark: Bool
         var fontSize: CGFloat
+        var css: String
     }
 
     private var cache: [String: PlatformImage] = [:]
@@ -57,17 +58,18 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
         webView.loadHTMLString(Self.shell, baseURL: URL(string: "nth://web/"))
     }
 
-    static func key(_ kind: Kind, _ source: String, width: CGFloat, dark: Bool, fontSize: CGFloat) -> String {
-        "\(kind.rawValue)|\(Int(width))|\(dark)|\(Int(fontSize * 10))|\(source.hashValue)"
+    static func key(_ kind: Kind, _ source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String) -> String {
+        "\(kind.rawValue)|\(Int(width))|\(dark)|\(Int(fontSize * 10))|\(css.hashValue)|\(source.hashValue)"
     }
 
-    /// Cached image, or nil after scheduling a render; `onReady` runs when it finishes.
-    func image(_ kind: Kind, source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, onReady: @escaping () -> Void) -> PlatformImage? {
-        let key = Self.key(kind, source, width: width, dark: dark, fontSize: fontSize)
+    /// Cached image, or nil after scheduling a render; `onReady` runs when it finishes. `css` is extra theme CSS.
+    func image(_ kind: Kind, source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String = "",
+               onReady: @escaping () -> Void) -> PlatformImage? {
+        let key = Self.key(kind, source, width: width, dark: dark, fontSize: fontSize, css: css)
         if let img = cache[key] { return img }
         if waiting[key] != nil { waiting[key]?.append(onReady); return nil }
         waiting[key] = [onReady]
-        queue.append(Job(key: key, kind: kind, source: source, width: width, dark: dark, fontSize: fontSize))
+        queue.append(Job(key: key, kind: kind, source: source, width: width, dark: dark, fontSize: fontSize, css: css))
         pump()
         return nil
     }
@@ -97,8 +99,8 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
     private func render(_ job: Job) async -> PlatformImage? {
         webView.frame.size = CGSize(width: job.width, height: 200)
         guard let result = try? await webView.callAsyncJavaScript(
-            "return await window.nthRender(kind, source, dark, size)",
-            arguments: ["kind": job.kind.rawValue, "source": job.source, "dark": job.dark, "size": Double(job.fontSize)],
+            "return await window.nthRender(kind, source, dark, size, css)",
+            arguments: ["kind": job.kind.rawValue, "source": job.source, "dark": job.dark, "size": Double(job.fontSize), "css": job.css],
             contentWorld: .page),
               let dims = result as? [Double], dims.count == 2, dims[0] > 1, dims[1] > 1 else { return nil }
         let size = CGSize(width: min(job.width, ceil(dims[0])), height: min(4000, ceil(dims[1])))
@@ -134,14 +136,13 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
       #out.block { display: block; }
       #out > :first-child, #out .callout:first-child, #out table:first-child { margin-top: 0; }
       #out > :last-child { margin-bottom: 0; }
-      body.dark { --text: #e8e8ed; --muted: #98989d; --faint: #3a3a3c; --code-bg: rgba(255,255,255,.07); --link: #B7A6E6; --tag: #C4B5F0; --mark: #6B5B1F; color: #e8e8ed; }
-      body.light { --text: #1d1d1f; color: #1d1d1f; }
-    </style></head>
+    </style><style id="theme"></style></head>
     <body><div id="out"></div>
     <script>
     let n = 0;
-    window.nthRender = async function (kind, source, dark, size) {
-      document.body.className = dark ? 'dark' : 'light';
+    window.nthRender = async function (kind, source, dark, size, css) {
+      document.getElementById('theme').textContent = css;
+      document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
       document.documentElement.style.setProperty('--size', size + 'px');
       document.documentElement.style.fontSize = size + 'px';
       const out = document.getElementById('out');

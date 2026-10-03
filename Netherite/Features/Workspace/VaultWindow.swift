@@ -25,10 +25,13 @@ struct VaultWindow: View {
         .environment(window)
         .focusedSceneValue(\.window, window)
         .sheet(item: $window.sheet) { sheet in
-            sheetView(sheet).environment(window)
+            // Sheets are their own presentations: give them the theme's appearance too.
+            sheetView(sheet).environment(window).preferredColorScheme(window.model.theme.appearance?.colorScheme)
         }
         #if os(macOS)
-        .sheet(isPresented: $window.presentingSlides) { slides.frame(minWidth: 900, minHeight: 600) }
+        .sheet(isPresented: $window.presentingSlides) {
+            slides.frame(minWidth: 900, minHeight: 600).preferredColorScheme(window.model.theme.appearance?.colorScheme)
+        }
         #else
         .fullScreenCover(isPresented: $window.presentingSlides) { slides }
         #endif

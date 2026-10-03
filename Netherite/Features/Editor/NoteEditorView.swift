@@ -27,6 +27,7 @@ struct NoteEditorView: View {
                 editor(text)
             }
         }
+        .background(Color(pair: model.theme.background, fallback: .clear))
         .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded() }
         .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
@@ -37,7 +38,7 @@ struct NoteEditorView: View {
     private func editor(_ text: String) -> some View {
         VStack(spacing: 0) {
             MarkdownTextView(
-                text: text, theme: model.theme, livePreview: true,
+                text: text, theme: theme, livePreview: true,
                 readableWidth: model.settings.readableLineLength, spellcheck: model.settings.spellcheck,
                 controller: controller,
                 onChange: { model.edit(path, text: $0) },
@@ -75,6 +76,13 @@ struct NoteEditorView: View {
         // iOS: the formatting bar is the text view's inputAccessoryView (MarkdownTextView), so it only shows for the body.
     }
 
+    /// The vault theme with Text Size folded into its scale, so the editor restyles when either changes.
+    private var theme: Theme {
+        var t = model.theme
+        t.fontScale = (t.fontScale ?? 1) * dynamicTypeSize.bodyScale
+        return t
+    }
+
     /// Changes whenever the editor must restyle: file set, block renders, width, appearance and Dynamic Type size.
     private var styleToken: Int {
         let type = DynamicTypeSize.allCases.firstIndex(of: dynamicTypeSize) ?? 0
@@ -86,9 +94,11 @@ struct NoteEditorView: View {
         let renderer = BlockRenderer.shared
         renderer.vault = model.vault
         let width = controller.textWidth
-        let fontSize = EditorStyler(theme: model.theme).baseSize
+        let fontSize = EditorStyler(theme: theme).baseSize
         let dark = colorScheme == .dark
         let done = { renderToken += 1 }
+        // Theme colors (callouts, links) and contrast for rendered tables, callouts and embeds.
+        let css = HTMLRenderer.themeCSS(model.theme) + (A11y.shared.highContrast ? HTMLRenderer.increasedContrastCSS : "")
         switch kind {
         case .math(let tex):
             return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, onReady: done)
@@ -100,11 +110,11 @@ struct NoteEditorView: View {
             guard model.index.resolver.resolve(link.target, from: path) != nil else { return nil }
             let html = HTMLRenderer.embed(link, .app(model.index, source: path))
             // Re-render when the embedded note changes: its text is part of the cache key via the HTML.
-            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
         case .markdown(let md):
             var ctx = RenderContext.app(model.index, source: path)
             ctx.interactiveTasks = false
-            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
         }
     }
 

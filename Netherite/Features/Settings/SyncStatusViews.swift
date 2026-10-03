@@ -21,12 +21,14 @@ extension SyncStatus {
         }
     }
 
+    /// Status color, remapped for the color-vision setting; the symbol and label carry the state too.
     var tint: Color {
-        switch self {
+        let a = A11y.shared
+        return switch self {
         case .local: .secondary
-        case .pending: .orange
-        case .syncing: .blue
-        case .synced: .green
+        case .pending: a.color(.orange, .orange)
+        case .syncing: a.color(.blue, .blue)
+        case .synced: a.color(.green, .green)
         }
     }
 }

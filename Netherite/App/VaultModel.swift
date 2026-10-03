@@ -8,7 +8,10 @@ final class VaultModel {
     let index: VaultIndex
     var settings: VaultSettings { didSet { if settings != oldValue { vault.saveConfig("app.json", settings) } } }
     private(set) var themes: [Theme] = []
-    var theme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
+    /// The vault's chosen theme, as stored (what publishing and "Create Theme from Current" use).
+    var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
+    /// The theme as drawn on this device, after the Accessibility preferences.
+    var theme: Theme { A11y.shared.apply(vaultTheme) }
     private(set) var recentFiles: [String]
     private(set) var dirty: Set<String> = []
     var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }

@@ -12,13 +12,13 @@ struct ReaderView: View {
 
     var body: some View {
         let model = window.model
-        let _ = dynamicTypeSize   // re-render with the new base size when Text Size changes
         let body = HTMLRenderer.render(text, context: .app(model.index, source: path))
         let sub = pane.pendingLine.flatMap { line in model.index.notes[path]?.parsed.headings.first { $0.line == line }?.text }
         HTMLWebView(
             html: HTMLRenderer.page(title: path.noteName, body: body, assets: "nth://web/", theme: model.theme,
                                     fullWidth: !model.settings.readableLineLength, initialSubpath: sub,
-                                    baseSize: ReaderView.baseSize, transparentBackground: true),
+                                    baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
+                                    increaseContrast: A11y.shared.highContrast),
             vault: model.vault,
             onAction: { action in
                 if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
@@ -79,6 +79,7 @@ struct PagePreview: View {
     let link: NoteLink
     let source: String
     @Environment(WindowState.self) private var window
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let index = window.model.index
@@ -89,7 +90,8 @@ struct PagePreview: View {
                     ? HTMLRenderer.render(text, context: .app(index, source: target))
                     : HTMLRenderer.embed(NoteLink(target: target, isEmbed: true, isWiki: true, range: NSRange(), line: 0), .app(index, source: target))
                 HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme,
-                                                   baseSize: ReaderView.baseSize, transparentBackground: true),
+                                                   baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
+                                                   increaseContrast: A11y.shared.highContrast),
                             vault: window.model.vault, onAction: { window.handle($0, from: target) })
             } else {
                 ContentUnavailableView("“\(link.target)” doesn't exist yet", systemImage: "doc.badge.plus",
@@ -101,12 +103,12 @@ struct PagePreview: View {
 }
 
 extension ReaderView {
-    /// Body size the reader scales from: the Dynamic Type body size on iOS, 16 px on macOS.
-    static var baseSize: Double {
+    /// Body size the reader scales from: 17 pt on iOS, 16 px on macOS, scaled by Text Size.
+    static func baseSize(_ size: DynamicTypeSize) -> Double {
         #if os(iOS)
-        Double(UIFont.preferredFont(forTextStyle: .body).pointSize)
+        17 * size.bodyScale
         #else
-        16
+        16 * size.bodyScale
         #endif
     }
 }

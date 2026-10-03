@@ -1,5 +1,4 @@
 (function () {
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   function post(msg) {
     if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.netherite) webkit.messageHandlers.netherite.postMessage(msg);
   }
@@ -12,6 +11,9 @@
   }
   function renderMermaid() {
     if (!window.mermaid || !document.querySelector('pre.mermaid')) return;
+    // A theme can force light or dark through color-scheme; otherwise follow the system.
+    const scheme = getComputedStyle(document.documentElement).colorScheme;
+    const dark = scheme === 'dark' || (scheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
     mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
     mermaid.run({ querySelector: 'pre.mermaid' });
   }

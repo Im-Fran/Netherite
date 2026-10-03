@@ -23,7 +23,7 @@ struct NetheriteApp: App {
 
         #if os(macOS)
         // One tour window for the whole app (a per-window sheet would stack with several vault windows).
-        Window("Welcome to Netherite", id: "welcome") { OnboardingView() }
+        Window("Welcome to Netherite", id: "welcome") { OnboardingView().accessibilityRoot() }
             .windowResizability(.contentSize)
             .defaultPosition(.center)
             .restorationBehavior(.disabled)
@@ -85,6 +85,8 @@ struct RootView: View {
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
             window?.closeVault = { vaultPath = "" }
         }
+        // Outermost, so the onboarding cover and every sheet inherit it.
+        .accessibilityRoot(appearance: window?.model.theme.appearance)
     }
 }
 
@@ -92,7 +94,7 @@ struct RootView: View {
 struct SettingsRoot: View {
     @Environment(AppModel.self) private var app
     var body: some View {
-        SettingsView()
+        SettingsView().accessibilityRoot()
     }
 }
 

@@ -145,7 +145,7 @@ struct PublishView: View {
         let dir = URL.temporaryDirectory.appending(path: "netherite-site-\(UUID().uuidString)", directoryHint: .isDirectory)
         buildProgress = 0
         defer { buildProgress = nil }
-        let report = try await SiteExporter.export(model.index, to: dir, options: options, theme: model.theme) { buildProgress = $0 }
+        let report = try await SiteExporter.export(model.index, to: dir, options: options, theme: model.vaultTheme) { buildProgress = $0 }
         status = String(localized: "Built \(report.pages) pages.")
         return dir
     }
