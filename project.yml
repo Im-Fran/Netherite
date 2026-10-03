@@ -12,7 +12,7 @@ settings:
     CURRENT_PROJECT_VERSION: "3"
     DEVELOPMENT_TEAM: PX7HA29NR3
     CODE_SIGN_STYLE: Automatic
-    # Notarization (the Developer ID zip on each GitHub Release) requires it.
+    # Notarization (the Developer ID build on each GitHub Release) requires it.
     ENABLE_HARDENED_RUNTIME: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_EMIT_LOC_STRINGS: YES
@@ -20,6 +20,9 @@ settings:
 packages:
   NetheriteCore:
     path: Packages/NetheriteCore
+  OpenUpdater:
+    url: https://github.com/Im-Fran/openupdater
+    revision: 2a9b09de2cc6dc0d5987a9f1c8595dc0dd79bbe4 # pinned; bump deliberately
 targets:
   Netherite:
     type: application
@@ -33,21 +36,16 @@ targets:
     dependencies:
       - package: NetheriteCore
         product: NetheriteCore
+      # Only compiled into the Developer ID build (DIRECT_DISTRIBUTION); the
+      # App Store build updates through the store.
+      - package: OpenUpdater
+        product: OpenUpdater
+        destinationFilters: [macOS]
       - target: ShareExtension
       - target: Widgets
       - sdk: CoreSpotlight.framework
-    entitlements:
-      path: Netherite/Netherite.entitlements
-      properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.files.user-selected.read-write: true
-        com.apple.security.files.bookmarks.app-scope: true
-        com.apple.security.network.client: true
-        com.apple.security.device.audio-input: true
-        com.apple.developer.icloud-services: [CloudDocuments]
-        com.apple.developer.icloud-container-identifiers: [iCloud.cl.franciscosolis.netherite]
-        com.apple.developer.ubiquity-container-identifiers: [iCloud.cl.franciscosolis.netherite]
-        com.apple.security.application-groups: [group.cl.franciscosolis.netherite]
+    # Netherite.entitlements (App Store, sandboxed) and NetheriteDirect.entitlements
+    # (Developer ID, no sandbox) are plain files, picked by NETHERITE_ENTITLEMENTS.
     info:
       path: Netherite/Info.plist
       properties:
@@ -80,6 +78,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cl.franciscosolis.netherite
         PRODUCT_NAME: Netherite
+        # The Developer ID lane (fastlane mac direct) overrides both: OpenUpdater
+        # can't replace a sandboxed app, so that build ships without the sandbox.
+        NETHERITE_ENTITLEMENTS: Netherite/Netherite.entitlements
+        NETHERITE_CONDITIONS: ""
+        CODE_SIGN_ENTITLEMENTS: $(NETHERITE_ENTITLEMENTS)
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) $(NETHERITE_CONDITIONS)
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: YES
         TARGETED_DEVICE_FAMILY: "1,2"
