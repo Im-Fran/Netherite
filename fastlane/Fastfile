@@ -75,23 +75,38 @@ lane :certificates do |options|
   match(type: "developer_id", platform: "macos", api_key: key, readonly: readonly)
 end
 
-desc "Stamp the Unreleased changelog as a version, commit, tag and push it (CI then ships it)"
+# dev is protected, so a release is two steps: a PR with the stamped
+# changelog, then a tag on dev once it is merged (the tag is what CI ships).
+desc "Stamp the Unreleased changelog as a version on a release/x.y.z branch and push it for a PR"
 desc "Usage: fastlane release version:1.2.0"
 lane :release do |options|
-  version = options[:version].to_s
-  UI.user_error!("pass version:x.y.z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+  version = release_version(options)
   ensure_git_status_clean
 
   text = File.read(CHANGELOG, encoding: "UTF-8")
   UI.user_error!("## [Unreleased] in CHANGELOG.md is empty") if Changelog.section(text, "Unreleased").to_s.empty?
-  File.write(CHANGELOG, Changelog.stamp(text, version, Time.now.strftime("%Y-%m-%d"), REPO_URL))
 
+  sh("git", "switch", "-c", "release/#{version}")
+  File.write(CHANGELOG, Changelog.stamp(text, version, Time.now.strftime("%Y-%m-%d"), REPO_URL))
   project_yml = File.join(ROOT, "project.yml")
   File.write(project_yml, File.read(project_yml).sub(/MARKETING_VERSION: "[^"]*"/, %(MARKETING_VERSION: "#{version}")))
 
   git_commit(path: [CHANGELOG, project_yml], message: "chore(release): #{version}")
-  add_git_tag(tag: version)
-  push_to_git_remote(tags: true)
+  push_to_git_remote(remote_branch: "release/#{version}")
+  UI.success("Open a PR into dev: #{REPO_URL}/pull/new/release/#{version}")
+  UI.success("Once merged: fastlane tag version:#{version}")
+end
+
+desc "Tag a merged release on dev and push the tag, which starts the CI build"
+desc "Usage: fastlane tag version:1.2.0"
+lane :tag do |options|
+  version = release_version(options)
+  ensure_git_status_clean
+  sh("git", "switch", "dev")
+  sh("git", "pull", "--ff-only")
+  UI.user_error!("CHANGELOG.md on dev has no #{version} yet: merge the release PR first") unless Changelog.section(File.read(CHANGELOG, encoding: "UTF-8"), version)
+  add_git_tag(tag: version, message: version)
+  push_git_tags(tag: version)
 end
 
 platform :ios do
@@ -221,6 +236,12 @@ end
 
 # The version's CHANGELOG section (Unreleased when it has none yet). Also left
 # in build/release-notes.md as Markdown for the GitHub Release.
+def release_version(options)
+  version = options[:version].to_s
+  UI.user_error!("pass version:x.y.z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+  version
+end
+
 def release_notes(version)
   text = File.read(CHANGELOG, encoding: "UTF-8")
   section = (version && Changelog.section(text, version)) || Changelog.section(text, "Unreleased")
