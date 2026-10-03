@@ -33,15 +33,29 @@ public struct SharedVault: Codable, Hashable, Sendable {
     }
 
     /// The vault folder, via bookmark when it still resolves, else by path.
+    /// Starts security-scoped access that is never stopped: prefer `withVault` in long-lived processes.
     public func resolve() -> Vault? {
+        guard let url = folderURL() else { return nil }
+        _ = url.startAccessingSecurityScopedResource()
+        return Vault(root: url)
+    }
+
+    /// Runs `body` on the vault folder, holding security-scoped access only for its duration.
+    /// Returns nil when the vault can't be found.
+    public func withVault<T>(_ body: (Vault) throws -> T) rethrows -> T? {
+        // Access is started on the resolved URL itself: it carries the security scope, `Vault.root` may not.
+        guard let url = folderURL() else { return nil }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        return try body(Vault(root: url))
+    }
+
+    private func folderURL() -> URL? {
         if let bookmark {
             var stale = false
-            if let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) {
-                _ = url.startAccessingSecurityScopedResource()
-                return Vault(root: url)
-            }
+            if let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) { return url }
         }
-        return FileManager.default.fileExists(atPath: path) ? Vault(root: URL(filePath: path, directoryHint: .isDirectory)) : nil
+        return FileManager.default.fileExists(atPath: path) ? URL(filePath: path, directoryHint: .isDirectory) : nil
     }
 }
 
@@ -50,7 +64,8 @@ public extension Vault {
     @discardableResult
     func appendToDailyNote(_ text: String, date: Date = .now) throws -> String {
         let path = Templates.dailyNotePath(for: date, settings: settings)
-        var existing = (try? read(path)) ?? ""
+        // A note that exists but can't be read must not be replaced by just the new text.
+        var existing = exists(path) ? try read(path) : ""
         if !existing.isEmpty && !existing.hasSuffix("\n") { existing += "\n" }
         try write(existing + text + "\n", to: path)
         return path

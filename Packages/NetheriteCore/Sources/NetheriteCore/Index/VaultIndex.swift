@@ -66,9 +66,10 @@ public final class VaultIndex {
     /// Paths in `skipping` (unsaved editor buffers) keep their in-memory text.
     public func refreshFromDisk(skipping: Set<String> = []) async {
         let vault = self.vault
-        var known = notes.mapValues(\.modified)
+        let before = notes.mapValues(\.modified), beforeFiles = files
+        var known = before
         for p in skipping { known[p] = .distantFuture }
-        let (entries, changed) = await Task.detached {
+        let (entries, scanned) = await Task.detached {
             let entries = vault.entries()
             var changed: [String: NoteRecord] = [:]
             for e in entries where !e.isFolder && e.path.isMarkdown {
@@ -78,8 +79,14 @@ public final class VaultIndex {
             }
             return (entries, changed)
         }.value
-        let newFiles = entries.filter { !$0.isFolder }.map(\.path)
-        let removed = Set(files).subtracting(newFiles)
+        // Notes edited or created in memory while we were scanning keep their newer text.
+        var changed = scanned.filter { notes[$0.key]?.modified == before[$0.key] }
+        // Our own saves come back as "changed" with the text we already have: just record the new date.
+        for (p, r) in changed where notes[p]?.text == r.text { notes[p]?.modified = r.modified; changed[p] = nil }
+        let scannedFiles = entries.filter { !$0.isFolder }.map(\.path)
+        let added = Set(files).subtracting(beforeFiles).subtracting(scannedFiles)
+        let newFiles = added.isEmpty ? scannedFiles : (scannedFiles + added).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        let removed = Set(beforeFiles).subtracting(newFiles)
         guard !changed.isEmpty || !removed.isEmpty || newFiles.count != files.count || entries.filter(\.isFolder).count != folders.count else { return }
         files = newFiles
         folders = entries.filter(\.isFolder).map(\.path)
