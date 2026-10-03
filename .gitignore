@@ -5,7 +5,9 @@ DerivedData/
 .build/
 .swiftpm/
 build/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 graphify-out/
 fastlane/report.xml
 fastlane/Preview.html
