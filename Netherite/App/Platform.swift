@@ -14,7 +14,7 @@ typealias PlatformFontDescriptor = UIFontDescriptor
 #endif
 
 extension PlatformColor {
-    convenience init?(hex: String) {
+    nonisolated convenience init?(hex: String) {
         var s = hex.trimmingCharacters(in: .whitespaces)
         if s.hasPrefix("#") { s.removeFirst() }
         guard s.count == 6 || s.count == 8, let v = UInt64(s, radix: 16) else { return nil }
@@ -24,7 +24,8 @@ extension PlatformColor {
     }
 
     /// Dynamic color from a theme pair (light/dark).
-    static func pair(_ p: Theme.Pair?, fallback: PlatformColor) -> PlatformColor {
+    /// nonisolated: SwiftUI resolves dynamic colors off the main thread, and a main-actor provider traps there.
+    nonisolated static func pair(_ p: Theme.Pair?, fallback: PlatformColor) -> PlatformColor {
         guard let p, let light = PlatformColor(hex: p.light), let dark = PlatformColor(hex: p.dark) else { return fallback }
         #if os(macOS)
         return NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .vibrantDark, .accessibilityHighContrastDarkAqua]) != nil ? dark : light }
