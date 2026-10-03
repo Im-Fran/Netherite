@@ -61,6 +61,38 @@ extension VaultModel {
         return writeNew(path, "views:\n  - type: table\n    name: \(String(localized: "Table"))\n    order:\n      - file.name\n")
     }
 
+    /// A database: folder `name` for its entries, and `name.base` beside it with a table and a status board.
+    @discardableResult
+    func newDatabase(named name: String, in parent: String) -> String? {
+        let clean = Templates.fileName(name)
+        do {
+            let folder = try index.createFolder(in: parent, named: clean.isEmpty ? String(localized: "Untitled") : clean)
+            let base = BaseFile.database(folder: folder, boardColumns: [String(localized: "To Do"), String(localized: "In Progress"), String(localized: "Done")])
+            return writeNew(vault.availablePath(folder: parent, base: (folder as NSString).lastPathComponent, ext: "base"), base.yaml)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    /// `Meetings.base` beside the meeting notes folder, newest first.
+    func newMeetingsBase() -> String? {
+        let folder = settings.meetingNotes.folder
+        var base = BaseFile.database(folder: folder, properties: ["date", "attendees"])
+        base.views[0].name = String(localized: "Meetings")
+        base.views[0].sort = [BaseSort(property: "date", ascending: false)]
+        return writeNew(vault.availablePath(folder: folder.parentFolder, base: String(localized: "Meetings"), ext: "base"), base.yaml)
+    }
+
+    /// Copies the built-in templates into the templates folder, never overwriting; returns how many were added.
+    func addBuiltInTemplates() -> Int {
+        let folder = settings.templatesFolder
+        return Templates.builtIns.filter { t in
+            let path = "\(folder)/\(Templates.fileName(t.name)).md"
+            return !vault.exists(path) && writeNew(path, t.body) != nil
+        }.count
+    }
+
     private func writeNew(_ path: String, _ content: String) -> String? {
         do { try vault.write(content, to: path); index.didCreate(path); return path }
         catch { lastError = error.localizedDescription; return nil }

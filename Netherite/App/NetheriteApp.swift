@@ -23,7 +23,7 @@ struct NetheriteApp: App {
 
         #if os(macOS)
         // One tour window for the whole app (a per-window sheet would stack with several vault windows).
-        Window("Welcome to Netherite", id: "welcome") { OnboardingView() }
+        Window("Welcome to Netherite", id: "welcome") { OnboardingView().accessibilityRoot() }
             .windowResizability(.contentSize)
             .defaultPosition(.center)
             .restorationBehavior(.disabled)
@@ -85,14 +85,16 @@ struct RootView: View {
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
             window?.closeVault = { vaultPath = "" }
         }
+        // Outermost, so the onboarding cover and every sheet inherit it.
+        .accessibilityRoot(appearance: window?.model.theme.appearance)
     }
 }
 
-/// macOS Settings window: app settings plus the most recently used vault's preferences.
+/// macOS Settings window: Netherite's own settings (each vault's are in its window, under Vault Settings…).
 struct SettingsRoot: View {
     @Environment(AppModel.self) private var app
     var body: some View {
-        SettingsView(model: app.lastVaultPath.flatMap { app.model(forPath: $0) })
+        SettingsView().accessibilityRoot()
     }
 }
 
@@ -100,6 +102,9 @@ struct NetheriteCommands: Commands {
     @FocusedValue(\.window) private var window
     @FocusedValue(\.editor) private var editor
     @Environment(\.openWindow) private var openWindow
+
+    /// Plugin commands stay visible when no vault window is focused (they're disabled then).
+    private func enabled(_ p: CorePlugin) -> Bool { window?.model.settings.isEnabled(p) ?? true }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -116,7 +121,16 @@ struct NetheriteCommands: Commands {
             Divider()
             Button("Go to File…") { window?.sheet = .quickSwitcher }.keyboardShortcut("o").disabled(window == nil)
             Button("Command Palette…") { window?.sheet = .commandPalette }.keyboardShortcut("p").disabled(window == nil)
-            Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
+            if enabled(.dailyNotes) {
+                Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
+            }
+            if enabled(.meetingNotes) {
+                Button("New Meeting Note…") { window?.sheet = .meetingNote }.disabled(window == nil)
+            }
+        }
+        CommandGroup(after: .appSettings) {
+            Button("Vault Settings…") { window?.sheet = .vaultSettings(nil) }
+                .keyboardShortcut(",", modifiers: [.command, .option]).disabled(window == nil)
         }
         CommandGroup(after: .saveItem) {
             Button("Save") { window?.model.flushAll() }.keyboardShortcut("s").disabled(window == nil)
@@ -143,14 +157,18 @@ struct NetheriteCommands: Commands {
                 Button("Numbered List") { editor?.toggleLinePrefix("1. ") }
                 Button("Checklist") { editor?.toggleLinePrefix("- [ ] ") }.keyboardShortcut("l")
                 Button("Quote") { editor?.toggleLinePrefix("> ") }
-                Divider()
-                Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .shift])
+                if enabled(.templates) {
+                    Divider()
+                    Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .shift])
+                }
             }
             .disabled(editor == nil)
         }
         CommandGroup(before: .sidebar) {
             Button("Toggle Reading View") { window?.pane.reading.toggle() }.keyboardShortcut("e").disabled(window?.currentNote == nil)
-            Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g", modifiers: [.command, .control]).disabled(window == nil)
+            if enabled(.graph) {
+                Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g", modifiers: [.command, .control]).disabled(window == nil)
+            }
             Button("Split Right") { window?.split() }.keyboardShortcut("\\").disabled(window == nil)
             Button("Toggle Inspector") { window?.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option]).disabled(window == nil)
             Divider()

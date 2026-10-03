@@ -7,6 +7,7 @@ struct VaultPicker: View {
     @Environment(AppModel.self) private var app
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("showGuideOnStartPage") private var showGuide = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var iCloudURL: URL?
     @State private var importing = false
     @State private var creating = false
@@ -50,7 +51,7 @@ struct VaultPicker: View {
                     if showGuide {
                         Button("Take the Welcome Tour", systemImage: "play.circle") { hasSeenOnboarding = false }
                             .buttonStyle(.borderless)
-                            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation { showGuide = false } } }
+                            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation(reduceMotion ? nil : .default) { showGuide = false } } }
                     }
                 }
                 .padding(.horizontal, 24)
@@ -128,7 +129,7 @@ struct VaultPicker: View {
                        detail: "A sample vault that teaches Netherite with interactive notes.") {
                 openGuide()
             }
-            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation { showGuide = false } } }
+            .contextMenu { Button("Hide on Start Page", systemImage: "eye.slash") { withAnimation(reduceMotion ? nil : .default) { showGuide = false } } }
         }
     }
 
@@ -286,7 +287,7 @@ private struct CreateVaultSheet: View {
                     Text("iCloud Drive isn't available, so the vault will be stored on this device.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Label { Text(error) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) } }
             }
             .formStyle(.grouped)
             .navigationTitle("Create a Vault")

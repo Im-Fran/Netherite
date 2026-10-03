@@ -1,5 +1,4 @@
 (function () {
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   function post(msg) {
     if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.netherite) webkit.messageHandlers.netherite.postMessage(msg);
   }
@@ -12,6 +11,9 @@
   }
   function renderMermaid() {
     if (!window.mermaid || !document.querySelector('pre.mermaid')) return;
+    // A theme can force light or dark through color-scheme; otherwise follow the system.
+    const scheme = getComputedStyle(document.documentElement).colorScheme;
+    const dark = scheme === 'dark' || (scheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
     mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
     mermaid.run({ querySelector: 'pre.mermaid' });
   }
@@ -29,7 +31,9 @@
     if (el) {
       const target = el.classList.contains('block-id') ? el.parentElement : el;
       target.scrollIntoView({ block: 'start' });
-      target.classList.add('flash');
+      // Restart the highlight on repeat jumps, and clear it so a Reduce Motion outline doesn't linger.
+      target.classList.remove('flash'); void target.offsetWidth; target.classList.add('flash');
+      setTimeout(() => target.classList.remove('flash'), 1200);
     }
   };
   let hoverTimer = null;

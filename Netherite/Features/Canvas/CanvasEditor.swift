@@ -429,7 +429,8 @@ struct EdgeView<Pan: Gesture>: View {
                     .allowsHitTesting(false)
                     .accessibilityElement()
                     .accessibilityLabel("Connection from \(a.displayTitle) to \(b.displayTitle)")
-                    .accessibilityValue(edge.label ?? "")
+                    .accessibilityValue([edge.label, CanvasColor.name(edge.color).map { String(localized: "Color: \($0)") }]
+                        .compactMap { $0 }.joined(separator: ", "))
                     .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
                     .accessibilityAction { select() }
                     .accessibilityAction(named: "Edit label", editLabel)

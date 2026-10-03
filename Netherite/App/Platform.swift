@@ -41,10 +41,12 @@ extension PlatformColor {
     static var quaternaryFill: NSColor { .quaternaryLabelColor.withAlphaComponent(0.08) }
     static var codeBackground: NSColor { .quaternaryLabelColor.withAlphaComponent(0.12) }
     static var accent: NSColor { .controlAccentColor }
+    static var textBackground: NSColor { .textBackgroundColor }
     #else
     static var quaternaryFill: UIColor { .quaternarySystemFill }
     static var codeBackground: UIColor { .tertiarySystemFill }
     static var accent: UIColor { .tintColor }
+    static var textBackground: UIColor { .systemBackground }
     #endif
 }
 

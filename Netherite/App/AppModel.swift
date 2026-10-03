@@ -20,6 +20,8 @@ final class AppModel {
     private(set) var open: [String: VaultModel] = [:]
     /// Size and sync state of known vaults, keyed by path (refreshed by `refreshStorage`).
     private(set) var storage: [String: VaultStorage] = [:]
+    /// Progress and time left of each vault's current iCloud transfers, measured across `refreshStorage` calls.
+    private(set) var syncProgress: [String: SyncProgress] = [:]
     /// Vaults in Recently Deleted (refreshed by `refreshTrash`).
     private(set) var trashed: [VaultTrash.Item] = []
     /// Where a vault moved (into iCloud), so windows showing it follow it instead of closing.
@@ -244,7 +246,10 @@ final class AppModel {
         let results = await Task.detached {
             paths.map { p in (p, FileManager.default.isReadableFile(atPath: p) ? VaultStorage.scan(URL(filePath: p, directoryHint: .isDirectory)) : nil) }
         }.value
-        for (p, s) in results { storage[p] = s }
+        for (p, s) in results {
+            storage[p] = s
+            syncProgress[p, default: SyncProgress()].record(pending: s?.pendingBytes ?? 0)
+        }
         publishSettingsSummary()
     }
 

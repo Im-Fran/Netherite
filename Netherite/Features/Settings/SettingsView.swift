@@ -1,30 +1,26 @@
 import SwiftUI
 import NetheriteCore
 
-/// Settings: app-wide pages (launch, vaults and storage, Recently Deleted) plus the open vault's preferences.
+/// Netherite's own settings (launch, accessibility, vaults and storage, Recently Deleted).
+/// Each vault's preferences live apart, in `VaultSettingsView`.
 /// iPhone/iPad get a Settings-app style list of pages; the Mac gets a tabbed Settings window.
 struct SettingsView: View {
-    var model: VaultModel?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         #if os(macOS)
         TabView {
-            Tab("General", systemImage: "gearshape") { GeneralSettingsView(model: model) }
+            Tab("General", systemImage: "gearshape") { GeneralSettingsView() }
+            Tab("Accessibility", systemImage: "accessibility") { AccessibilitySettingsView() }
             Tab("Vaults", systemImage: "externaldrive.badge.icloud") {
-                NavigationStack { VaultsSettingsView().settingsDestinations(model: model) }
-            }
-            if let model {
-                ForEach(VaultSettingsPage.allCases) { page in
-                    Tab(page.title, systemImage: page.symbol) { VaultSettingsForm(model: model, page: page) }
-                }
+                NavigationStack { VaultsSettingsView().settingsDestinations() }
             }
         }
         .frame(minWidth: 620, minHeight: 520)
         #else
         NavigationStack {
-            SettingsHome(model: model)
-                .settingsDestinations(model: model)
+            SettingsHome()
+                .settingsDestinations()
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         #endif
@@ -32,20 +28,19 @@ struct SettingsView: View {
 }
 
 enum SettingsRoute: Hashable {
-    case general, vaults, recentlyDeleted
+    case general, accessibility, vaults, recentlyDeleted
     case vault(String)
-    case page(VaultSettingsPage)
 }
 
 extension View {
-    func settingsDestinations(model: VaultModel?) -> some View {
+    func settingsDestinations() -> some View {
         navigationDestination(for: SettingsRoute.self) { route in
             switch route {
-            case .general: GeneralSettingsView(model: model)
+            case .general: GeneralSettingsView()
+            case .accessibility: AccessibilitySettingsView()
             case .vaults: VaultsSettingsView()
             case .recentlyDeleted: RecentlyDeletedView()
             case .vault(let path): VaultDetailView(path: path)
-            case .page(let page): if let model { VaultSettingsForm(model: model, page: page) }
             }
         }
     }
@@ -55,7 +50,6 @@ extension View {
 
 /// Root list, laid out like the system Settings app: a header card, then rows with colored icons.
 private struct SettingsHome: View {
-    let model: VaultModel?
     @Environment(AppModel.self) private var app
 
     var body: some View {
@@ -70,17 +64,9 @@ private struct SettingsHome: View {
                     }
                 }
             }
-            if let model {
-                Section {
-                    ForEach(VaultSettingsPage.allCases) { page in
-                        NavigationLink(value: SettingsRoute.page(page)) { SettingsTile(page.title, symbol: page.symbol, tint: page.tint) }
-                    }
-                } header: {
-                    Text("“\(model.name)” Vault")
-                }
-            }
-            Section("Netherite") {
+            Section {
                 NavigationLink(value: SettingsRoute.general) { SettingsTile("General", symbol: "gearshape", tint: .gray) }
+                NavigationLink(value: SettingsRoute.accessibility) { SettingsTile("Accessibility", symbol: "accessibility", tint: .blue) }
                 NavigationLink(value: SettingsRoute.recentlyDeleted) {
                     LabeledContent {
                         Text(app.trashed.isEmpty ? "" : "\(app.trashed.count)")
@@ -88,13 +74,11 @@ private struct SettingsHome: View {
                         SettingsTile("Recently Deleted", symbol: "trash", tint: .red)
                     }
                 }
+            } footer: {
+                Text("Each vault’s sync, theme, editor and plugins are in its own settings: open the vault menu and choose Vault Settings.")
             }
-            if let model {
-                Section("About") {
-                    LabeledContent("Location", value: AppModel.displayLocation(AppModel.key(model.vault.root)))
-                    LabeledContent("Notes", value: "\(model.index.markdownFiles.count)")
-                    LabeledContent("Version", value: AppModel.versionString)
-                }
+            Section("About") {
+                LabeledContent("Version", value: AppModel.versionString)
             }
         }
         .formStyle(.grouped)
@@ -104,7 +88,7 @@ private struct SettingsHome: View {
 }
 
 /// App icon, name and a line about what's here (like the header of the system Notes settings).
-private struct SettingsHeader: View {
+struct SettingsHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Image("Logo")
@@ -113,7 +97,7 @@ private struct SettingsHeader: View {
                 .clipShape(.rect(cornerRadius: 14, style: .continuous))
                 .accessibilityHidden(true)
             Text("Netherite").font(.title2.bold()).accessibilityAddTraits(.isHeader)
-            Text("Manage your vaults and their iCloud storage, recover deleted vaults, and choose how each vault looks and works.")
+            Text("Manage your vaults and their iCloud storage, recover deleted vaults, and choose how Netherite works on this device.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -138,11 +122,16 @@ struct SettingsTile: View {
         Label {
             Text(title)
         } icon: {
+            // Fit the glyph in a fixed box: wide symbols (badged ones like externaldrive.badge.icloud) overflow a font size.
             Image(systemName: symbol)
-                .font(.system(size: size * 0.5, weight: .medium))
+                .resizable()
+                .scaledToFit()
+                .fontWeight(.medium)
                 .foregroundStyle(.white)
+                .frame(width: size * 0.62, height: size * 0.62)
                 .frame(width: size, height: size)
                 .background(tint.gradient, in: .rect(cornerRadius: size * 0.27, style: .continuous))
+                .accessibilityHidden(true)
         }
     }
 }
@@ -150,7 +139,6 @@ struct SettingsTile: View {
 // MARK: General
 
 struct GeneralSettingsView: View {
-    var model: VaultModel?
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
     @AppStorage("launchBehavior") private var launchBehavior = "last"
@@ -205,7 +193,6 @@ struct GeneralSettingsView: View {
             #else
             Section("About") {
                 LabeledContent("Version", value: AppModel.versionString)
-                if let model { LabeledContent("Vault", value: AppModel.displayLocation(AppModel.key(model.vault.root))) }
             }
             #endif
         }
@@ -495,177 +482,5 @@ struct RecentlyDeletedView: View {
 
     private func run(_ body: @escaping () async throws -> Void) {
         Task { do { try await body() } catch { self.error = error.localizedDescription } }
-    }
-}
-
-// MARK: Vault preferences
-
-enum VaultSettingsPage: String, CaseIterable, Identifiable, Hashable {
-    case editor, files, appearance, dailyNotes, templates, recovery
-    var id: String { rawValue }
-
-    var title: LocalizedStringKey {
-        switch self {
-        case .editor: "Editor"
-        case .files: "Files and links"
-        case .appearance: "Appearance"
-        case .dailyNotes: "Daily notes"
-        case .templates: "Templates"
-        case .recovery: "File recovery"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .editor: "character.cursor.ibeam"
-        case .files: "folder"
-        case .appearance: "paintpalette"
-        case .dailyNotes: "calendar"
-        case .templates: "doc.on.doc"
-        case .recovery: "clock.arrow.circlepath"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .editor: .blue
-        case .files: .cyan
-        case .appearance: .purple
-        case .dailyNotes: .red
-        case .templates: .orange
-        case .recovery: .green
-        }
-    }
-}
-
-struct VaultSettingsForm: View {
-    @Bindable var model: VaultModel
-    let page: VaultSettingsPage
-    @State private var themeError: String?
-    @State private var snapshotBytes: Int64?
-    @State private var confirmClearSnapshots = false
-
-    var body: some View {
-        Form { content }
-            .formStyle(.grouped)
-            .navigationTitle(page.title)
-            .alert("Couldn't Create Theme", isPresented: Binding(get: { themeError != nil }, set: { if !$0 { themeError = nil } })) {
-                Button("OK") {}
-            } message: { Text(themeError ?? "") }
-    }
-
-    @ViewBuilder private var content: some View {
-        switch page {
-        case .editor:
-            Section {
-                Toggle("Readable line length", isOn: $model.settings.readableLineLength)
-                Toggle("Spellcheck", isOn: $model.settings.spellcheck)
-                Toggle("Open notes in reading view", isOn: $model.settings.defaultToReadingMode)
-                Toggle("Use [[Wikilinks]]", isOn: $model.settings.useWikilinks)
-            }
-        case .files:
-            Section {
-                folderField("Default location for new notes", $model.settings.newNoteFolder)
-                folderField("Attachments folder", $model.settings.attachmentFolder)
-            }
-        case .appearance:
-            Section {
-                Picker("Theme", selection: $model.settings.theme) {
-                    ForEach(model.themes) { Text($0.displayName).tag($0.name) }
-                }
-                LabeledContent("Custom themes") {
-                    Text(".netherite/themes/*.json").font(.caption.monospaced()).foregroundStyle(.secondary)
-                }
-                Button("Create Theme from Current…") { createThemeFile() }
-            }
-        case .dailyNotes:
-            Section {
-                folderField("Folder", $model.settings.dailyNotes.folder)
-                textField("Date format", $model.settings.dailyNotes.format)
-                Text("Example: \(Templates.format(.now, model.settings.dailyNotes.format))").font(.caption).foregroundStyle(.secondary)
-                textField("Template file", $model.settings.dailyNotes.template)
-                Toggle("Open daily note on startup", isOn: $model.settings.dailyNotes.openOnStartup)
-            }
-        case .templates:
-            Section {
-                folderField("Template folder", $model.settings.templatesFolder)
-            } footer: {
-                Text("Use {{title}}, {{date}}, {{time}} or {{date:YYYY-MM-DD}} in templates.")
-            }
-            Section("Unique note creator") {
-                folderField("Folder", $model.settings.uniqueNote.folder)
-                textField("Name format", $model.settings.uniqueNote.format)
-                textField("Template file", $model.settings.uniqueNote.template)
-            }
-        case .recovery:
-            recovery
-        }
-    }
-
-    @ViewBuilder private var recovery: some View {
-        Section {
-            Picker("Take a Snapshot Every", selection: $model.settings.snapshotIntervalMinutes) {
-                ForEach(Self.options([1, 5, 10, 15, 30, 60], model.settings.snapshotIntervalMinutes), id: \.self) { Text("\($0) min").tag($0) }
-            }
-            Picker("Keep Snapshots For", selection: $model.settings.snapshotRetentionDays) {
-                ForEach(Self.options([1, 7, 14, 30, 60, 90], model.settings.snapshotRetentionDays), id: \.self) { Text("\($0) days").tag($0) }
-            }
-        } footer: {
-            Text("Netherite saves a copy of each changed note on this interval. Open a note’s snapshots from its More menu.")
-        }
-        Section {
-            LabeledContent("Space Used", value: snapshotBytes.map { $0.formatted(.byteCount(style: .file)) } ?? "—")
-            Button("Delete All Snapshots", role: .destructive) { confirmClearSnapshots = true }
-                .disabled(snapshotBytes == 0)
-        } footer: {
-            Text("Snapshots are stored only on this device and never sync.")
-        }
-        .task(id: confirmClearSnapshots) {
-            let root = SnapshotStore(vault: model.vault).root
-            snapshotBytes = await Task.detached { VaultStorage.scan(root).bytes }.value
-        }
-        .confirmationDialog("Delete All Snapshots?", isPresented: $confirmClearSnapshots, titleVisibility: .visible) {
-            Button("Delete All Snapshots", role: .destructive) { try? FileManager.default.removeItem(at: SnapshotStore(vault: model.vault).root) }
-        } message: {
-            Text("Earlier versions of this vault’s notes can no longer be restored.")
-        }
-    }
-
-    /// Preset values, plus the current one when it was set to something else.
-    private static func options(_ presets: [Int], _ current: Int) -> [Int] { Array(Set(presets + [current])).sorted() }
-
-    /// On iOS a filled text field hides its placeholder, so show the label beside it.
-    @ViewBuilder private func textField(_ label: LocalizedStringKey, _ text: Binding<String>) -> some View {
-        #if os(iOS)
-        LabeledContent(label) { TextField(label, text: text).multilineTextAlignment(.trailing) }
-        #else
-        TextField(label, text: text)
-        #endif
-    }
-
-    private func folderField(_ label: LocalizedStringKey, _ binding: Binding<String>) -> some View {
-        Picker(label, selection: binding) {
-            Text("Vault root").tag("")
-            ForEach(model.index.folders, id: \.self) { Text($0).tag($0) }
-            if !binding.wrappedValue.isEmpty && !model.index.folders.contains(binding.wrappedValue) {
-                Text(binding.wrappedValue).tag(binding.wrappedValue)
-            }
-        }
-    }
-
-    private func createThemeFile() {
-        var t = model.theme
-        t.name = String(localized: "\(t.displayName) Custom")
-        let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        do {
-            let data = try enc.encode(t)
-            try FileManager.default.createDirectory(at: model.vault.themesURL, withIntermediateDirectories: true)
-            try data.write(to: model.vault.themesURL.appending(path: "\(t.name).json"))
-            model.reloadThemes()
-            model.settings.theme = t.name
-        } catch {
-            themeError = error.localizedDescription
-        }
     }
 }

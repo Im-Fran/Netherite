@@ -191,9 +191,10 @@ struct GraphView: View {
         let data = sim.data
         let active = window.panes.lazy.compactMap { if case .note(let p) = $0.current { p } else { nil } }.first ?? focus
         let highlight = hovered.map { Set([$0]).union(sim.neighbours[$0] ?? []) }
-        let accent = Color.accentColor
+        let accent = Color(pair: model.theme.accent, fallback: .accentColor)
         let tagColor = Color(pair: model.theme.tag, fallback: .purple)
-        let groups: [Color] = [.blue, .green, .orange, .pink, .teal, .indigo, .mint, .brown]
+        let groups: [Color] = A11y.shared.colorVision == .none ? [.blue, .green, .orange, .pink, .teal, .indigo, .mint, .brown]
+            : ColorVision.Hue.allCases.map { A11y.shared.color($0, .gray) }
         let colorByTag = settings.colorByTag
         let shapes = differentiateWithoutColor
         let edgeOpacity = contrast == .increased ? 0.7 : 0.35
