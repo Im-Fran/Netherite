@@ -10,7 +10,11 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+### Added
+- Direct-download macOS build (notarized `Netherite.dmg`) that updates itself from GitHub releases: **Check for Updates…** in the app menu and an **Updates** tab in Settings.
+
 ### Changed
+- The GitHub release carries the Developer ID build as `Netherite.dmg` and `Netherite.zip` under `v<version>`, instead of a zip of the App Store build.
 - Links in the reader are always underlined, so they stand out without relying on color.
 - Custom theme backgrounds get text colors that stay readable on them, and theme colors keep their contrast over the app's own background.
 - Larger tap targets for task checkboxes on touch screens, Recent Notes widget rows and the Bases clear-search button.

@@ -55,6 +55,14 @@ Build and upload an iOS/iPadOS build to TestFlight
 
 Build and upload a macOS build to TestFlight
 
+### mac direct
+
+```sh
+[bundle exec] fastlane mac direct
+```
+
+Build the notarized Developer ID app as build/Netherite.dmg and build/Netherite.zip (+ .zip.sig for OpenUpdater)
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

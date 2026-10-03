@@ -1207,6 +1207,16 @@
         }
       }
     },
+    "Check for Updates…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar actualizaciones…"
+          }
+        }
+      }
+    },
     "Checkbox" : {
       "localizations" : {
         "es" : {
@@ -6862,6 +6872,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarjeta sin título"
+          }
+        }
+      }
+    },
+    "Updates" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizaciones"
           }
         }
       }
