@@ -91,6 +91,16 @@
         }
       }
     },
+    "Ideas" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ideas"
+          }
+        }
+      }
+    },
     "Jump back into the notes you opened last." : {
       "localizations" : {
         "es" : {
@@ -231,6 +241,16 @@
         }
       }
     },
+    "Projects" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proyectos"
+          }
+        }
+      }
+    },
     "Recent Notes" : {
       "localizations" : {
         "es" : {
@@ -297,6 +317,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pensamientos de hoy…"
+          }
+        }
+      }
+    },
+    "Trip" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viaje"
+          }
+        }
+      }
+    },
+    "Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bóveda"
+          }
+        }
+      }
+    },
+    "Welcome" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bienvenida"
           }
         }
       }
