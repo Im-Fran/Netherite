@@ -10,6 +10,11 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+## [0.1.0+9] - 2026-10-03
+
+### Fixed
+- The macOS app is signed with the hardened runtime, so it can be notarized and attached to the GitHub Release.
+
 ## [0.1.0+8] - 2026-10-03
 
 ### Fixed
@@ -97,7 +102,8 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Onboarding tour, start page, a guide vault that teaches every feature, and feature tips.
 - English and Spanish localization.
 
-[Unreleased]: https://github.com/Im-Fran/Netherite/compare/0.1.0+8...HEAD
+[Unreleased]: https://github.com/Im-Fran/Netherite/compare/0.1.0+9...HEAD
+[0.1.0+9]: https://github.com/Im-Fran/Netherite/compare/0.1.0+8...0.1.0+9
 [0.1.0+8]: https://github.com/Im-Fran/Netherite/compare/0.1.0+7...0.1.0+8
 [0.1.0+7]: https://github.com/Im-Fran/Netherite/compare/0.1.0+6...0.1.0+7
 [0.1.0+6]: https://github.com/Im-Fran/Netherite/compare/0.1.0+5...0.1.0+6
