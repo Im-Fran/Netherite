@@ -186,8 +186,14 @@ end
 # openupdater-cli signs and verifies the update zip (Ed25519). The private key
 # comes from OPENUPDATER_PRIVATE_KEY on CI, or a key file locally.
 def openupdater(*args)
+  # The same pinned revision the app links (project.yml): this code runs with the private key.
+  revision = File.read(File.join(ROOT, "project.yml"))[/openupdater\n\s+revision:\s*(\h{40})/, 1] or UI.user_error!("OpenUpdater revision not pinned in project.yml")
   tool = File.join(ROOT, BUILD_DIR, "openupdater")
-  sh("git", "clone", "--depth", "1", "-b", "dev", "https://github.com/Im-Fran/openupdater", tool) unless File.directory?(tool)
+  unless File.directory?(tool)
+    sh("git", "init", "-q", tool)
+    sh("git", "-C", tool, "fetch", "-q", "--depth", "1", "https://github.com/Im-Fran/openupdater", revision)
+    sh("git", "-C", tool, "checkout", "-q", "FETCH_HEAD")
+  end
   sh("swift", "run", "-c", "release", "--package-path", tool, "openupdater-cli", *args)
 end
 
