@@ -17,7 +17,7 @@ h1 { font-size: 1.75em; } h2 { font-size: 1.45em; } h3 { font-size: 1.25em; } h4
 .inline-title { font-size: 2em; font-weight: 700; margin: .3em 0 .6em; }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
-a.is-unresolved { opacity: .6; text-decoration: underline dashed; }
+a.is-unresolved { color: var(--muted); text-decoration: underline dashed; }
 a.tag { color: var(--tag); background: color-mix(in srgb, var(--tag) 12%, transparent); padding: 0 .35em; border-radius: 1em; font-size: .92em; }
 mark { background: var(--mark); color: inherit; padding: 0 .1em; border-radius: 3px; }
 code { font-family: var(--mono); font-size: .9em; background: var(--code-bg); padding: .1em .3em; border-radius: 4px; }
@@ -39,8 +39,8 @@ li.task-list-item { list-style: none; margin-left: -1.3em; }
 li.task-list-item.is-checked { color: var(--muted); text-decoration: line-through; }
 input.task-checkbox { accent-color: var(--accent); width: 1em; height: 1em; vertical-align: -.1em; margin-right: .3em; }
 .callout { --c: 8, 109, 221; margin: 1em 0; padding: 10px 14px; border-radius: 8px; background: rgba(var(--c), .1); border-left: 3px solid rgb(var(--c)); }
-.callout-title { font-weight: 600; color: rgb(var(--c)); }
-summary.callout-title { cursor: pointer; }
+.callout-title { font-weight: 600; color: var(--text); }
+summary.callout-title { cursor: pointer; } summary.callout-title::marker { color: rgb(var(--c)); }
 .callout-content > :first-child { margin-top: .4em; } .callout-content > :last-child { margin-bottom: 0; }
 .callout[data-callout=tip], .callout[data-callout=hint], .callout[data-callout=important], .callout[data-callout=success], .callout[data-callout=check], .callout[data-callout=done] { --c: 8, 185, 78; }
 .callout[data-callout=warning], .callout[data-callout=caution], .callout[data-callout=attention], .callout[data-callout=question], .callout[data-callout=help], .callout[data-callout=faq] { --c: 236, 117, 0; }

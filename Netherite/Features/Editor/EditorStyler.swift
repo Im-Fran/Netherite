@@ -320,8 +320,9 @@ struct EditorStyler {
         case .quote:
             s.addAttributes([.foregroundColor: PlatformColor.secondaryLabel, .paragraphStyle: indented], range: r)
         case .callout(let type):
+            // Title text in label colour: tinted system colours fall below 4.5:1 on light backgrounds; the tint stays on the fill.
             let c = Self.calloutColor(type)
-            s.addAttributes([.foregroundColor: c, .font: font(bold: true), .backgroundColor: c.withAlphaComponent(0.10),
+            s.addAttributes([.foregroundColor: PlatformColor.label, .font: font(bold: true), .backgroundColor: c.withAlphaComponent(0.10),
                              .paragraphStyle: indented], range: r)
         case .table: break
         case .calloutBody(let type):

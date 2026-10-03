@@ -27,6 +27,8 @@ struct MarkdownTextView {
     final class Coordinator: NSObject {
         var parent: MarkdownTextView
         var active = NSRange(location: NSNotFound, length: 0)
+        /// Active range when the current touch began: UIKit may move the caret (and the active range) before the tap fires.
+        var activeAtTouch: NSRange?
         var updating = false
 
         init(_ parent: MarkdownTextView) { self.parent = parent }
@@ -140,11 +142,10 @@ struct MarkdownTextView {
         }
 
         static func checkbox(done: Bool, label: String, lineHeight: CGFloat, frame: CGRect, toggle: @escaping () -> Void) -> UIView {
-            // 44 pt wide hit area; height clamped to the line so neighbouring tasks don't overlap.
-            let h = max(frame.height, min(44, lineHeight))
-            let hit = CGRect(x: frame.midX - 22, y: frame.midY - h / 2, width: 44, height: h)
-            let b = UIButton(type: .system, primaryAction: UIAction { _ in toggle() })
-            b.frame = hit
+            // 44×44 hit area around the (unchanged) glyph; overlaps between adjacent tasks resolve to the nearest box
+            // (NetheriteUITextView.hitTest).
+            let b = TaskCheckboxButton(type: .system, primaryAction: UIAction { _ in toggle() })
+            b.frame = CGRect(x: frame.midX - 22, y: frame.midY - 22, width: 44, height: 44)
             b.setImage(UIImage(systemName: done ? "checkmark.square.fill" : "square",
                                withConfiguration: UIImage.SymbolConfiguration(pointSize: frame.height)), for: .normal)
             b.tintColor = done ? .tintColor : .secondaryLabel
@@ -233,7 +234,8 @@ struct MarkdownTextView {
             #endif
             guard index >= 0, index < storage.length else { return false }
             let attrs = storage.attributes(at: index, effectiveRange: nil)
-            let inActive = NSLocationInRange(index, active) && parent.livePreview
+            let inActive = NSLocationInRange(index, activeAtTouch ?? active) && parent.livePreview
+            activeAtTouch = nil
             if attrs[.netheriteTask] != nil {
                 parent.controller.toggleTask(at: index)
                 return true
@@ -481,6 +483,53 @@ final class NetheriteUITextView: UITextView {
     var onTextWidth: ((CGFloat) -> Void)?
     private var lastSide: CGFloat = -1
     private var lastTextWidth: CGFloat = -1
+    private var accessoryHost: UIHostingController<FormattingBar>?
+
+    /// Formatting bar above the keyboard; owned by this view so it never appears for other fields (the note title).
+    func installFormattingBar(_ controller: EditorController) {
+        let host = UIHostingController(rootView: FormattingBar(controller: controller))
+        host.sizingOptions = .intrinsicContentSize
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        let bar = UIInputView(frame: CGRect(x: 0, y: 0, width: 0, height: 52), inputViewStyle: .keyboard)
+        bar.allowsSelfSizing = true
+        bar.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(equalTo: bar.layoutMarginsGuide.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: bar.layoutMarginsGuide.trailingAnchor),
+            host.view.topAnchor.constraint(equalTo: bar.topAnchor, constant: 4),
+            host.view.bottomAnchor.constraint(equalTo: bar.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+        ])
+        accessoryHost = host
+        inputAccessoryView = bar
+    }
+
+    /// Hardware keyboard navigation for the completion list; only claims keys while a completion is showing.
+    override var keyCommands: [UIKeyCommand]? {
+        guard let c = coordinator?.parent.controller, c.completion != nil, c.completionCount > 0 else { return super.keyCommands }
+        let commands = [
+            UIKeyCommand(input: UIKeyCommand.inputUpArrow, modifierFlags: [], action: #selector(completionUp)),
+            UIKeyCommand(input: UIKeyCommand.inputDownArrow, modifierFlags: [], action: #selector(completionDown)),
+            UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(completionAccept)),
+            UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(completionAccept)),
+            UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(completionCancel)),
+        ]
+        commands.forEach { $0.wantsPriorityOverSystemBehavior = true }
+        return commands + (super.keyCommands ?? [])
+    }
+
+    @objc private func completionUp() { _ = coordinator?.parent.controller.handleCompletionKey(.up) }
+    @objc private func completionDown() { _ = coordinator?.parent.controller.handleCompletionKey(.down) }
+    @objc private func completionAccept() { _ = coordinator?.parent.controller.handleCompletionKey(.accept) }
+    @objc private func completionCancel() { _ = coordinator?.parent.controller.handleCompletionKey(.cancel) }
+
+    /// Checkbox hit areas are 44×44 and can overlap on adjacent lines; pick the box nearest the touch.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        guard hit is TaskCheckboxButton, let views = coordinator?.embedViews else { return hit }
+        return views.filter { $0 is TaskCheckboxButton && $0.frame.contains(point) }
+            .min { abs($0.center.y - point.y) < abs($1.center.y - point.y) } ?? hit
+    }
 
     func setHeader(_ view: AnyView?) {
         guard let view else { headerHost?.view.removeFromSuperview(); headerHost = nil; return }
@@ -501,7 +550,11 @@ final class NetheriteUITextView: UITextView {
         if onSideInset != nil, lastSide != side { lastSide = side; onSideInset?(side) }
         let textWidth = (bounds.width - 2 * side - 2 * textContainer.lineFragmentPadding).rounded(.down)
         if textWidth > 100, abs(lastTextWidth - textWidth) >= 8 { lastTextWidth = textWidth; onTextWidth?(textWidth) }
-        if textContainerInset != inset { textContainerInset = inset }
+        if textContainerInset != inset {
+            textContainerInset = inset
+            // Bullets/checkboxes/images are positioned from the inset; re-place them when the header height changes.
+            if let c = coordinator, !c.placed.isEmpty { DispatchQueue.main.async { [weak self] in if let self { c.layoutEmbeds(self) } } }
+        }
         // Header scrolls with the content (content coordinates start at y = 0).
         headerHost?.view.frame = CGRect(x: 0, y: 0, width: bounds.width, height: max(1, headerHeight))
     }
@@ -530,7 +583,7 @@ extension MarkdownTextView: UIViewRepresentable {
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped(_:)))
         tap.delegate = context.coordinator
         tv.addGestureRecognizer(tap)
-        tv.inputAccessoryView = nil
+        tv.installFormattingBar(controller)
         configure(tv)
         context.coordinator.restyle(tv, force: true)
         controller.textView = tv
@@ -577,20 +630,14 @@ extension MarkdownTextView.Coordinator: UITextViewDelegate, UIGestureRecognizerD
     }
 
     @objc func tapped(_ g: UITapGestureRecognizer) {
-        guard let tv = g.view as? UITextView else { return }
-        var p = g.location(in: tv)
-        p.x -= tv.textContainerInset.left; p.y -= tv.textContainerInset.top
-        guard let tlm = tv.textLayoutManager,
-              let frag = tlm.textLayoutFragment(for: p),
-              let range = frag.textElement?.elementRange else { return }
-        let docStart = tlm.documentRange.location
-        let base = tlm.offset(from: docStart, to: range.location)
-        let local = CGPoint(x: p.x - frag.layoutFragmentFrame.minX, y: p.y - frag.layoutFragmentFrame.minY)
-        for line in frag.textLineFragments where line.typographicBounds.contains(local) {
-            let idx = line.characterIndex(for: CGPoint(x: local.x - line.typographicBounds.minX, y: local.y - line.typographicBounds.minY))
-            _ = activate(tv, at: base + idx, modifier: false)
-            return
-        }
+        // UITextInput hit testing accounts for insets, the header and scrolling; the hand-rolled fragment lookup didn't.
+        guard let tv = g.view as? UITextView, let hit = tv.characterRange(at: g.location(in: tv)) else { activeAtTouch = nil; return }
+        _ = activate(tv, at: tv.offset(from: tv.beginningOfDocument, to: hit.start), modifier: false)
+    }
+
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        activeAtTouch = active
+        return true
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
@@ -640,4 +687,7 @@ final class ClosureButton: NSButton {
 }
 #else
 extension UIView { func setAccessibilityLabelCompat(_ s: String) { isAccessibilityElement = true; accessibilityLabel = s } }
+
+/// Task checkbox drawn over the editor (identified by NetheriteUITextView.hitTest).
+final class TaskCheckboxButton: UIButton {}
 #endif

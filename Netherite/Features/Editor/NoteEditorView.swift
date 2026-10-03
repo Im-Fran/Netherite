@@ -14,6 +14,7 @@ struct NoteEditorView: View {
     @State private var renderToken = 0
     @AppStorage("hasSeenOnboarding") private var onboarded = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var model: VaultModel { window.model }
 
@@ -54,7 +55,7 @@ struct NoteEditorView: View {
                     return ImageCache.shared.image(at: model.vault.url(for: p))
                 },
                 blockImage: { kind in blockImage(kind) },
-                styleToken: model.index.files.count &* 31 &+ renderToken &* 7 &+ Int(controller.textWidth) &+ (colorScheme == .dark ? 1 : 0),
+                styleToken: styleToken,
                 header: AnyView(header.environment(window)),
                 headerHeight: headerHeight
             )
@@ -71,11 +72,13 @@ struct NoteEditorView: View {
                 }
             }
         }
-        #if os(iOS)
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) { FormattingBar(controller: controller) }
-        }
-        #endif
+        // iOS: the formatting bar is the text view's inputAccessoryView (MarkdownTextView), so it only shows for the body.
+    }
+
+    /// Changes whenever the editor must restyle: file set, block renders, width, appearance and Dynamic Type size.
+    private var styleToken: Int {
+        let type = DynamicTypeSize.allCases.firstIndex(of: dynamicTypeSize) ?? 0
+        return model.index.files.count &* 31 &+ renderToken &* 7 &+ Int(controller.textWidth) &+ (colorScheme == .dark ? 1 : 0) &+ type &* 131
     }
 
     /// Rendered math/Mermaid/note-embed previews; re-styles the editor when a render finishes.
@@ -145,7 +148,7 @@ struct NoteEditorView: View {
     }
 }
 
-/// Formatting shortcuts shown above the iOS keyboard and in the macOS Format menu.
+/// Formatting shortcuts shown above the iOS keyboard (as the body text view's input accessory) and in the macOS Format menu.
 struct FormattingBar: View {
     let controller: EditorController
     var body: some View {
@@ -188,39 +191,56 @@ struct CompletionOverlay: View {
     @Environment(WindowState.self) private var window
 
     var body: some View {
-        if let c = controller.completion {
-            let items = self.items(for: c)
-            if !items.isEmpty {
-                ScrollViewReader { proxy in
-                    List(Array(items.enumerated()), id: \.element.id) { i, item in
-                        Button { accept(item) } label: {
-                            HStack {
-                                Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 18)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.title).lineLimit(1)
-                                    if let s = item.subtitle { Text(s).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+        GeometryReader { geo in
+            if let c = controller.completion {
+                let items = self.items(for: c)
+                if !items.isEmpty {
+                    let frame = Self.placement(caret: c.caret, rows: items.count, in: geo.size)
+                    ScrollViewReader { proxy in
+                        List(Array(items.enumerated()), id: \.element.id) { i, item in
+                            Button { accept(item) } label: {
+                                HStack {
+                                    Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 18)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(item.title).lineLimit(1)
+                                        if let s = item.subtitle { Text(s).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                                    }
+                                    Spacer(minLength: 0)
                                 }
-                                Spacer(minLength: 0)
+                                .contentShape(Rectangle())
                             }
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(i == controller.completionIndex ? .isSelected : [])
+                            .listRowBackground(i == controller.completionIndex ? Color.accentColor.opacity(0.18) : Color.clear)
+                            .id(i)
                         }
-                        .buttonStyle(.plain)
-                        .listRowBackground(i == controller.completionIndex ? Color.accentColor.opacity(0.18) : Color.clear)
-                        .id(i)
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .frame(width: frame.width, height: frame.height)
+                        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
+                        .shadow(radius: 12, y: 4)
+                        .offset(x: frame.minX, y: frame.minY)
+                        .onChange(of: controller.completionIndex) { proxy.scrollTo(controller.completionIndex) }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .frame(width: 320, height: min(CGFloat(items.count) * 44 + 8, 280))
-                    .background(.regularMaterial, in: .rect(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
-                    .shadow(radius: 12, y: 4)
-                    .offset(x: max(8, c.caret.minX - 12), y: c.caret.maxY + 6)
-                    .onChange(of: controller.completionIndex) { proxy.scrollTo(controller.completionIndex) }
+                    .onAppear {
+                        bind(items)
+                        AccessibilityNotification.Announcement(String(localized: "\(items.count) suggestions")).post()
+                    }
+                    .onChange(of: items.map(\.id)) { bind(items) }
                 }
-                .onAppear { bind(items) }
-                .onChange(of: items.map(\.id)) { bind(items) }
             }
         }
+    }
+
+    /// Popup frame: below the caret, flipped above when there's no room (e.g. above the iPhone keyboard), kept on-screen.
+    static func placement(caret: CGRect, rows: Int, in size: CGSize) -> CGRect {
+        let w = max(0, min(320, size.width - 16))
+        let h = max(0, min(CGFloat(rows) * 44 + 8, 280, size.height - 16))
+        let x = min(max(8, caret.minX - 12), max(8, size.width - w - 8))
+        let below = caret.maxY + 6, above = caret.minY - 6 - h
+        let y = below + h <= size.height - 8 || above < 8 ? min(below, max(8, size.height - h - 8)) : above
+        return CGRect(x: x, y: y, width: w, height: h)
     }
 
     private func bind(_ items: [CompletionItem]) {

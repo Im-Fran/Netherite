@@ -8,18 +8,22 @@ struct ReaderView: View {
     let pane: Pane
     @Environment(WindowState.self) private var window
     @State private var hover: (path: String, subpath: String?, rect: CGRect)?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let model = window.model
+        let _ = dynamicTypeSize   // re-render with the new base size when Text Size changes
         let body = HTMLRenderer.render(text, context: .app(model.index, source: path))
         let sub = pane.pendingLine.flatMap { line in model.index.notes[path]?.parsed.headings.first { $0.line == line }?.text }
         HTMLWebView(
             html: HTMLRenderer.page(title: path.noteName, body: body, assets: "nth://web/", theme: model.theme,
-                                    fullWidth: !model.settings.readableLineLength, initialSubpath: sub),
+                                    fullWidth: !model.settings.readableLineLength, initialSubpath: sub,
+                                    baseSize: ReaderView.baseSize, transparentBackground: true),
             vault: model.vault,
             onAction: { action in
                 if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
             })
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Reading view of \(path.noteName)"))
         .overlay(alignment: .topLeading) {
             if let h = hover {
@@ -39,7 +43,7 @@ extension WindowState {
         switch action {
         case .openPath(let p, let sub, let newPane): open(path: p, line: line(for: sub, in: p), newPane: newPane)
         case .createNote(let target): follow(NoteLink(target: target, isEmbed: false, isWiki: true, range: NSRange(), line: 0), from: source)
-        case .tag(let tag): searchQuery = "tag:\(tag)"; sidebarTab = .search; columnVisibility = .all
+        case .tag(let tag): searchQuery = "tag:\(tag)"; sidebarTab = .search; columnVisibility = .all; preferredCompactColumn = .sidebar
         case .external(let url):
             #if os(macOS)
             NSWorkspace.shared.open(url)
@@ -84,7 +88,8 @@ struct PagePreview: View {
                 let body = target.isMarkdown
                     ? HTMLRenderer.render(text, context: .app(index, source: target))
                     : HTMLRenderer.embed(NoteLink(target: target, isEmbed: true, isWiki: true, range: NSRange(), line: 0), .app(index, source: target))
-                HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme),
+                HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme,
+                                                   baseSize: ReaderView.baseSize, transparentBackground: true),
                             vault: window.model.vault, onAction: { window.handle($0, from: target) })
             } else {
                 ContentUnavailableView("“\(link.target)” doesn't exist yet", systemImage: "doc.badge.plus",
@@ -92,5 +97,16 @@ struct PagePreview: View {
             }
         }
         .frame(width: 460, height: 340)
+    }
+}
+
+extension ReaderView {
+    /// Body size the reader scales from: the Dynamic Type body size on iOS, 16 px on macOS.
+    static var baseSize: Double {
+        #if os(iOS)
+        Double(UIFont.preferredFont(forTextStyle: .body).pointSize)
+        #else
+        16
+        #endif
     }
 }
