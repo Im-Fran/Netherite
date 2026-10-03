@@ -10,6 +10,17 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+### Changed
+- Links in the reader are always underlined, so they stand out without relying on color.
+- Custom theme backgrounds get text colors that stay readable on them, and theme colors keep their contrast over the app's own background.
+- Larger tap targets for task checkboxes on touch screens, Recent Notes widget rows and the Bases clear-search button.
+- Settings labels use title case consistently, and icons and tiles scale with Dynamic Type.
+- Mermaid diagrams follow the system appearance when it changes.
+
+### Fixed
+- Deleting all snapshots now reports a failure instead of silently doing nothing.
+- VoiceOver announces long-running vault operations and which split pane is focused, and skips drag-only canvas handles.
+
 ## [0.1.0+10] - 2026-10-03
 
 ### Fixed

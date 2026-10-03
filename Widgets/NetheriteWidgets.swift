@@ -97,7 +97,6 @@ struct DailyNoteView: View {
                         Button(intent: LogTimeIntent()) {
                             Label("Log Time", systemImage: "plus")
                         }
-                        .font(.caption)
                         .buttonStyle(.bordered)
                     }
                 }
@@ -135,9 +134,10 @@ struct RecentNotesView: View {
     private var limit: Int {
         switch family {
         // Small widgets are one tap target (widgetURL opens the most recent note), so show only that note.
+        // Rows are 44pt tap targets: as many as fit in each size.
         case .systemSmall: 1
-        case .systemLarge: 8
-        default: 4
+        case .systemLarge: 5
+        default: 2
         }
     }
 
@@ -150,6 +150,8 @@ struct RecentNotesView: View {
                 ForEach(entry.recents.prefix(limit), id: \.self) { path in
                     Link(destination: openURL(path)) {
                         Label(path.noteName, systemImage: "doc.text").font(.subheadline).lineLimit(1).privacySensitive()
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(.rect)
                     }
                 }
                 if entry.recents.isEmpty { Text("No notes yet").font(.caption).foregroundStyle(.secondary) }

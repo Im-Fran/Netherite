@@ -164,6 +164,7 @@ struct PaneView: View {
                     Rectangle().fill(Color.accentColor).frame(height: 2)
                 }
             }
+            .accessibilityAddTraits(window.panes.count > 1 && window.focusedPaneID == pane.id ? .isSelected : [])
             .toolbar { toolbar }
             .onChange(of: pane.reading) { NetheriteTips.donate(NetheriteTips.readingToggled) }
     }

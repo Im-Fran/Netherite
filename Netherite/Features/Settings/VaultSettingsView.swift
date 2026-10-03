@@ -52,6 +52,7 @@ struct VaultSettingsView: View {
 private struct VaultSettingsHome: View {
     let model: VaultModel
     @Environment(AppModel.self) private var app
+    @ScaledMetric private var tile = 48.0
 
     var body: some View {
         let status = app.storage[AppModel.key(model.vault.root)]?.status
@@ -61,7 +62,7 @@ private struct VaultSettingsHome: View {
                     HStack(spacing: 14) {
                         SyncStatusIcon(status: status, isInICloud: model.vault.root.path.contains("/Mobile Documents/"))
                             .font(.title2)
-                            .frame(width: 48, height: 48)
+                            .frame(width: tile, height: tile)
                             .background(.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(model.name).font(.title3.bold())
@@ -102,12 +103,12 @@ enum VaultSettingsPage: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .sync: "Sync"
         case .editor: "Editor"
-        case .files: "Files and links"
+        case .files: "Files and Links"
         case .appearance: "Appearance"
-        case .dailyNotes: "Daily notes"
+        case .dailyNotes: "Daily Notes"
         case .templates: "Templates"
         case .plugins: "Plugins"
-        case .recovery: "File recovery"
+        case .recovery: "File Recovery"
         }
     }
 
@@ -158,6 +159,7 @@ struct VaultSettingsForm: View {
     let page: VaultSettingsPage
     @State private var snapshotBytes: Int64?
     @State private var confirmClearSnapshots = false
+    @State private var error: String?
 
     var body: some View {
         Form { content }
@@ -169,35 +171,35 @@ struct VaultSettingsForm: View {
         switch page {
         case .editor:
             Section {
-                Toggle("Readable line length", isOn: $model.settings.readableLineLength)
+                Toggle("Readable Line Length", isOn: $model.settings.readableLineLength)
                 Toggle("Spellcheck", isOn: $model.settings.spellcheck)
-                Toggle("Open notes in reading view", isOn: $model.settings.defaultToReadingMode)
+                Toggle("Open Notes in Reading View", isOn: $model.settings.defaultToReadingMode)
                 Toggle("Use [[Wikilinks]]", isOn: $model.settings.useWikilinks)
             }
         case .files:
             Section {
-                folderField("Default location for new notes", $model.settings.newNoteFolder)
-                folderField("Attachments folder", $model.settings.attachmentFolder)
+                folderField("Default Location for New Notes", $model.settings.newNoteFolder)
+                folderField("Attachments Folder", $model.settings.attachmentFolder)
             }
         case .dailyNotes:
             Section {
                 folderField("Folder", $model.settings.dailyNotes.folder)
-                textField("Date format", $model.settings.dailyNotes.format)
+                textField("Date Format", $model.settings.dailyNotes.format)
                 Text("Example: \(Templates.format(.now, model.settings.dailyNotes.format))").font(.caption).foregroundStyle(.secondary)
-                textField("Template file", $model.settings.dailyNotes.template)
-                Toggle("Open daily note on startup", isOn: $model.settings.dailyNotes.openOnStartup)
+                textField("Template File", $model.settings.dailyNotes.template)
+                Toggle("Open Daily Note on Startup", isOn: $model.settings.dailyNotes.openOnStartup)
             }
         case .templates:
             Section {
-                folderField("Template folder", $model.settings.templatesFolder)
+                folderField("Template Folder", $model.settings.templatesFolder)
             } footer: {
                 Text("Use {{title}}, {{date}}, {{time}} or {{date:YYYY-MM-DD}} in templates.")
             }
             AddBuiltInTemplatesButton(model: model)
-            Section("Unique note creator") {
+            Section("Unique Note Creator") {
                 folderField("Folder", $model.settings.uniqueNote.folder)
-                textField("Name format", $model.settings.uniqueNote.format)
-                textField("Template file", $model.settings.uniqueNote.template)
+                textField("Name Format", $model.settings.uniqueNote.format)
+                textField("Template File", $model.settings.uniqueNote.template)
             }
         case .recovery:
             recovery
@@ -229,10 +231,15 @@ struct VaultSettingsForm: View {
             snapshotBytes = await Task.detached { VaultStorage.scan(root).bytes }.value
         }
         .confirmationDialog("Delete All Snapshots?", isPresented: $confirmClearSnapshots, titleVisibility: .visible) {
-            Button("Delete All Snapshots", role: .destructive) { try? FileManager.default.removeItem(at: SnapshotStore(vault: model.vault).root) }
+            Button("Delete All Snapshots", role: .destructive) {
+                do { try FileManager.default.removeItem(at: SnapshotStore(vault: model.vault).root) } catch { self.error = error.localizedDescription }
+            }
         } message: {
             Text("Earlier versions of this vault’s notes can no longer be restored.")
         }
+        .alert("Something Went Wrong", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK") {}
+        } message: { Text(error ?? "") }
     }
 
     /// Preset values, plus the current one when it was set to something else.

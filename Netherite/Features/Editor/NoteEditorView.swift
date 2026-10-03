@@ -199,13 +199,14 @@ struct CompletionOverlay: View {
     @Bindable var controller: EditorController
     let sourcePath: String
     @Environment(WindowState.self) private var window
+    @ScaledMetric private var rowHeight: CGFloat = 44
 
     var body: some View {
         GeometryReader { geo in
             if let c = controller.completion {
                 let items = self.items(for: c)
                 if !items.isEmpty {
-                    let frame = Self.placement(caret: c.caret, rows: items.count, in: geo.size)
+                    let frame = Self.placement(caret: c.caret, rows: items.count, rowHeight: rowHeight, in: geo.size)
                     ScrollViewReader { proxy in
                         List(Array(items.enumerated()), id: \.element.id) { i, item in
                             Button { accept(item) } label: {
@@ -244,9 +245,9 @@ struct CompletionOverlay: View {
     }
 
     /// Popup frame: below the caret, flipped above when there's no room (e.g. above the iPhone keyboard), kept on-screen.
-    static func placement(caret: CGRect, rows: Int, in size: CGSize) -> CGRect {
+    static func placement(caret: CGRect, rows: Int, rowHeight: CGFloat = 44, in size: CGSize) -> CGRect {
         let w = max(0, min(320, size.width - 16))
-        let h = max(0, min(CGFloat(rows) * 44 + 8, 280, size.height - 16))
+        let h = max(0, min(CGFloat(rows) * rowHeight + 8, rowHeight * 6 + 16, size.height - 16))
         let x = min(max(8, caret.minX - 12), max(8, size.width - w - 8))
         let below = caret.maxY + 6, above = caret.minY - 6 - h
         let y = below + h <= size.height - 8 || above < 8 ? min(below, max(8, size.height - h - 8)) : above

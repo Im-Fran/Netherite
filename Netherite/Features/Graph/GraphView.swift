@@ -372,7 +372,8 @@ struct GraphView: View {
                 }
                 .formStyle(.grouped)
                 .scrollContentBackground(.hidden)
-                .frame(width: 280, height: focus != nil ? 460 : 420)
+                .frame(width: 280)
+                .frame(maxHeight: focus != nil ? 460 : 420)   // shrinks to fit short screens and large text
                 .glassEffect(in: .rect(cornerRadius: 16))
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)))
             }

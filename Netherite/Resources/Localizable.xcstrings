@@ -817,32 +817,12 @@
         }
       }
     },
-    "Attachments folder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carpeta de adjuntos"
-          }
-        }
-      }
-    },
     "Attendees" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Asistentes"
-          }
-        }
-      }
-    },
-    "Audio recorder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grabadora de audio"
           }
         }
       }
@@ -1769,16 +1749,6 @@
         }
       }
     },
-    "Core plugins" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plugins principales"
-          }
-        }
-      }
-    },
     "Couldn't Create Theme" : {
       "localizations" : {
         "es" : {
@@ -2089,16 +2059,6 @@
         }
       }
     },
-    "Daily notes" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notas diarias"
-          }
-        }
-      }
-    },
     "Daily notes and templates" : {
       "localizations" : {
         "es" : {
@@ -2165,26 +2125,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fecha"
-          }
-        }
-      }
-    },
-    "Date format" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formato de fecha"
-          }
-        }
-      }
-    },
-    "Default location for new notes" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ubicación predeterminada para notas nuevas"
           }
         }
       }
@@ -2679,16 +2619,6 @@
         }
       }
     },
-    "File recovery" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recuperación de archivos"
-          }
-        }
-      }
-    },
     "File recovery: Open snapshots" : {
       "localizations" : {
         "es" : {
@@ -2705,16 +2635,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Archivos"
-          }
-        }
-      }
-    },
-    "Files and links" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Archivos y enlaces"
           }
         }
       }
@@ -2950,16 +2870,6 @@
       }
     },
     "Graph View" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista de grafo"
-          }
-        }
-      }
-    },
-    "Graph view" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3835,16 +3745,6 @@
         }
       }
     },
-    "Meeting notes" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notas de reunión"
-          }
-        }
-      }
-    },
     "Meeting notes: New meeting note" : {
       "localizations" : {
         "es" : {
@@ -4091,16 +3991,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nombre"
-          }
-        }
-      }
-    },
-    "Name format" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formato de nombre"
           }
         }
       }
@@ -4575,16 +4465,6 @@
         }
       }
     },
-    "Note composer" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compositor de notas"
-          }
-        }
-      }
-    },
     "Note composer: Extract selection to new note" : {
       "localizations" : {
         "es" : {
@@ -4935,16 +4815,6 @@
         }
       }
     },
-    "Open daily note on startup" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir la nota diaria al iniciar"
-          }
-        }
-      }
-    },
     "Open files, readable by any app" : {
       "localizations" : {
         "es" : {
@@ -4971,16 +4841,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abrir en panel nuevo"
-          }
-        }
-      }
-    },
-    "Open notes in reading view" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abrir notas en vista de lectura"
           }
         }
       }
@@ -5345,32 +5205,12 @@
         }
       }
     },
-    "Random note" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nota aleatoria"
-          }
-        }
-      }
-    },
     "Random note: Open random note" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nota aleatoria: abrir nota aleatoria"
-          }
-        }
-      }
-    },
-    "Readable line length" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Longitud de línea legible"
           }
         }
       }
@@ -6327,24 +6167,6 @@
     },
     "Syncing %lld files" : {
       "localizations" : {
-        "es" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Sincronizando %lld archivo"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Sincronizando %lld archivos"
-                }
-              }
-            }
-          }
-        },
         "en" : {
           "variations" : {
             "plural" : {
@@ -6358,6 +6180,24 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Syncing %lld files"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sincronizando %lld archivo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sincronizando %lld archivos"
                 }
               }
             }
@@ -6451,26 +6291,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plantilla"
-          }
-        }
-      }
-    },
-    "Template file" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Archivo de plantilla"
-          }
-        }
-      }
-    },
-    "Template folder" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carpeta de plantillas"
           }
         }
       }
@@ -6985,16 +6805,6 @@
         }
       }
     },
-    "Unique note creator" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Creador de notas únicas"
-          }
-        }
-      }
-    },
     "Unique note creator: Create new unique note" : {
       "localizations" : {
         "es" : {
@@ -7218,24 +7028,6 @@
     },
     "Waiting to sync %lld files" : {
       "localizations" : {
-        "es" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld archivo esperando sincronizarse"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld archivos esperando sincronizarse"
-                }
-              }
-            }
-          }
-        },
         "en" : {
           "variations" : {
             "plural" : {
@@ -7249,6 +7041,24 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld files waiting to sync"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld archivo esperando sincronizarse"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld archivos esperando sincronizarse"
                 }
               }
             }
@@ -7272,16 +7082,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarjeta de página web: %@"
-          }
-        }
-      }
-    },
-    "Web viewer" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Visor web"
           }
         }
       }
@@ -7704,6 +7504,26 @@
         }
       }
     },
+    "Attachments Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carpeta de adjuntos"
+          }
+        }
+      }
+    },
+    "Audio Recorder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabadora de audio"
+          }
+        }
+      }
+    },
     "Checking Sync Status…" : {
       "localizations" : {
         "es" : {
@@ -7754,12 +7574,52 @@
         }
       }
     },
+    "Core Plugins" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugins principales"
+          }
+        }
+      }
+    },
     "Couldn't Export" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo exportar"
+          }
+        }
+      }
+    },
+    "Daily Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas diarias"
+          }
+        }
+      }
+    },
+    "Date Format" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formato de fecha"
+          }
+        }
+      }
+    },
+    "Default Location for New Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación predeterminada para notas nuevas"
           }
         }
       }
@@ -7870,6 +7730,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exportar…"
+          }
+        }
+      }
+    },
+    "File Recovery" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuperación de archivos"
+          }
+        }
+      }
+    },
+    "Files and Links" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivos y enlaces"
           }
         }
       }
@@ -8400,6 +8280,126 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "iCloud Drive no está disponible. Inicia sesión en iCloud y activa iCloud Drive para Netherite."
+          }
+        }
+      }
+    },
+    "Meeting Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas de reunión"
+          }
+        }
+      }
+    },
+    "Name Format" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formato de nombre"
+          }
+        }
+      }
+    },
+    "Note Composer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compositor de notas"
+          }
+        }
+      }
+    },
+    "Open Daily Note on Startup" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la nota diaria al iniciar"
+          }
+        }
+      }
+    },
+    "Open Notes in Reading View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir notas en vista de lectura"
+          }
+        }
+      }
+    },
+    "Random Note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nota aleatoria"
+          }
+        }
+      }
+    },
+    "Readable Line Length" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longitud de línea legible"
+          }
+        }
+      }
+    },
+    "Template File" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivo de plantilla"
+          }
+        }
+      }
+    },
+    "Template Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carpeta de plantillas"
+          }
+        }
+      }
+    },
+    "Unique Note Creator" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creador de notas únicas"
+          }
+        }
+      }
+    },
+    "Web Viewer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visor web"
+          }
+        }
+      }
+    },
+    "Working…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trabajando…"
           }
         }
       }

@@ -230,7 +230,8 @@ struct VaultsSettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Vaults and Storage")
-        .overlay { if working { ProgressView("Copying to iCloud…").padding().background(.regularMaterial, in: .rect(cornerRadius: 12)) } }
+        .overlay { if working { ProgressView("Copying to iCloud…").padding().background(.regularMaterial, in: .rect(cornerRadius: 12, style: .continuous)) } }
+        .onChange(of: working) { if working { AccessibilityNotification.Announcement(String(localized: "Copying to iCloud…")).post() } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.folder]) { result in
             guard case .success(let url) = result else { return }
             working = true
@@ -280,7 +281,7 @@ private struct StorageSummary: View {
             }
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    Rectangle().fill(.blue.gradient).frame(width: geo.size.width * Double(cloudBytes) / Double(total))
+                    Rectangle().fill(A11y.shared.color(.blue, .blue).gradient).frame(width: geo.size.width * Double(cloudBytes) / Double(total))
                     Rectangle().fill(.gray.gradient)
                 }
                 .clipShape(.capsule)
@@ -288,7 +289,7 @@ private struct StorageSummary: View {
             .frame(height: 10)
             .accessibilityHidden(true)
             HStack(spacing: 16) {
-                legend("iCloud Drive", .blue, cloudBytes)
+                legend("iCloud Drive", A11y.shared.color(.blue, .blue), cloudBytes)
                 legend("This Device", .gray, localBytes)
             }
             .font(.caption)
@@ -311,12 +312,13 @@ private struct StorageSummary: View {
 private struct VaultRow: View {
     let recent: RecentVault
     @Environment(AppModel.self) private var app
+    @ScaledMetric private var iconWidth = 24.0
 
     var body: some View {
         let s = app.storage[recent.path]
         NavigationLink(value: SettingsRoute.vault(recent.path)) {
             HStack(spacing: 12) {
-                SyncStatusIcon(status: s?.status, isInICloud: recent.isInICloud).frame(width: 24)
+                SyncStatusIcon(status: s?.status, isInICloud: recent.isInICloud).frame(width: iconWidth)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recent.name)
                     if let s {
@@ -337,6 +339,7 @@ struct VaultDetailView: View {
     @State private var working = false
     @State private var error: String?
     @State private var iCloudAvailable = false
+    @ScaledMetric private var tile = 52.0
 
     var body: some View {
         if let recent = app.recents.first(where: { $0.path == path }) {
@@ -353,7 +356,7 @@ struct VaultDetailView: View {
                 HStack(spacing: 14) {
                     SyncStatusIcon(status: s?.status, isInICloud: recent.isInICloud)
                         .font(.title)
-                        .frame(width: 52, height: 52)
+                        .frame(width: tile, height: tile)
                         .background(.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(recent.name).font(.title3.bold())
@@ -387,7 +390,6 @@ struct VaultDetailView: View {
             Section {
                 Button("Remove from List", systemImage: "minus.circle") { app.forget(recent); dismiss() }
                 Button("Move to Recently Deleted", systemImage: "trash", role: .destructive) { confirmTrash = true }
-                    .foregroundStyle(.red)
             } footer: {
                 Text("Deleted vaults stay in Recently Deleted for 90 days, then are removed for good.")
             }
@@ -395,7 +397,8 @@ struct VaultDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(recent.name)
         .disabled(working)
-        .overlay { if working { ProgressView().controlSize(.large) } }
+        .overlay { if working { ProgressView("Working…").controlSize(.large) } }
+        .onChange(of: working) { if working { AccessibilityNotification.Announcement(String(localized: "Working…")).post() } }
         .exporting($export)
         .confirmationDialog("Delete “\(recent.name)”?", isPresented: $confirmTrash, titleVisibility: .visible) {
             Button("Move to Recently Deleted", role: .destructive) { run { try await app.trashVault(recent); dismiss() } }
@@ -421,13 +424,14 @@ struct RecentlyDeletedView: View {
     @Environment(AppModel.self) private var app
     @State private var pendingDelete: VaultTrash.Item?
     @State private var error: String?
+    @ScaledMetric private var iconWidth = 24.0
 
     var body: some View {
         List {
             Section {
                 ForEach(app.trashed) { item in
                     HStack(spacing: 12) {
-                        Image(systemName: "folder").foregroundStyle(.secondary).frame(width: 24).accessibilityHidden(true)
+                        Image(systemName: "folder").foregroundStyle(.secondary).frame(width: iconWidth).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name)
                             Text(remaining(item)).font(.caption).foregroundStyle(.secondary)

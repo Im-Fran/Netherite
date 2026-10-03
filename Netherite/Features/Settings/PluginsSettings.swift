@@ -19,7 +19,7 @@ struct PluginsSettingsView: View {
                     }
                 }
             } header: {
-                Text("Core plugins")
+                Text("Core Plugins")
             } footer: {
                 Text("Turned-off plugins disappear from the command palette and menus. Your notes are never changed.")
             }
@@ -70,10 +70,10 @@ struct MeetingNotesSettings: View {
         Form {
             Section {
                 VaultFolderPicker(label: "Folder", selection: $model.settings.meetingNotes.folder, folders: model.index.folders)
-                field("Date format", $model.settings.meetingNotes.format)
+                field("Date Format", $model.settings.meetingNotes.format)
                 Text("Example: \(Templates.meetingNoteName(title: String(localized: "Kickoff"), date: .now, settings: model.settings))")
                     .font(.caption).foregroundStyle(.secondary)
-                field("Template file", $model.settings.meetingNotes.template)
+                field("Template File", $model.settings.meetingNotes.template)
             } footer: {
                 Text("Leave the template empty to use the built-in layout. Templates can use {{title}}, {{date}}, {{time}} and {{attendees}}.")
             }
@@ -88,7 +88,7 @@ struct MeetingNotesSettings: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Meeting notes")
+        .navigationTitle("Meeting Notes")
     }
 
     /// On iOS a filled text field hides its placeholder, so show the label beside it.
@@ -121,21 +121,21 @@ struct AddBuiltInTemplatesButton: View {
 extension CorePlugin {
     var title: LocalizedStringKey {
         switch self {
-        case .dailyNotes: "Daily notes"
-        case .uniqueNote: "Unique note creator"
+        case .dailyNotes: "Daily Notes"
+        case .uniqueNote: "Unique Note Creator"
         case .templates: "Templates"
-        case .meetingNotes: "Meeting notes"
+        case .meetingNotes: "Meeting Notes"
         case .bases: "Databases"
         case .canvas: "Canvas"
         case .slides: "Slides"
-        case .audioRecorder: "Audio recorder"
-        case .webViewer: "Web viewer"
+        case .audioRecorder: "Audio Recorder"
+        case .webViewer: "Web Viewer"
         case .workspaces: "Workspaces"
         case .publish: "Publish"
-        case .noteComposer: "Note composer"
-        case .randomNote: "Random note"
-        case .fileRecovery: "File recovery"
-        case .graph: "Graph view"
+        case .noteComposer: "Note Composer"
+        case .randomNote: "Random Note"
+        case .fileRecovery: "File Recovery"
+        case .graph: "Graph View"
         }
     }
 
