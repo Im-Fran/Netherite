@@ -4,7 +4,6 @@ import NetheriteCore
 struct SettingsView: View {
     @Bindable var model: VaultModel
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.isPresented) private var isPresented
     @State private var tipsReset = false
     @State private var themeError: String?
 
@@ -65,13 +64,10 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                #else
-                if isPresented { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-                #endif
-            }
+            #if os(iOS)
+            // The Settings window on macOS needs none; the Mac sheet gets its Done from VaultWindow.
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            #endif
             .alert("Couldn't Create Theme", isPresented: Binding(get: { themeError != nil }, set: { if !$0 { themeError = nil } })) {
                 Button("OK") {}
             } message: { Text(themeError ?? "") }

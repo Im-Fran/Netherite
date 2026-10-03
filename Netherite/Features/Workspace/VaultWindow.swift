@@ -82,7 +82,7 @@ struct VaultWindow: View {
             SettingsView(model: window.model).macOnly {
                 $0.frame(minWidth: 520, minHeight: 520)
                     .safeAreaInset(edge: .bottom) {
-                        HStack { Spacer(); Button("Done") { window.sheet = nil }.keyboardShortcut(.defaultAction) }.padding()
+                        HStack { Spacer(); Button("Done") { window.sheet = nil }.keyboardShortcut(.defaultAction) }.padding().background(.bar)
                     }
             }
         case .rename(let p): RenameSheet(path: p)

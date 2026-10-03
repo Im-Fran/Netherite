@@ -42,10 +42,14 @@ struct FileExplorer: View {
             paths.forEach { window.move($0, toFolder: "") }
             return true
         }
+        #if os(iOS)
         // Empty-area menu; a plain `.contextMenu` would lift the whole list on iOS.
         .contextMenu(forSelectionType: String.self) { selection in
             if selection.isEmpty { folderMenu("") }
         }
+        #else
+        .contextMenu { folderMenu("") }
+        #endif
         .onChange(of: window.explorerSelection) { _, new in
             guard let new, index.files.contains(new) else { return }
             if window.currentPath != new { window.open(path: new) } else { window.preferredCompactColumn = .detail }
@@ -93,7 +97,9 @@ struct FileExplorer: View {
                 #endif
                 .draggable(node.path)
                 .contextMenu { folderMenu(node.path); itemMenu(node.path) }
+                #if os(iOS)
                 .swipeActions(allowsFullSwipe: false) { swipeMenu(node.path) }
+                #endif
             )
         }
         return AnyView(
@@ -102,7 +108,9 @@ struct FileExplorer: View {
                 .tag(node.path)
                 .draggable(node.path)
                 .contextMenu { itemMenu(node.path) }
+                #if os(iOS)
                 .swipeActions(allowsFullSwipe: false) { swipeMenu(node.path) }
+                #endif
         )
     }
 

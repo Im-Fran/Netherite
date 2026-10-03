@@ -48,8 +48,11 @@ struct InspectorView: View {
                 }
             } else {
                 ContentUnavailableView("No Note Open", systemImage: "doc.text")
+                    .frame(maxHeight: .infinity)
             }
         }
+        // Fill the column so the tab picker stays pinned to the top.
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
