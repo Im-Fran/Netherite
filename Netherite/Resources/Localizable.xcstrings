@@ -6353,6 +6353,776 @@
           }
         }
       }
+    },
+    "%lld days" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld días"
+          }
+        }
+      }
+    },
+    "%lld days remaining" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quedan %lld días"
+          }
+        }
+      }
+    },
+    "%lld min" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        }
+      }
+    },
+    "%lld notes · %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld notas · %@"
+          }
+        }
+      }
+    },
+    "A Specific Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una bóveda concreta"
+          }
+        }
+      }
+    },
+    "Checking Sync Status…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando sincronización…"
+          }
+        }
+      }
+    },
+    "Choose what Netherite shows when you open it." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige qué muestra Netherite al abrirla."
+          }
+        }
+      }
+    },
+    "Copy into iCloud Drive" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar a iCloud Drive"
+          }
+        }
+      }
+    },
+    "Copying it into iCloud Drive syncs the vault to your other devices; the original folder stays where it is." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al copiarla a iCloud Drive, la bóveda se sincroniza con tus otros dispositivos; la carpeta original se queda donde está."
+          }
+        }
+      }
+    },
+    "Copying to iCloud…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiando a iCloud…"
+          }
+        }
+      }
+    },
+    "Couldn't Export" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo exportar"
+          }
+        }
+      }
+    },
+    "Delete All Snapshots" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar todas las instantáneas"
+          }
+        }
+      }
+    },
+    "Delete All Snapshots?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar todas las instantáneas?"
+          }
+        }
+      }
+    },
+    "Delete Now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar ahora"
+          }
+        }
+      }
+    },
+    "Delete Permanently" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar definitivamente"
+          }
+        }
+      }
+    },
+    "Delete “%@” Permanently?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar “%@” definitivamente?"
+          }
+        }
+      }
+    },
+    "Deleted vaults stay in Recently Deleted for 90 days, then are removed for good." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las bóvedas eliminadas permanecen en Eliminadas recientemente durante 90 días y luego se borran definitivamente."
+          }
+        }
+      }
+    },
+    "Earlier versions of this vault’s notes can no longer be restored." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya no podrás restaurar versiones anteriores de las notas de esta bóveda."
+          }
+        }
+      }
+    },
+    "Export Vault…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar bóveda…"
+          }
+        }
+      }
+    },
+    "Export saves a .zip copy of the whole vault." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar guarda una copia .zip de toda la bóveda."
+          }
+        }
+      }
+    },
+    "Export vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar bóveda"
+          }
+        }
+      }
+    },
+    "Export…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportar…"
+          }
+        }
+      }
+    },
+    "General" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
+    "Hide on Start Page" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocultar en la página de inicio"
+          }
+        }
+      }
+    },
+    "Hides the “Explore the Guide” card and the welcome tour button on the start page." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oculta la tarjeta “Explorar la guía” y el botón del recorrido de bienvenida en la página de inicio."
+          }
+        }
+      }
+    },
+    "Import Files…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar archivos…"
+          }
+        }
+      }
+    },
+    "Import Folder into iCloud…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar carpeta a iCloud…"
+          }
+        }
+      }
+    },
+    "Import files into vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar archivos a la bóveda"
+          }
+        }
+      }
+    },
+    "Importing copies a folder of notes from Files into iCloud Drive as a new vault; the original stays where it is." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importar copia una carpeta de notas desde Archivos a iCloud Drive como una nueva bóveda; la original se queda donde está."
+          }
+        }
+      }
+    },
+    "Keep Snapshots For" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conservar instantáneas"
+          }
+        }
+      }
+    },
+    "Last Opened" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última apertura"
+          }
+        }
+      }
+    },
+    "Last Opened Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última bóveda abierta"
+          }
+        }
+      }
+    },
+    "Location" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ubicación"
+          }
+        }
+      }
+    },
+    "Manage your vaults and their iCloud storage, recover deleted vaults, and choose how each vault looks and works." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Administra tus bóvedas y su almacenamiento en iCloud, recupera bóvedas eliminadas y elige cómo se ve y funciona cada una."
+          }
+        }
+      }
+    },
+    "Move to Recently Deleted" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a Eliminadas recientemente"
+          }
+        }
+      }
+    },
+    "Move to iCloud Drive" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a iCloud Drive"
+          }
+        }
+      }
+    },
+    "Moving to iCloud Drive syncs the vault to your other devices." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al moverla a iCloud Drive, la bóveda se sincroniza con tus otros dispositivos."
+          }
+        }
+      }
+    },
+    "Netherite saves a copy of each changed note on this interval. Open a note’s snapshots from its More menu." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netherite guarda una copia de cada nota modificada con esta frecuencia. Abre las instantáneas de una nota desde su menú Más."
+          }
+        }
+      }
+    },
+    "Netherite saves a copy of this note every %lld min while it changes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netherite guarda una copia de esta nota cada %lld min mientras cambia."
+          }
+        }
+      }
+    },
+    "No Deleted Vaults" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay bóvedas eliminadas"
+          }
+        }
+      }
+    },
+    "On This Mac" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En este Mac"
+          }
+        }
+      }
+    },
+    "Open Netherite in the Settings App" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir Netherite en la app Ajustes"
+          }
+        }
+      }
+    },
+    "Open in Place" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir en su ubicación"
+          }
+        }
+      }
+    },
+    "Open on Launch" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al abrir la app"
+          }
+        }
+      }
+    },
+    "Open “%@”" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir “%@”"
+          }
+        }
+      }
+    },
+    "Preparing Export…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando exportación…"
+          }
+        }
+      }
+    },
+    "Recently Deleted" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminadas recientemente"
+          }
+        }
+      }
+    },
+    "Recover" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuperar"
+          }
+        }
+      }
+    },
+    "Restore This Snapshot?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Restaurar esta instantánea?"
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar en Finder"
+          }
+        }
+      }
+    },
+    "Show the Guide and Welcome Tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar la guía y el recorrido de bienvenida"
+          }
+        }
+      }
+    },
+    "Sign in to iCloud and turn on iCloud Drive to sync vaults between your devices." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión en iCloud y activa iCloud Drive para sincronizar bóvedas entre tus dispositivos."
+          }
+        }
+      }
+    },
+    "Size" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño"
+          }
+        }
+      }
+    },
+    "Snapshots are kept for %lld days and stored only on this device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las instantáneas se conservan durante %lld días y solo se guardan en este dispositivo."
+          }
+        }
+      }
+    },
+    "Snapshots are stored only on this device and never sync." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las instantáneas solo se guardan en este dispositivo y nunca se sincronizan."
+          }
+        }
+      }
+    },
+    "Space Used" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espacio usado"
+          }
+        }
+      }
+    },
+    "Start Page" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página de inicio"
+          }
+        }
+      }
+    },
+    "Startup" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio"
+          }
+        }
+      }
+    },
+    "Stored Locally" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almacenada localmente"
+          }
+        }
+      }
+    },
+    "Synced with iCloud" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizada con iCloud"
+          }
+        }
+      }
+    },
+    "Syncing…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronizando…"
+          }
+        }
+      }
+    },
+    "Take a Snapshot Every" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomar una instantánea cada"
+          }
+        }
+      }
+    },
+    "The current version of the note is saved as a snapshot first, so you can go back." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La versión actual de la nota se guarda antes como instantánea, para que puedas volver a ella."
+          }
+        }
+      }
+    },
+    "The vault and all its notes move to Recently Deleted on every device. You can restore it for 90 days." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La bóveda y todas sus notas pasan a Eliminadas recientemente en todos tus dispositivos. Puedes restaurarla durante 90 días."
+          }
+        }
+      }
+    },
+    "These preferences and a storage summary also appear in the Settings app." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estas preferencias y un resumen del almacenamiento también aparecen en la app Ajustes."
+          }
+        }
+      }
+    },
+    "This Device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo"
+          }
+        }
+      }
+    },
+    "This can’t be undone." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta acción no se puede deshacer."
+          }
+        }
+      }
+    },
+    "Used by Vaults" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usado por las bóvedas"
+          }
+        }
+      }
+    },
+    "Vault Not Found" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se encontró la bóveda"
+          }
+        }
+      }
+    },
+    "Vaults" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bóvedas"
+          }
+        }
+      }
+    },
+    "Vaults and Storage" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bóvedas y almacenamiento"
+          }
+        }
+      }
+    },
+    "Vaults are permanently deleted 90 days after you delete them." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las bóvedas se borran definitivamente 90 días después de eliminarlas."
+          }
+        }
+      }
+    },
+    "Vaults you delete stay here for 90 days." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las bóvedas que elimines permanecen aquí durante 90 días."
+          }
+        }
+      }
+    },
+    "Waiting to Sync" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pendiente de sincronizar"
+          }
+        }
+      }
+    },
+    "iCloud Drive isn’t available. Sign in to iCloud and turn on iCloud Drive for Netherite." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive no está disponible. Inicia sesión en iCloud y activa iCloud Drive para Netherite."
+          }
+        }
+      }
+    },
+    "“%@” Vault" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bóveda “%@”"
+          }
+        }
+      }
+    },
+    "“%@” is in a folder Netherite didn’t create. Remove it from the list, then delete the folder in the Files app." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” está en una carpeta que Netherite no creó. Quítala de la lista y luego elimina la carpeta en la app Archivos."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -1,6 +1,7 @@
 import SwiftUI
 import TipKit
 import CoreSpotlight
+import UniformTypeIdentifiers
 import NetheriteCore
 
 /// One window on a vault: sidebar · editor pane(s) · inspector.
@@ -65,6 +66,14 @@ struct VaultWindow: View {
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
         .snapshotting(window.model)
+        .exporting($window.exportRequest)
+        .fileImporter(isPresented: Binding(get: { window.importTarget != nil }, set: { if !$0 { window.importTarget = nil } }),
+                      allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
+            switch result {
+            case .success(let urls): Task { await window.importFiles(urls); window.importTarget = nil }
+            case .failure(let e): window.model.lastError = e.localizedDescription
+            }
+        }
     }
 
     @ViewBuilder private var slides: some View {
@@ -244,6 +253,7 @@ struct PaneView: View {
             ShareLink(item: window.model.vault.url(for: p))
             Button("Rename…", systemImage: "pencil") { window.sheet = .rename(p) }
             Button("Snapshots…", systemImage: "clock.arrow.circlepath") { window.sheet = .recovery(p) }
+            Button("Export…", systemImage: "square.and.arrow.up.on.square") { window.export(p) }
             #if os(macOS)
             Button("Reveal in Finder", systemImage: "finder") { NSWorkspace.shared.activateFileViewerSelecting([window.model.vault.url(for: p)]) }
             #endif

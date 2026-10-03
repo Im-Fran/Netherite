@@ -185,6 +185,8 @@ enum AppCommands {
             .init(id: "web", title: String(localized: "Web viewer: Open URL"), symbol: "globe") { w.promptWebURL() },
             .init(id: "record", title: String(localized: "Audio recorder: Start recording"), symbol: "mic") { w.sheet = .audio },
             .init(id: "import", title: String(localized: "Importer: Import notes"), symbol: "square.and.arrow.down") { w.sheet = .importer },
+            .init(id: "importFiles", title: String(localized: "Import files into vault"), symbol: "square.and.arrow.down.on.square") { w.importTarget = "" },
+            .init(id: "exportVault", title: String(localized: "Export vault"), symbol: "square.and.arrow.up.on.square") { w.export("") },
             .init(id: "publish", title: String(localized: "Publish: Publish vault"), symbol: "paperplane") { w.sheet = .publish },
             .init(id: "split", title: String(localized: "Split right"), symbol: "rectangle.split.2x1", shortcut: "⌘\\") { w.split() },
             .init(id: "back", title: String(localized: "Navigate back"), symbol: "chevron.backward", shortcut: "⌘[") { w.pane.back() },
