@@ -215,10 +215,13 @@ struct PaneView: View {
 
     @ViewBuilder private var moreMenu: some View {
         if compact {
-            Button("Back", systemImage: "chevron.backward") { pane.back() }.disabled(!pane.canGoBack)
-            Button("Forward", systemImage: "chevron.forward") { pane.forward() }.disabled(!pane.canGoForward)
-            Button("Toggle Inspector", systemImage: "sidebar.right", action: toggleInspector)
-            Divider()
+            // One row of round buttons at the top of the menu, like the system's palette menus.
+            ControlGroup {
+                Button("Back", systemImage: "chevron.backward") { pane.back() }.disabled(!pane.canGoBack)
+                Button("Forward", systemImage: "chevron.forward") { pane.forward() }.disabled(!pane.canGoForward)
+                Button("Toggle Inspector", systemImage: "sidebar.right", action: toggleInspector)
+            }
+            .controlGroupStyle(.palette)
         }
         if let p = pane.current?.path {
             Button("Open in New Pane", systemImage: "rectangle.split.2x1") { window.split() }
