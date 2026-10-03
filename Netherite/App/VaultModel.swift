@@ -23,7 +23,7 @@ final class VaultModel {
         recentFiles = vault.loadConfig("recent.json", fallback: [String]())
         themes = vault.themes()
         bookmarks = vault.loadConfig("bookmarks.json", fallback: [Bookmark]())
-        vault.downloadPlaceholders()
+        Task.detached { [vault] in vault.downloadPlaceholders() }
         Task {
             await index.load()
             SystemIntegration.reindex(self)
@@ -71,11 +71,21 @@ final class VaultModel {
     func flushAll() { for p in dirty { save(p) } }
 
     private func externalChange() async {
-        vault.downloadPlaceholders()
+        Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
         await index.refreshFromDisk(skipping: dirty)
     }
 
     func refresh() async { await externalChange() }
+
+    /// Stops observing the vault folder (iOS suspends apps holding file presenters in the background).
+    func suspendWatching() { watcher?.isWatching = false }
+
+    /// Resumes observing and picks up whatever changed while suspended.
+    func resumeWatching() {
+        guard let watcher, !watcher.isWatching else { return }
+        watcher.isWatching = true
+        Task { await externalChange() }
+    }
 
     // MARK: File operations
 
@@ -119,14 +129,16 @@ final class VaultModel {
             lastError = String(localized: "A file named “\(target.noteName)” already exists.")
             return nil
         }
-        save(path)
+        // Flush unsaved edits of the item and, for folders, of every note inside it.
+        for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         let result: String? = perform { try index.move(path, to: target); return target }
         if result != nil { recentFiles = recentFiles.map { $0 == path ? target : $0 } }
         return result
     }
 
     func trash(_ path: String) {
-        saveTasks[path]?.cancel(); dirty.remove(path)
+        // Drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
+        for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
         _ = perform { try index.trash(path) }
         recentFiles.removeAll { $0 == path || $0.hasPrefix(path + "/") }
     }
@@ -172,7 +184,15 @@ nonisolated final class VaultWatcher: NSObject, NSFilePresenter, @unchecked Send
         NSFileCoordinator.addFilePresenter(self)
     }
 
-    deinit { NSFileCoordinator.removeFilePresenter(self) }
+    deinit { if isWatching { NSFileCoordinator.removeFilePresenter(self) } }
+
+    /// Registers/unregisters the presenter with file coordination. Main-thread only.
+    var isWatching = true {
+        didSet {
+            guard isWatching != oldValue else { return }
+            if isWatching { NSFileCoordinator.addFilePresenter(self) } else { NSFileCoordinator.removeFilePresenter(self) }
+        }
+    }
 
     private func changed() {
         pending?.cancel()

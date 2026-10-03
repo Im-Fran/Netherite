@@ -11,9 +11,12 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     }
 }
 
-nonisolated private func sharedVault() throws -> Vault {
-    guard let v = SharedVault.current()?.resolve() else { throw IntentError.noVault }
-    return v
+/// Runs `body` on the shared vault off the main actor, holding folder access only while it runs.
+nonisolated private func withSharedVault<T: Sendable>(_ body: @escaping @Sendable (Vault) throws -> T) async throws -> T {
+    try await Task.detached {
+        guard let result = try SharedVault.current()?.withVault(body) else { throw IntentError.noVault }
+        return result
+    }.value
 }
 
 nonisolated private func openURL(_ s: String) -> URL { URL(string: s)! }
@@ -30,11 +33,12 @@ struct NoteEntity: AppEntity {
 struct NoteQuery: EntityStringQuery {
     func entities(for identifiers: [String]) async throws -> [NoteEntity] { identifiers.map(NoteEntity.init) }
     func entities(matching string: String) async throws -> [NoteEntity] {
-        try sharedVault().searchTitles(string).map(NoteEntity.init)
+        try await withSharedVault { $0.searchTitles(string) }.map(NoteEntity.init)
     }
     func suggestedEntities() async throws -> [NoteEntity] {
         let recents = SharedVault.recents()
-        return recents.isEmpty ? try sharedVault().searchTitles("", limit: 20).map(NoteEntity.init) : recents.map(NoteEntity.init)
+        if !recents.isEmpty { return recents.map(NoteEntity.init) }
+        return try await withSharedVault { $0.searchTitles("", limit: 20) }.map(NoteEntity.init)
     }
 }
 
@@ -47,7 +51,8 @@ struct CreateNoteIntent: AppIntent {
     @Parameter(title: "Folder", default: "") var folder: String
 
     func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> {
-        let path = try sharedVault().createNote(in: folder, named: noteTitle, content: content)
+        let (folder, noteTitle, content) = (self.folder, self.noteTitle, self.content)
+        let path = try await withSharedVault { try $0.createNote(in: folder, named: noteTitle, content: content) }
         return .result(value: NoteEntity(id: path))
     }
 }
@@ -62,7 +67,8 @@ struct AppendToDailyNoteIntent: AppIntent {
     init(text: String) { self.text = text }
 
     func perform() async throws -> some IntentResult {
-        try sharedVault().appendToDailyNote(text)
+        let text = self.text
+        _ = try await withSharedVault { try $0.appendToDailyNote(text) }
         return .result()
     }
 }
@@ -73,7 +79,8 @@ struct LogTimeIntent: AppIntent {
     static let isDiscoverable = false
 
     func perform() async throws -> some IntentResult {
-        try sharedVault().appendToDailyNote("- " + Templates.format(.now, "HH:mm") + " ")
+        let line = "- " + Templates.format(.now, "HH:mm") + " "
+        _ = try await withSharedVault { try $0.appendToDailyNote(line) }
         return .result()
     }
 }
@@ -105,7 +112,8 @@ struct SearchNotesIntent: AppIntent {
     @Parameter(title: "Text") var query: String
 
     func perform() async throws -> some IntentResult & ReturnsValue<[NoteEntity]> {
-        .result(value: try sharedVault().searchTitles(query).map(NoteEntity.init))
+        let query = self.query
+        return .result(value: try await withSharedVault { $0.searchTitles(query) }.map(NoteEntity.init))
     }
 }
 

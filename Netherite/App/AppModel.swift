@@ -21,7 +21,13 @@ final class AppModel {
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: "recentVaults"),
-           let r = try? JSONDecoder().decode([RecentVault].self, from: data) { recents = r }
+           let r = try? JSONDecoder().decode([RecentVault].self, from: data) {
+            // Rebasing can make two entries (same vault, old containers) collide: keep the newest.
+            var seen = Set<String>()
+            recents = r.map { var v = $0; v.path = Self.rebased(v.path); return v }
+                .sorted { $0.lastOpened > $1.lastOpened }
+                .filter { seen.insert($0.path).inserted }
+        }
     }
 
     var lastVaultPath: String? { recents.max { $0.lastOpened < $1.lastOpened }?.path }
@@ -68,6 +74,18 @@ final class AppModel {
         return p
     }
 
+    /// iOS moves the app's data container on reinstall and update, so absolute paths inside it go stale;
+    /// rebase them onto the current container. Paths elsewhere (iCloud Drive, picked folders) are unchanged.
+    nonisolated static func rebased(_ path: String) -> String {
+        #if os(iOS)
+        let marker = "/Containers/Data/Application/"
+        guard let r = path.range(of: marker), let slash = path[r.upperBound...].firstIndex(of: "/") else { return path }
+        return key(URL.homeDirectory) + path[slash...]
+        #else
+        return path
+        #endif
+    }
+
     /// Creates (or reopens) the guide vault in the user's language and opens its start note.
     func createGuideVault(in parent: URL) throws -> VaultModel {
         let spanish = Locale.current.language.languageCode?.identifier == "es"
@@ -82,11 +100,12 @@ final class AppModel {
     @discardableResult
     func openVault(at url: URL, bookmark: Data? = nil) -> VaultModel {
         let key = Self.key(url)
-        // Extensions, widgets and intents read the most recently opened vault from the App Group.
-        SharedVault.publish(SharedVault(name: url.lastPathComponent, path: key,
-                                        bookmark: try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
-        if let m = open[key] { touch(url, bookmark: bookmark); return m }
-        _ = url.startAccessingSecurityScopedResource()
+        if let m = open[key] { publishShared(url); touch(url, bookmark: bookmark); return m }
+        // Returns false for folders that need no security scope (app container, iCloud); only unreadable ones are an error.
+        if !url.startAccessingSecurityScopedResource() && !FileManager.default.isReadableFile(atPath: key) {
+            lastError = String(localized: "Netherite can’t access “\(url.lastPathComponent)”. Open the folder again to grant access.")
+        }
+        publishShared(url)
         let model = VaultModel(vault: Vault(root: url))
         open[key] = model
         touch(url, bookmark: bookmark ?? makeBookmark(url))
@@ -95,7 +114,7 @@ final class AppModel {
 
     /// Reopens a vault by path, resolving its security-scoped bookmark when needed.
     func model(forPath raw: String) -> VaultModel? {
-        let path = Self.key(URL(filePath: raw))
+        let path = Self.rebased(Self.key(URL(filePath: raw)))
         if let m = open[path] { return m }
         guard let recent = recents.first(where: { $0.path == path }) else {
             return FileManager.default.fileExists(atPath: path) ? openVault(at: URL(filePath: path)) : nil
@@ -103,6 +122,8 @@ final class AppModel {
         if let data = recent.bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: data, options: bookmarkResolveOptions, relativeTo: nil, bookmarkDataIsStale: &stale) {
+                // A stale bookmark may point to the folder's new location: replace the old entry, don't duplicate it.
+                if Self.key(url) != path { recents.removeAll { $0.path == path } }
                 return openVault(at: url, bookmark: stale ? nil : data)
             }
         }
@@ -122,6 +143,13 @@ final class AppModel {
         recents.removeAll { $0.path == path }
         recents.insert(r, at: 0)
         persist()
+    }
+
+    /// Extensions, widgets and intents read the most recently opened vault from the App Group.
+    /// The bookmark is made after security-scoped access starts, or it comes back nil on iOS.
+    private func publishShared(_ url: URL) {
+        SharedVault.publish(SharedVault(name: url.lastPathComponent, path: Self.key(url),
+                                        bookmark: try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
     }
 
     private func persist() {

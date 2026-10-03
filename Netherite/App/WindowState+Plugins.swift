@@ -8,7 +8,8 @@ extension WindowState {
     func openDailyNote(_ date: Date = .now) {
         let s = model.settings
         let path = Templates.dailyNotePath(for: date, settings: s)
-        if !model.index.files.contains(path) {
+        // The index may still be loading at startup: check the disk too so today's note is never overwritten.
+        if !model.index.files.contains(path) && !model.vault.exists(path) {
             let content = s.dailyNotes.template.isEmpty ? "" : Templates.render(templateText(s.dailyNotes.template), title: path.noteName, date: date)
             do { try model.vault.write(content, to: path); model.index.didCreate(path) } catch { model.lastError = error.localizedDescription; return }
         }
