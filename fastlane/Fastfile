@@ -129,7 +129,7 @@ platform :ios do
       xcargs: version_xcargs(options, key, "ios")
     )
 
-    upload(ipa: ipa, api_key: key, version: options[:version]) unless options[:upload] == false
+    upload(ipa: ipa, api_key: key, version: options[:version], build: options[:build_number]) unless options[:upload] == false
   end
 end
 
@@ -164,7 +164,7 @@ platform :mac do
 
     pkg = lane_context[SharedValues::PKG_OUTPUT_PATH]
     UI.user_error!("no .pkg was produced") if pkg.nil?
-    upload(pkg: pkg, api_key: key, version: options[:version]) unless options[:upload] == false
+    upload(pkg: pkg, api_key: key, version: options[:version], build: options[:build_number]) unless options[:upload] == false
 
     # The App Store build only runs from the store; re-export the same archive
     # with Developer ID, notarize it and zip it for the GitHub Release.
@@ -222,8 +222,8 @@ def version_xcargs(options, key, platform)
   args.join(" ")
 end
 
-def upload(api_key:, version:, **package)
-  notes = release_notes(version)
+def upload(api_key:, version:, build:, **package)
+  notes = release_notes(version, build)
   upload_to_testflight(
     api_key: api_key,
     changelog: notes,
@@ -234,17 +234,16 @@ def upload(api_key:, version:, **package)
   )
 end
 
-# The version's CHANGELOG section (Unreleased when it has none yet). Also left
-# in build/release-notes.md as Markdown for the GitHub Release.
 def release_version(options)
   version = options[:version].to_s
   UI.user_error!("pass version:x.y.z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
   version
 end
 
-def release_notes(version)
-  text = File.read(CHANGELOG, encoding: "UTF-8")
-  section = (version && Changelog.section(text, version)) || Changelog.section(text, "Unreleased")
+# The CHANGELOG section of version+build, else of the version (Unreleased when
+# it has neither yet). Also left in build/release-notes.md for the GitHub Release.
+def release_notes(version, build = nil)
+  section = Changelog.build_section(File.read(CHANGELOG, encoding: "UTF-8"), version, build)
   return nil if section.to_s.empty?
   File.write(File.join(ROOT, BUILD_DIR, "release-notes.md"), section)
   # TestFlight rejects "What to Test" over 4000 characters.
