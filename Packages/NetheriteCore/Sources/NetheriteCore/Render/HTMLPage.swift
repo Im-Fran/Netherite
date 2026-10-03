@@ -7,10 +7,11 @@ public extension HTMLRenderer {
     /// Wraps a rendered fragment in a full document. `assets` is the base URL/path of the Web folder.
     /// `baseSize` is the body text size in points (pass the Dynamic Type body size on iOS); `transparentBackground`
     /// lets a non-opaque web view show the app background, unless the theme sets its own; `increaseContrast`
-    /// strengthens secondary text and borders.
+    /// strengthens secondary text and borders; `reduceMotion` drops the heading flash (the system setting is honored by CSS).
     static func page(title: String?, body: String, assets: String, theme: Theme? = nil, fullWidth: Bool = false,
                      initialSubpath: String? = nil, extraHead: String = "", extraBody: String = "",
-                     baseSize: Double = 16, transparentBackground: Bool = false, increaseContrast: Bool = false) -> String {
+                     baseSize: Double = 16, transparentBackground: Bool = false, increaseContrast: Bool = false,
+                     reduceMotion: Bool = false) -> String {
         let a = assets.hasSuffix("/") ? assets : assets + "/"
         let needsMath = body.contains("class=\"math ")
         let needsMermaid = body.contains("class=\"mermaid\"")
@@ -34,6 +35,7 @@ public extension HTMLRenderer {
         else if baseSize != 16 { head += "\n<style>:root{--size:\(Int(baseSize))px}</style>" }
         if transparentBackground, theme?.background == nil { head += "\n<style>html{background:transparent}</style>" }
         if increaseContrast { head += "\n<style>\(increasedContrastCSS)</style>" }
+        if reduceMotion { head += "\n<style>.flash{animation:none;outline:2px solid var(--accent)}</style>" }
         if let sub = initialSubpath {
             let json = (try? String(data: JSONEncoder().encode(sub), encoding: .utf8)) ?? "\"\""
             head += "\n<script>window.netheriteInitialSubpath = \(json);</script>"
@@ -50,32 +52,39 @@ public extension HTMLRenderer {
     static let increasedContrastCSS = ":root{--muted:light-dark(#3a3a3c,#c7c7cc);--faint:light-dark(#6e6e73,#8e8e93)}"
 
     static func themeCSS(_ t: Theme, baseSize: Double = 16) -> String {
+        // Theme files come from the vault (possibly someone else's), so only hex colors, plain font names and
+        // simple callout names reach the stylesheet: anything else could close the <style> or inject rules.
         // Colors resolve through `color-scheme`: a theme with a fixed appearance pins it, others use light-dark().
-        func color(_ p: Theme.Pair) -> String {
+        func color(_ p: Theme.Pair) -> String? {
+            guard let light = RGB(hex: p.light)?.hex, let dark = RGB(hex: p.dark)?.hex else { return nil }
             switch t.appearance {
-            case .light: p.light
-            case .dark: p.dark
-            case nil: "light-dark(\(p.light),\(p.dark))"
+            case .light: return light
+            case .dark: return dark
+            case nil: return "light-dark(\(light),\(dark))"
             }
         }
         var v: [String] = []
         if let a = t.appearance { v.append("color-scheme:\(a.rawValue)") }
-        if let p = t.accent { v.append("--accent:\(color(p))") }
-        if let p = t.link { v.append("--link:\(color(p))") }
-        if let p = t.tag { v.append("--tag:\(color(p))") }
-        if let p = t.highlight { v.append("--mark:\(color(p))") }
-        if let p = t.background { v.append("--bg:\(color(p))") }
+        if let c = t.accent.flatMap(color) { v.append("--accent:\(c)") }
+        if let c = t.link.flatMap(color) { v.append("--link:\(c)") }
+        if let c = t.tag.flatMap(color) { v.append("--tag:\(c)") }
+        if let c = t.highlight.flatMap(color) { v.append("--mark:\(c)") }
+        if let c = t.background.flatMap(color) { v.append("--bg:\(c)") }
         // `ui-serif`, `ui-rounded`… are generic families and must stay unquoted.
-        func family(_ f: String) -> String { f.hasPrefix("ui-") ? f : "\"\(f)\"" }
-        if let f = t.textFont { v.append("--font:\(family(f)), -apple-system, sans-serif") }
-        if let f = t.monoFont { v.append("--mono:\(family(f)), ui-monospace, monospace") }
+        func family(_ f: String) -> String? {
+            guard !f.contains(where: { "\"'\\<>;{}()".contains($0) || $0.isNewline }) else { return nil }
+            return f.hasPrefix("ui-") ? f : "\"\(f)\""
+        }
+        if let f = t.textFont.flatMap(family) { v.append("--font:\(f), -apple-system, sans-serif") }
+        if let f = t.monoFont.flatMap(family) { v.append("--mono:\(f), ui-monospace, monospace") }
         if t.fontScale != nil || baseSize != 16 { v.append("--size:\(Int(baseSize * (t.fontScale ?? 1)))px") }
         if let l = t.lineHeight { v.append("--line:\(l * 1.28)") }
         var css = ":root{\(v.joined(separator: ";"))}"
         for (category, p) in (t.callouts ?? [:]).sorted(by: { $0.key < $1.key }) {
+            guard category.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }), let c = color(p) else { continue }
             let selector = category == "note" ? ".callout"
                 : (Theme.calloutTypes[category] ?? [category]).map { ".callout[data-callout=\($0)]" }.joined(separator: ",")
-            css += "\(selector){--c:\(color(p))}"
+            css += "\(selector){--c:\(c)}"
         }
         return css
     }

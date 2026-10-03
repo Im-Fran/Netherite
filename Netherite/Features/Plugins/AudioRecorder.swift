@@ -93,7 +93,10 @@ struct AudioRecorderView: View {
                 .gaugeStyle(.accessoryLinearCapacity)
                 .frame(maxWidth: 240)
                 .accessibilityValue(Text("\(Int(rec.level * 100)) percent"))
-            if let e = rec.error { Text(e).font(.callout).foregroundStyle(.red).multilineTextAlignment(.center) }
+            if let e = rec.error {
+                // Symbol as well as color, so the error reads as one without color.
+                Label { Text(e) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) }.font(.callout).multilineTextAlignment(.center)
+            }
             if rec.denied, let settingsURL {
                 Button("Open Settings") { openURL(settingsURL) }
             }
@@ -120,6 +123,8 @@ struct AudioRecorderView: View {
         .padding(32)
         .frame(minWidth: 360)
         .interactiveDismissDisabled(rec.recording || unsaved != nil)
+        // VoiceOver focus stays on the button that failed: say why.
+        .onChange(of: rec.error) { if let e = rec.error { AccessibilityNotification.Announcement(e).post() } }
         .confirmationDialog("Discard Recording?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard", role: .destructive) { rec.cancel(); dismiss() }
         }

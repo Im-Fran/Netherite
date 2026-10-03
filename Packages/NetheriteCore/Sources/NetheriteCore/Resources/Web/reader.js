@@ -31,7 +31,9 @@
     if (el) {
       const target = el.classList.contains('block-id') ? el.parentElement : el;
       target.scrollIntoView({ block: 'start' });
-      target.classList.add('flash');
+      // Restart the highlight on repeat jumps, and clear it so a Reduce Motion outline doesn't linger.
+      target.classList.remove('flash'); void target.offsetWidth; target.classList.add('flash');
+      setTimeout(() => target.classList.remove('flash'), 1200);
     }
   };
   let hoverTimer = null;

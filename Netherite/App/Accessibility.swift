@@ -25,8 +25,9 @@ final class A11y {
     var increaseContrast: Bool { didSet { Self.d.set(increaseContrast, forKey: "a11y.increaseContrast") } }
     var colorVision: ColorVision { didSet { Self.d.set(colorVision.rawValue, forKey: "a11y.colorVision") } }
     var reduceMotion: Bool { didSet { Self.d.set(reduceMotion, forKey: "a11y.reduceMotion") } }
-    /// The system's Increase Contrast, mirrored from the environment by `accessibilityRoot`.
+    /// The system's Increase Contrast and Reduce Motion, mirrored from the environment by `accessibilityRoot`.
     var systemIncreaseContrast = false
+    var systemReduceMotion = false
 
     private init() {
         let d = Self.d
@@ -57,7 +58,7 @@ final class A11y {
 
     /// Color-blind-safe stand-in for a semantic hue, or `fallback` when colors aren't remapped.
     func color(_ hue: ColorVision.Hue, _ fallback: Color) -> Color {
-        colorVision.color(hue).map { Color(pair: .init($0, $0), fallback: fallback) } ?? fallback
+        colorVision.pair(hue).map { Color(pair: $0, fallback: fallback) } ?? fallback
     }
 }
 
@@ -89,9 +90,9 @@ private struct AccessibilityRoot: ViewModifier {
             .environment(\._colorSchemeContrast, a.increaseContrast ? .increased : contrast)
             .environment(\._accessibilityReduceMotion, reduceMotion)
             .environment(\._accessibilityDifferentiateWithoutColor, systemDifferentiate || a.colorVision != .none)
-            .transaction { if reduceMotion { $0.disablesAnimations = true; $0.animation = nil } }
             .preferredColorScheme(appearance?.colorScheme)
             .onChange(of: contrast, initial: true) { a.systemIncreaseContrast = contrast == .increased }
+            .onChange(of: systemReduceMotion, initial: true) { a.systemReduceMotion = systemReduceMotion }
     }
 }
 

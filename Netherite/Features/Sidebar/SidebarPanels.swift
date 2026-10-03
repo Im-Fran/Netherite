@@ -74,7 +74,7 @@ struct SearchPanel: View {
         @Bindable var window = window
         VStack(spacing: 0) {
             HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                 TextField("Search", text: $window.searchQuery)
                     .textFieldStyle(.plain)
                     .focused($focused)

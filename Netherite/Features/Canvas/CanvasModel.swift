@@ -358,6 +358,12 @@ enum CanvasColor {
         ]
     }
 
+    /// Spoken name of a card or edge color: the preset's name, or "Custom" for a hex color.
+    static func name(_ value: String?) -> String? {
+        guard let value else { return nil }
+        return presets.first { $0.id == value }.map { String(localized: $0.name) } ?? String(localized: "Custom")
+    }
+
     static func color(_ value: String?) -> Color? {
         guard let value else { return nil }
         if let p = presets.first(where: { $0.id == value }) { return p.color }

@@ -29,6 +29,7 @@ struct FileNode: Identifiable, Hashable {
 
 struct FileExplorer: View {
     @Environment(WindowState.self) private var window
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var expanded: Set<String> = []
 
     var body: some View {
@@ -83,7 +84,7 @@ struct FileExplorer: View {
                         #if os(iOS)
                         // Tapping a folder only expands it; selecting it would push the empty detail on iPhone.
                         .contentShape(Rectangle())
-                        .onTapGesture { withAnimation { if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) } } }
+                        .onTapGesture { withAnimation(reduceMotion ? nil : .default) { if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) } } }
                         #endif
                         .dropDestination(for: String.self) { paths, _ in
                             paths.filter { $0 != node.path }.forEach { window.move($0, toFolder: node.path) }

@@ -11,15 +11,21 @@ struct AccessibilitySettingsView: View {
             Section {
                 Toggle("Use System Text Size", isOn: $a11y.useSystemTextSize)
                 if !a11y.useSystemTextSize {
-                    Slider(value: Binding(get: { Double(a11y.textSizeIndex) }, set: { a11y.textSizeIndex = Int($0.rounded()) }),
-                           in: 0...Double(DynamicTypeSize.allCases.count - 1), step: 1) {
+                    let percent = Text(a11y.textSize.bodyScale, format: .percent.precision(.fractionLength(0)))
+                    LabeledContent {
+                        Slider(value: Binding(get: { Double(a11y.textSizeIndex) }, set: { a11y.textSizeIndex = Int($0.rounded()) }),
+                               in: 0...Double(DynamicTypeSize.allCases.count - 1), step: 1) {
+                            Text("Text Size")
+                        } minimumValueLabel: {
+                            Image(systemName: "textformat.size.smaller").accessibilityHidden(true)
+                        } maximumValueLabel: {
+                            Image(systemName: "textformat.size.larger").accessibilityHidden(true)
+                        }
+                        .accessibilityValue(percent)
+                    } label: {
                         Text("Text Size")
-                    } minimumValueLabel: {
-                        Image(systemName: "textformat.size.smaller").accessibilityHidden(true)
-                    } maximumValueLabel: {
-                        Image(systemName: "textformat.size.larger").accessibilityHidden(true)
+                        percent.monospacedDigit()
                     }
-                    .accessibilityValue(Text(a11y.textSize.bodyScale, format: .percent.precision(.fractionLength(0))))
                 }
             } header: {
                 Text("Text Size")
@@ -42,7 +48,7 @@ struct AccessibilitySettingsView: View {
                     Text(a11y.lineSpacing, format: .number.precision(.fractionLength(2))).monospacedDigit()
                 }
                 // Sample at the editor's size: platform body size × Text Size × Font Size.
-                let size = 17 * typeSize.bodyScale * a11y.editorScale
+                let size = EditorStyler(theme: Theme(name: "", fontScale: typeSize.bodyScale * a11y.editorScale)).baseSize
                 Text("Notes are plain Markdown files you can open anywhere. Pick what’s most comfortable to read.")
                     .font(.system(size: size, design: a11y.editorFont.design))
                     .lineSpacing((a11y.lineSpacing - 1) * size)
@@ -51,9 +57,11 @@ struct AccessibilitySettingsView: View {
             }
 
             Section {
-                Toggle("Increase Contrast", isOn: $a11y.increaseContrast)
+                // On, and locked, while the device setting forces it.
+                Toggle("Increase Contrast", isOn: Binding(get: { a11y.highContrast }, set: { a11y.increaseContrast = $0 }))
+                    .disabled(a11y.systemIncreaseContrast)
             } footer: {
-                Text("Darkens links, tags and borders. Netherite also follows Increase Contrast in your device’s Accessibility settings.")
+                Text("Strengthens the contrast of links, tags and borders. It’s always on when Increase Contrast is on for your device.")
             }
 
             Section {
@@ -65,9 +73,10 @@ struct AccessibilitySettingsView: View {
             }
 
             Section {
-                Toggle("Reduce Motion", isOn: $a11y.reduceMotion)
+                Toggle("Reduce Motion", isOn: Binding(get: { a11y.reduceMotion || a11y.systemReduceMotion }, set: { a11y.reduceMotion = $0 }))
+                    .disabled(a11y.systemReduceMotion)
             } footer: {
-                Text("Turns off animations in Netherite. It’s always on when Reduce Motion is on for your device.")
+                Text("Turns off Netherite’s own animations, such as graph and canvas motion. It’s always on when Reduce Motion is on for your device, which also calms system transitions.")
             }
         }
         .formStyle(.grouped)

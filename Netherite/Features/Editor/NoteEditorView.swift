@@ -210,7 +210,7 @@ struct CompletionOverlay: View {
                         List(Array(items.enumerated()), id: \.element.id) { i, item in
                             Button { accept(item) } label: {
                                 HStack {
-                                    Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 18)
+                                    Image(systemName: item.symbol).foregroundStyle(.secondary).frame(width: 18).accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(item.title).lineLimit(1)
                                         if let s = item.subtitle { Text(s).font(.caption).foregroundStyle(.secondary).lineLimit(1) }

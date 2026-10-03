@@ -54,17 +54,38 @@ public enum ColorVision: String, CaseIterable, Codable, Sendable {
     /// The hues the app uses to tell things apart (callouts, canvas cards, graph groups, sync states).
     public enum Hue: CaseIterable, Sendable { case red, orange, yellow, green, cyan, blue, purple }
 
-    /// Safe stand-in for a hue as hex, or nil when colors aren't remapped.
     /// Protanopia/deuteranopia use Okabe–Ito, tritanopia Paul Tol's vibrant set, grayscale hues spread by lightness.
-    public func color(_ hue: Hue) -> String? {
-        let palette: [String] = switch self {
+    private var palette: [String] {
+        switch self {
         case .none: []
         case .protanopia, .deuteranopia: ["#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7"]
         case .tritanopia: ["#CC3311", "#EE7733", "#F4A6B7", "#009988", "#33BBEE", "#0077BB", "#AA4499"]
         case .grayscale: ["#882255", "#DDAA33", "#EEDD88", "#44AA99", "#88CCEE", "#004488", "#AA4499"]
         }
-        return palette.isEmpty ? nil : palette[Hue.allCases.firstIndex(of: hue)!]
     }
+
+    /// Safe stand-in for a hue as hex, or nil when colors aren't remapped.
+    public func color(_ hue: Hue) -> String? {
+        palette.isEmpty ? nil : palette[Hue.allCases.firstIndex(of: hue)!]
+    }
+
+    /// The stand-in as a light/dark pair for marks (graph, canvas, sync), at least 3:1 (WCAG non-text contrast)
+    /// against the surfaces they sit on. The whole palette shifts by one amount, so hues keep their lightness order.
+    public func pair(_ hue: Hue) -> Theme.Pair? {
+        guard let i = Hue.allCases.firstIndex(of: hue), !palette.isEmpty else { return nil }
+        let colors = palette.compactMap(RGB.init(hex:))
+        func shifted(on bg: RGB) -> String {
+            let target: RGB = bg.luminance > 0.179 ? .black : .white
+            var t = 0.0
+            func mixed(_ c: RGB) -> RGB { RGB(hex: c.mixed(with: target, t).hex)! }
+            while t < 1, colors.contains(where: { mixed($0).contrast(with: bg) < 3 }) { t += 0.02 }
+            return mixed(colors[i]).hex
+        }
+        return Theme.Pair(shifted(on: Self.surfaces.light), shifted(on: Self.surfaces.dark))
+    }
+
+    /// Lowest-contrast surfaces marks are drawn on: grouped/canvas gray in light mode, elevated gray in dark.
+    static let surfaces = (light: RGB(hex: "#F2F2F7")!, dark: RGB(hex: "#2C2C2E")!)
 }
 
 public extension Theme {
@@ -82,11 +103,12 @@ public extension Theme {
     func accessible(increaseContrast: Bool, vision: ColorVision) -> Theme {
         guard increaseContrast || vision != .none else { return self }
         var t = self
+        // Text colors start from the palette and get their contrast below; callout borders use the mark pairs.
         func hue(_ h: ColorVision.Hue) -> Pair? { vision.color(h).map { Pair($0, $0) } }
         if vision != .none {
             t.accent = hue(.blue); t.link = hue(.blue); t.tag = hue(.purple); t.highlight = hue(.yellow)
-            t.callouts = ["note": hue(.blue), "tip": hue(.green), "warning": hue(.orange), "danger": hue(.red), "example": hue(.purple)]
-                .compactMapValues { $0 }
+            t.callouts = ["note": vision.pair(.blue), "tip": vision.pair(.green), "warning": vision.pair(.orange),
+                          "danger": vision.pair(.red), "example": vision.pair(.purple)].compactMapValues { $0 }
         }
         let ratio = increaseContrast ? 7.0 : 4.5
         func fix(_ p: Pair?, against bg: Pair) -> Pair? {

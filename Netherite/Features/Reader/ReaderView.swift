@@ -18,7 +18,7 @@ struct ReaderView: View {
             html: HTMLRenderer.page(title: path.noteName, body: body, assets: "nth://web/", theme: model.theme,
                                     fullWidth: !model.settings.readableLineLength, initialSubpath: sub,
                                     baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
-                                    increaseContrast: A11y.shared.highContrast),
+                                    increaseContrast: A11y.shared.highContrast, reduceMotion: A11y.shared.reduceMotion),
             vault: model.vault,
             onAction: { action in
                 if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
@@ -91,7 +91,7 @@ struct PagePreview: View {
                     : HTMLRenderer.embed(NoteLink(target: target, isEmbed: true, isWiki: true, range: NSRange(), line: 0), .app(index, source: target))
                 HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme,
                                                    baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
-                                                   increaseContrast: A11y.shared.highContrast),
+                                                   increaseContrast: A11y.shared.highContrast, reduceMotion: A11y.shared.reduceMotion),
                             vault: window.model.vault, onAction: { window.handle($0, from: target) })
             } else {
                 ContentUnavailableView("“\(link.target)” doesn't exist yet", systemImage: "doc.badge.plus",

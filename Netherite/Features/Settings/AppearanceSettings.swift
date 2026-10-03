@@ -31,7 +31,9 @@ struct AppearanceSettingsView: View {
             } header: {
                 Text("Theme")
             } footer: {
-                Text("Automatic follows the system appearance. Light and Dark always use that appearance in this vault.")
+                if current.isBuiltIn {
+                    Text("Automatic follows the system appearance. Light and Dark always use that appearance in this vault.")
+                }
             }
 
             Section {
