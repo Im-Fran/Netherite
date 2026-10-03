@@ -169,17 +169,21 @@ platform :mac do
     # The App Store build only runs from the store; re-export the same archive
     # with Developer ID, notarize it and zip it for the GitHub Release.
     match(type: "developer_id", platform: "macos", api_key: key, readonly: true)
-    build_mac_app(
-      project: PROJECT,
-      scheme: SCHEME,
-      skip_build_archive: true,
-      archive_path: "#{BUILD_DIR}/Netherite-macOS.xcarchive",
-      sdk: "macosx", # same as above: otherwise gym expects an .ipa
-      skip_package_pkg: true,
-      export_method: "developer-id",
-      export_options: { provisioningProfiles: profile_mapping },
-      output_directory: "#{BUILD_DIR}/DeveloperID"
-    )
+    # gym never re-exports a macOS archive for Developer ID: it copies the
+    # archived .app, still signed for the App Store. So export it directly.
+    export_dir = File.join(ROOT, BUILD_DIR, "DeveloperID")
+    options_plist = File.join(ROOT, BUILD_DIR, "DeveloperIDExportOptions.plist")
+    File.write(options_plist, {
+      "method" => "developer-id",
+      "signingStyle" => "manual",
+      "signingCertificate" => "Developer ID Application",
+      "teamID" => TEAM_ID,
+      "provisioningProfiles" => profile_mapping
+    }.to_plist)
+    sh("xcodebuild", "-exportArchive",
+       "-archivePath", File.join(ROOT, BUILD_DIR, "Netherite-macOS.xcarchive"),
+       "-exportOptionsPlist", options_plist,
+       "-exportPath", export_dir)
     app = "#{BUILD_DIR}/DeveloperID/Netherite.app"
     notarize(package: app, api_key: key)
     version = options[:version] || File.read(File.join(ROOT, "project.yml"))[/MARKETING_VERSION: "([^"]+)"/, 1]

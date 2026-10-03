@@ -12,3 +12,6 @@ graphify-out/
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/.env
+
+# Gems installed by bundler (BUNDLE_PATH=vendor/bundle)
+vendor/
