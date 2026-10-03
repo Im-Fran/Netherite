@@ -31,6 +31,36 @@
         }
       }
     },
+    "%@ of %@ left" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quedan %1$@ de %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
     "%lld" : {
       "localizations" : {
         "es" : {
@@ -93,6 +123,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld attendees" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld asistentes"
           }
         }
       }
@@ -417,6 +457,26 @@
         }
       }
     },
+    "About %@ left" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quedan unos %@"
+          }
+        }
+      }
+    },
+    "Accessibility" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesibilidad"
+          }
+        }
+      }
+    },
     "Account ID" : {
       "localizations" : {
         "es" : {
@@ -447,12 +507,32 @@
         }
       }
     },
+    "Add Built-in Templates to Folder" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir plantillas incorporadas a la carpeta"
+          }
+        }
+      }
+    },
     "Add Card" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agregar tarjeta"
+          }
+        }
+      }
+    },
+    "Add Card to %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir tarjeta a %@"
           }
         }
       }
@@ -473,6 +553,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agregar nota de la bóveda"
+          }
+        }
+      }
+    },
+    "Add Property" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir propiedad"
           }
         }
       }
@@ -567,12 +657,32 @@
         }
       }
     },
+    "Added %lld templates." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se añadieron %lld plantillas."
+          }
+        }
+      }
+    },
     "Address" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dirección"
+          }
+        }
+      }
+    },
+    "Adds a base listing your meetings with their date and attendees." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade una base que lista tus reuniones con su fecha y asistentes."
           }
         }
       }
@@ -593,6 +703,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Todas las notas de la bóveda"
+          }
+        }
+      }
+    },
+    "All changes are in iCloud." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos los cambios están en iCloud."
           }
         }
       }
@@ -677,6 +797,16 @@
         }
       }
     },
+    "Arrange notes, images and links on an infinite board." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organiza notas, imágenes y enlaces en un lienzo infinito."
+          }
+        }
+      }
+    },
     "Attachments" : {
       "localizations" : {
         "es" : {
@@ -693,6 +823,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Carpeta de adjuntos"
+          }
+        }
+      }
+    },
+    "Attendees" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asistentes"
           }
         }
       }
@@ -723,6 +863,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automático"
+          }
+        }
+      }
+    },
+    "Automatic follows the system appearance. Light and Dark always use that appearance in this vault." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automático sigue el aspecto del sistema. Claro y Oscuro usan siempre ese aspecto en esta bóveda."
           }
         }
       }
@@ -787,12 +937,42 @@
         }
       }
     },
+    "Bases: Create new database" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bases: Crear nueva base de datos"
+          }
+        }
+      }
+    },
     "Bear #multi word tags# and ::highlights::" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bear: #etiquetas de varias palabras# y ::resaltados::"
+          }
+        }
+      }
+    },
+    "Blue/Yellow (Tritanopia)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azul/amarillo (tritanopía)"
+          }
+        }
+      }
+    },
+    "Board" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablero"
           }
         }
       }
@@ -923,6 +1103,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Built-in" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incorporadas"
           }
         }
       }
@@ -1117,6 +1307,16 @@
         }
       }
     },
+    "Clear Search" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar búsqueda"
+          }
+        }
+      }
+    },
     "Clear Sort" : {
       "localizations" : {
         "es" : {
@@ -1203,6 +1403,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Color"
+          }
+        }
+      }
+    },
+    "Color Vision" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visión del color"
           }
         }
       }
@@ -1559,6 +1769,16 @@
         }
       }
     },
+    "Core plugins" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugins principales"
+          }
+        }
+      }
+    },
     "Couldn't Create Theme" : {
       "localizations" : {
         "es" : {
@@ -1619,6 +1839,16 @@
         }
       }
     },
+    "Create Meetings Database" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear base de datos de reuniones"
+          }
+        }
+      }
+    },
     "Create New Note" : {
       "localizations" : {
         "es" : {
@@ -1659,6 +1889,16 @@
         }
       }
     },
+    "Create a note in this database" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea una nota en esta base de datos"
+          }
+        }
+      }
+    },
     "Create a note linking to this page" : {
       "localizations" : {
         "es" : {
@@ -1689,6 +1929,16 @@
         }
       }
     },
+    "Create meeting notes with attendees, agenda and action items." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea notas de reunión con asistentes, agenda y tareas pendientes."
+          }
+        }
+      }
+    },
     "Create new note" : {
       "localizations" : {
         "es" : {
@@ -1705,6 +1955,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crear nueva nota en un panel nuevo"
+          }
+        }
+      }
+    },
+    "Create notes named with a timestamp." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea notas cuyo nombre es una marca de tiempo."
           }
         }
       }
@@ -1729,12 +1989,32 @@
         }
       }
     },
+    "Created “%@”." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se creó “%@”."
+          }
+        }
+      }
+    },
     "Creates HTML pages, search, a graph and tag pages you can host anywhere." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crea páginas HTML, búsqueda, un grafo y páginas de etiquetas que puedes alojar donde quieras."
+          }
+        }
+      }
+    },
+    "Creates a folder for the entries and a base beside it with a table and a board." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea una carpeta para las entradas y, junto a ella, una base con una tabla y un tablero."
           }
         }
       }
@@ -1759,12 +2039,42 @@
         }
       }
     },
+    "Custom" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personalizado"
+          }
+        }
+      }
+    },
+    "Custom Themes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temas personalizados"
+          }
+        }
+      }
+    },
     "Custom themes" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temas personalizados"
+          }
+        }
+      }
+    },
+    "Custom themes are JSON files in %@." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los temas personalizados son archivos JSON en %@."
           }
         }
       }
@@ -1825,6 +2135,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notas diarias: abrir la nota diaria de hoy"
+          }
+        }
+      }
+    },
+    "Dark" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oscuro"
+          }
+        }
+      }
+    },
+    "Databases" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bases de datos"
           }
         }
       }
@@ -2079,6 +2409,16 @@
         }
       }
     },
+    "Downloading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando"
+          }
+        }
+      }
+    },
     "Drag on empty space to select (or hold ⇧)" : {
       "localizations" : {
         "es" : {
@@ -2095,6 +2435,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrastra para moverte, pellizca para hacer zoom y selecciona una nota para abrirla. Los filtros y fuerzas están en estos ajustes."
+          }
+        }
+      }
+    },
+    "Each vault’s sync, theme, editor and plugins are in its own settings: open the vault menu and choose Vault Settings." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sincronización, el tema, el editor y los plugins de cada bóveda están en sus propios ajustes: abre el menú de la bóveda y elige Ajustes de la bóveda."
           }
         }
       }
@@ -2149,6 +2499,16 @@
         }
       }
     },
+    "Editor and Reading View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editor y vista de lectura"
+          }
+        }
+      }
+    },
     "Embedded note: %@" : {
       "localizations" : {
         "es" : {
@@ -2189,6 +2549,16 @@
         }
       }
     },
+    "Estimating time…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculando tiempo…"
+          }
+        }
+      }
+    },
     "Evernote (.enex)" : {
       "localizations" : {
         "es" : {
@@ -2215,6 +2585,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Todo está al alcance del teclado, el menú Compartir, los widgets y Atajos."
+          }
+        }
+      }
+    },
+    "Everything is up to date" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo está al día"
           }
         }
       }
@@ -2255,6 +2635,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exporta desde Notion como “Markdown y CSV” y luego elige el .zip o su carpeta descomprimida."
+          }
+        }
+      }
+    },
+    "Export the vault as a website." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporta la bóveda como sitio web."
           }
         }
       }
@@ -2419,6 +2809,26 @@
         }
       }
     },
+    "Font" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo de letra"
+          }
+        }
+      }
+    },
+    "Font Size" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño de la letra"
+          }
+        }
+      }
+    },
     "Footnote" : {
       "localizations" : {
         "es" : {
@@ -2549,6 +2959,16 @@
         }
       }
     },
+    "Graph view" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vista de grafo"
+          }
+        }
+      }
+    },
     "Graph view: Open graph view" : {
       "localizations" : {
         "es" : {
@@ -2585,12 +3005,32 @@
         }
       }
     },
+    "Grayscale-Safe" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apta para escala de grises"
+          }
+        }
+      }
+    },
     "Green" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verde"
+          }
+        }
+      }
+    },
+    "Green/Red (Deuteranopia)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verde/rojo (deuteranopía)"
           }
         }
       }
@@ -2875,6 +3315,26 @@
         }
       }
     },
+    "In Progress" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En curso"
+          }
+        }
+      }
+    },
+    "Increase Contrast" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aumentar contraste"
+          }
+        }
+      }
+    },
     "Inline Code" : {
       "localizations" : {
         "es" : {
@@ -2921,6 +3381,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Insertar fecha"
+          }
+        }
+      }
+    },
+    "Insert templates or start new notes from one." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inserta plantillas o crea notas nuevas a partir de una."
           }
         }
       }
@@ -3045,6 +3515,26 @@
         }
       }
     },
+    "Keep snapshots of notes to restore earlier versions." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda instantáneas de las notas para restaurar versiones anteriores."
+          }
+        }
+      }
+    },
+    "Kickoff" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio"
+          }
+        }
+      }
+    },
     "Label" : {
       "localizations" : {
         "es" : {
@@ -3065,12 +3555,42 @@
         }
       }
     },
+    "Leave the template empty to use the built-in layout. Templates can use {{title}}, {{date}}, {{time}} and {{attendees}}." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deja la plantilla vacía para usar el formato incorporado. Las plantillas pueden usar {{title}}, {{date}}, {{time}} y {{attendees}}."
+          }
+        }
+      }
+    },
     "Legacy alias/tag/cssclass properties" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Propiedades heredadas alias/tag/cssclass"
+          }
+        }
+      }
+    },
+    "Light" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claro"
+          }
+        }
+      }
+    },
+    "Line Spacing" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interlineado"
           }
         }
       }
@@ -3225,6 +3745,16 @@
         }
       }
     },
+    "Manage your vaults and their iCloud storage, recover deleted vaults, and choose how Netherite works on this device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Administra tus bóvedas y su almacenamiento en iCloud, recupera bóvedas eliminadas y elige cómo funciona Netherite en este dispositivo."
+          }
+        }
+      }
+    },
     "Markdown Syntax Guide" : {
       "localizations" : {
         "es" : {
@@ -3295,6 +3825,66 @@
         }
       }
     },
+    "Meeting" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reunión"
+          }
+        }
+      }
+    },
+    "Meeting notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas de reunión"
+          }
+        }
+      }
+    },
+    "Meeting notes: New meeting note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas de reunión: Nueva nota de reunión"
+          }
+        }
+      }
+    },
+    "Meeting, daily journal, weekly review, project, book notes, to-do list and decision record. Existing files are kept." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reunión, diario, revisión semanal, proyecto, notas de libro, lista de tareas y registro de decisiones. Los archivos existentes se conservan."
+          }
+        }
+      }
+    },
+    "Meetings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reuniones"
+          }
+        }
+      }
+    },
+    "Merge notes, or extract a selection into a new note." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combina notas o extrae una selección a una nota nueva."
+          }
+        }
+      }
+    },
     "Merge “%@” into…" : {
       "localizations" : {
         "es" : {
@@ -3345,6 +3935,26 @@
         }
       }
     },
+    "Mode" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo"
+          }
+        }
+      }
+    },
+    "Monospaced" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monoespaciada"
+          }
+        }
+      }
+    },
     "More" : {
       "localizations" : {
         "es" : {
@@ -3371,6 +3981,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Muévete por el grafo"
+          }
+        }
+      }
+    },
+    "Move To" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a"
           }
         }
       }
@@ -3405,12 +4025,32 @@
         }
       }
     },
+    "Move to %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a %@"
+          }
+        }
+      }
+    },
     "Move to Trash" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mover a la papelera"
+          }
+        }
+      }
+    },
+    "Move to Trash…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mover a la papelera…"
           }
         }
       }
@@ -3465,6 +4105,16 @@
         }
       }
     },
+    "Names, separated by commas" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombres, separados por comas"
+          }
+        }
+      }
+    },
     "Navigate back" : {
       "localizations" : {
         "es" : {
@@ -3495,6 +4145,16 @@
         }
       }
     },
+    "Netherite Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes de Netherite"
+          }
+        }
+      }
+    },
     "Netherite can’t access “%@”. Open the folder again to grant access." : {
       "localizations" : {
         "es" : {
@@ -3511,6 +4171,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nueva base"
+          }
+        }
+      }
+    },
+    "New Board View" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva vista de tablero"
           }
         }
       }
@@ -3535,6 +4205,46 @@
         }
       }
     },
+    "New Column" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva columna"
+          }
+        }
+      }
+    },
+    "New Database" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva base de datos"
+          }
+        }
+      }
+    },
+    "New Database…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva base de datos…"
+          }
+        }
+      }
+    },
+    "New Entry" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva entrada"
+          }
+        }
+      }
+    },
     "New Folder" : {
       "localizations" : {
         "es" : {
@@ -3555,12 +4265,52 @@
         }
       }
     },
+    "New Meeting Note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva nota de reunión"
+          }
+        }
+      }
+    },
+    "New Meeting Note…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva nota de reunión…"
+          }
+        }
+      }
+    },
     "New Note" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nueva nota"
+          }
+        }
+      }
+    },
+    "New Note from Template" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva nota desde plantilla"
+          }
+        }
+      }
+    },
+    "New Note from Template…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva nota desde plantilla…"
           }
         }
       }
@@ -3755,6 +4505,16 @@
         }
       }
     },
+    "No value" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin valor"
+          }
+        }
+      }
+    },
     "No workspaces yet" : {
       "localizations" : {
         "es" : {
@@ -3815,6 +4575,16 @@
         }
       }
     },
+    "Note composer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compositor de notas"
+          }
+        }
+      }
+    },
     "Note composer: Extract selection to new note" : {
       "localizations" : {
         "es" : {
@@ -3871,6 +4641,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Las notas se copian en tu bóveda. Los archivos existentes nunca se sobrescriben."
+          }
+        }
+      }
+    },
+    "Notes are plain Markdown files you can open anywhere. Pick what’s most comfortable to read." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las notas son archivos Markdown que puedes abrir en cualquier parte. Elige lo que te resulte más cómodo de leer."
           }
         }
       }
@@ -4125,6 +4905,26 @@
         }
       }
     },
+    "Open a note for today, named by its date." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una nota para hoy, con su fecha como nombre."
+          }
+        }
+      }
+    },
+    "Open a random note." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una nota al azar."
+          }
+        }
+      }
+    },
     "Open a vault in Netherite first." : {
       "localizations" : {
         "es" : {
@@ -4215,6 +5015,26 @@
         }
       }
     },
+    "Open vault settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir ajustes de la bóveda"
+          }
+        }
+      }
+    },
+    "Open web pages in a pane." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre páginas web en un panel."
+          }
+        }
+      }
+    },
     "Opens Netherite with a new note." : {
       "localizations" : {
         "es" : {
@@ -4231,6 +5051,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Abre una nota en Netherite."
+          }
+        }
+      }
+    },
+    "Opens the note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la nota"
           }
         }
       }
@@ -4261,6 +5091,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Operadores: tag: path: file: line: task: [prop:value] \"frase\" -exclude OR /regex/"
+          }
+        }
+      }
+    },
+    "Options" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opciones"
           }
         }
       }
@@ -4325,12 +5165,32 @@
         }
       }
     },
+    "Plugins" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugins"
+          }
+        }
+      }
+    },
     "Preparing the Guide…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preparando la guía…"
+          }
+        }
+      }
+    },
+    "Present a note as slides, split by ---." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presenta una nota como diapositivas, separadas por ---."
           }
         }
       }
@@ -4485,6 +5345,16 @@
         }
       }
     },
+    "Random note" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nota aleatoria"
+          }
+        }
+      }
+    },
     "Random note: Open random note" : {
       "localizations" : {
         "es" : {
@@ -4545,6 +5415,16 @@
         }
       }
     },
+    "Record audio and embed it in the current note." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graba audio e insértalo en la nota actual."
+          }
+        }
+      }
+    },
     "Recording" : {
       "localizations" : {
         "es" : {
@@ -4571,6 +5451,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rojo"
+          }
+        }
+      }
+    },
+    "Red/Green (Protanopia)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rojo/verde (protanopía)"
+          }
+        }
+      }
+    },
+    "Reduce Motion" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducir movimiento"
           }
         }
       }
@@ -4611,6 +5511,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quitar marcador"
+          }
+        }
+      }
+    },
+    "Remove Column" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar columna"
           }
         }
       }
@@ -4715,6 +5625,16 @@
         }
       }
     },
+    "Replaces theme, callout, canvas, graph and sync colors with ones that stay distinguishable, and adds shapes where color alone tells things apart." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sustituye los colores del tema, los callouts, el lienzo, el grafo y la sincronización por otros que se siguen distinguiendo, y añade formas donde solo el color diferencia las cosas."
+          }
+        }
+      }
+    },
     "Reset View" : {
       "localizations" : {
         "es" : {
@@ -4775,6 +5695,16 @@
         }
       }
     },
+    "Rounded" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redondeada"
+          }
+        }
+      }
+    },
     "Rules" : {
       "localizations" : {
         "es" : {
@@ -4791,6 +5721,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Guardar"
+          }
+        }
+      }
+    },
+    "Save and restore layouts of open panes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda y restaura la disposición de los paneles abiertos."
           }
         }
       }
@@ -4895,6 +5835,16 @@
         }
       }
     },
+    "Search entries" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar entradas"
+          }
+        }
+      }
+    },
     "Search files" : {
       "localizations" : {
         "es" : {
@@ -4931,6 +5881,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mira qué enlaza aquí"
+          }
+        }
+      }
+    },
+    "See how your notes link to each other." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mira cómo se enlazan tus notas entre sí."
           }
         }
       }
@@ -4995,12 +5955,32 @@
         }
       }
     },
+    "Serif" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serif"
+          }
+        }
+      }
+    },
     "Set heading %lld" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Establecer encabezado %lld"
+          }
+        }
+      }
+    },
+    "Sets the size of text in Netherite only, including the larger accessibility sizes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajusta el tamaño del texto solo en Netherite, incluidos los tamaños de accesibilidad más grandes."
           }
         }
       }
@@ -5055,6 +6035,16 @@
         }
       }
     },
+    "Show notes as tables, cards and boards you can edit." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra notas como tablas, tarjetas y tableros que puedes editar."
+          }
+        }
+      }
+    },
     "Show or hide backlinks, outline and properties" : {
       "localizations" : {
         "es" : {
@@ -5065,12 +6055,32 @@
         }
       }
     },
+    "Showing %lld of %lld files." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se muestran %1$lld de %2$lld archivos."
+          }
+        }
+      }
+    },
     "Shown" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visible"
+          }
+        }
+      }
+    },
+    "Shows the files being synced" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra los archivos que se están sincronizando"
           }
         }
       }
@@ -5121,6 +6131,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diapositiva %lld de %lld"
+          }
+        }
+      }
+    },
+    "Slides" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diapositivas"
           }
         }
       }
@@ -5215,6 +6235,16 @@
         }
       }
     },
+    "Start Audio Recording" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empezar a grabar audio"
+          }
+        }
+      }
+    },
     "Start Presentation" : {
       "localizations" : {
         "es" : {
@@ -5245,6 +6275,16 @@
         }
       }
     },
+    "Strengthens the contrast of links, tags and borders. It’s always on when Increase Contrast is on for your device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refuerza el contraste de enlaces, etiquetas y bordes. Siempre está activado cuando Aumentar contraste está activado en tu dispositivo."
+          }
+        }
+      }
+    },
     "Strikethrough" : {
       "localizations" : {
         "es" : {
@@ -5265,12 +6305,72 @@
         }
       }
     },
+    "Sync" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sincronización"
+          }
+        }
+      }
+    },
     "Sync through iCloud Drive if you want" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sincroniza con iCloud Drive si quieres"
+          }
+        }
+      }
+    },
+    "Syncing %lld files" : {
+      "localizations" : {
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sincronizando %lld archivo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sincronizando %lld archivos"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Syncing %lld file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Syncing %lld files"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "System" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema"
           }
         }
       }
@@ -5345,6 +6445,16 @@
         }
       }
     },
+    "Template" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plantilla"
+          }
+        }
+      }
+    },
     "Template file" : {
       "localizations" : {
         "es" : {
@@ -5405,12 +6515,32 @@
         }
       }
     },
+    "Templates: New note from template" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plantillas: Nueva nota desde plantilla"
+          }
+        }
+      }
+    },
     "Text" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Texto"
+          }
+        }
+      }
+    },
+    "Text Size" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño del texto"
           }
         }
       }
@@ -5545,6 +6675,16 @@
         }
       }
     },
+    "This vault is stored only on this device. To sync it with your other devices, move it to iCloud Drive in Netherite Settings › Vaults and Storage." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta bóveda está guardada solo en este dispositivo. Para sincronizarla con tus otros dispositivos, muévela a iCloud Drive en Ajustes de Netherite › Bóvedas y almacenamiento."
+          }
+        }
+      }
+    },
     "Tips will show again the next time you open Netherite." : {
       "localizations" : {
         "es" : {
@@ -5561,6 +6701,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Título"
+          }
+        }
+      }
+    },
+    "To Do" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por hacer"
           }
         }
       }
@@ -5755,6 +6905,36 @@
         }
       }
     },
+    "Turned-off plugins disappear from the command palette and menus. Your notes are never changed." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los plugins desactivados desaparecen de la paleta de comandos y de los menús. Tus notas nunca se modifican."
+          }
+        }
+      }
+    },
+    "Turns off Netherite’s own animations, such as graph and canvas motion. It’s always on when Reduce Motion is on for your device, which also calms system transitions." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactiva las animaciones propias de Netherite, como el movimiento del grafo y del lienzo. Siempre está activado cuando Reducir movimiento está activado en tu dispositivo, que también suaviza las transiciones del sistema."
+          }
+        }
+      }
+    },
+    "Type" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tipo"
+          }
+        }
+      }
+    },
     "Type / at the start of a line for headings, tasks, tables, callouts, math and templates." : {
       "localizations" : {
         "es" : {
@@ -5876,6 +7056,26 @@
         }
       }
     },
+    "Uploading" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subiendo"
+          }
+        }
+      }
+    },
+    "Use System Text Size" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar el tamaño de texto del sistema"
+          }
+        }
+      }
+    },
     "Use [[Wikilinks]]" : {
       "localizations" : {
         "es" : {
@@ -5926,6 +7126,26 @@
         }
       }
     },
+    "Vault Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes de la bóveda"
+          }
+        }
+      }
+    },
+    "Vault Settings…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes de la bóveda…"
+          }
+        }
+      }
+    },
     "Vault name" : {
       "localizations" : {
         "es" : {
@@ -5942,6 +7162,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Raíz de la bóveda"
+          }
+        }
+      }
+    },
+    "Vault templates" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plantillas de la bóveda"
           }
         }
       }
@@ -5976,6 +7206,56 @@
         }
       }
     },
+    "Waiting" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera"
+          }
+        }
+      }
+    },
+    "Waiting to sync %lld files" : {
+      "localizations" : {
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld archivo esperando sincronizarse"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld archivos esperando sincronizarse"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file waiting to sync"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files waiting to sync"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Web page" : {
       "localizations" : {
         "es" : {
@@ -5992,6 +7272,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tarjeta de página web: %@"
+          }
+        }
+      }
+    },
+    "Web viewer" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visor web"
           }
         }
       }
@@ -6233,6 +7523,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "iCloud Drive no está disponible, así que la bóveda se guardará en este dispositivo."
+          }
+        }
+      }
+    },
+    "iCloud syncs changes in the background, also while Netherite is closed." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud sincroniza los cambios en segundo plano, incluso con Netherite cerrado."
           }
         }
       }

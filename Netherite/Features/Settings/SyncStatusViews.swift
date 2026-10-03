@@ -37,12 +37,13 @@ extension SyncStatus {
 struct SyncStatusIcon: View {
     let status: SyncStatus?
     var isInICloud = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let symbol = status?.symbol ?? (isInICloud ? "icloud" : "folder")
         Image(systemName: symbol)
             .foregroundStyle(status?.tint ?? .secondary)
-            .symbolEffect(.pulse, isActive: status == .syncing)
+            .symbolEffect(.pulse, isActive: status == .syncing && !reduceMotion)
             .contentTransition(.symbolEffect(.replace))
             .accessibilityLabel(Text(status?.label ?? (isInICloud ? "iCloud Drive" : "Stored Locally")))
     }
@@ -133,6 +134,7 @@ struct VaultSyncFooter: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
+                    .frame(minHeight: 44)
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)

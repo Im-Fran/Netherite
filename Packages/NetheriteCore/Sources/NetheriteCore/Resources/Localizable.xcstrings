@@ -1,6 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ Dark" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Oscuro"
+          }
+        }
+      }
+    },
+    "%@ Light" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Claro"
+          }
+        }
+      }
+    },
     "%d results" : {
       "localizations" : {
         "es" : {
@@ -31,6 +51,56 @@
         }
       }
     },
+    "Action items" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tareas pendientes"
+          }
+        }
+      }
+    },
+    "Agenda" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenda"
+          }
+        }
+      }
+    },
+    "Board" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablero"
+          }
+        }
+      }
+    },
+    "Book notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas de libro"
+          }
+        }
+      }
+    },
+    "Challenges" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desafíos"
+          }
+        }
+      }
+    },
     "Checking project…" : {
       "localizations" : {
         "es" : {
@@ -51,6 +121,26 @@
         }
       }
     },
+    "Consequences" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consecuencias"
+          }
+        }
+      }
+    },
+    "Context" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contexto"
+          }
+        }
+      }
+    },
     "Creating deployment…" : {
       "localizations" : {
         "es" : {
@@ -61,12 +151,82 @@
         }
       }
     },
+    "Daily journal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diario"
+          }
+        }
+      }
+    },
+    "Decision" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decisión"
+          }
+        }
+      }
+    },
+    "Decision record" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registro de decisión"
+          }
+        }
+      }
+    },
+    "Decisions" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decisiones"
+          }
+        }
+      }
+    },
+    "Ember" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brasa"
+          }
+        }
+      }
+    },
     "Encrypted ZIP archives aren't supported." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Los archivos ZIP cifrados no son compatibles."
+          }
+        }
+      }
+    },
+    "Forest" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bosque"
+          }
+        }
+      }
+    },
+    "Goal" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objetivo"
           }
         }
       }
@@ -91,12 +251,102 @@
         }
       }
     },
+    "Graphite" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grafito"
+          }
+        }
+      }
+    },
+    "Grateful for" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agradecimientos"
+          }
+        }
+      }
+    },
+    "Key ideas" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ideas clave"
+          }
+        }
+      }
+    },
+    "Lessons learned" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecciones aprendidas"
+          }
+        }
+      }
+    },
     "Links to this page" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enlaces a esta página"
+          }
+        }
+      }
+    },
+    "Log" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registro"
+          }
+        }
+      }
+    },
+    "Meeting" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reunión"
+          }
+        }
+      }
+    },
+    "Milestones" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hitos"
+          }
+        }
+      }
+    },
+    "My thoughts" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mis reflexiones"
+          }
+        }
+      }
+    },
+    "Next week's priorities" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prioridades de la próxima semana"
           }
         }
       }
@@ -131,6 +381,36 @@
         }
       }
     },
+    "Notes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notas"
+          }
+        }
+      }
+    },
+    "Ocean" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Océano"
+          }
+        }
+      }
+    },
+    "Options considered" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opciones consideradas"
+          }
+        }
+      }
+    },
     "Page not found" : {
       "localizations" : {
         "es" : {
@@ -141,12 +421,82 @@
         }
       }
     },
+    "Planning" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planificación"
+          }
+        }
+      }
+    },
+    "Project" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proyecto"
+          }
+        }
+      }
+    },
+    "Proposed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Propuesta"
+          }
+        }
+      }
+    },
+    "Quotes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Citas"
+          }
+        }
+      }
+    },
+    "Reflection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexión"
+          }
+        }
+      }
+    },
     "Requesting upload token…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Solicitando token de subida…"
+          }
+        }
+      }
+    },
+    "Resources" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recursos"
+          }
+        }
+      }
+    },
+    "Rose" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rosa"
           }
         }
       }
@@ -171,12 +521,42 @@
         }
       }
     },
+    "Summary" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumen"
+          }
+        }
+      }
+    },
     "System" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sistema"
+          }
+        }
+      }
+    },
+    "Table" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabla"
+          }
+        }
+      }
+    },
+    "Tasks" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tareas"
           }
         }
       }
@@ -221,6 +601,36 @@
         }
       }
     },
+    "To read" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por leer"
+          }
+        }
+      }
+    },
+    "To-do list" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lista de tareas"
+          }
+        }
+      }
+    },
+    "Today's focus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enfoque de hoy"
+          }
+        }
+      }
+    },
     "Untitled" : {
       "localizations" : {
         "es" : {
@@ -237,6 +647,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Subiendo archivos (%lld)…"
+          }
+        }
+      }
+    },
+    "Weekly review" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisión semanal"
+          }
+        }
+      }
+    },
+    "Wins" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logros"
           }
         }
       }
