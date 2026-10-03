@@ -54,7 +54,7 @@ struct VaultWindow: View {
         }
         .task {
             if sizeClass == .compact { window.showInspector = false }
-            if window.model.settings.dailyNotes.openOnStartup { window.openDailyNote() }
+            if window.model.settings.dailyNotes.openOnStartup && window.model.settings.isEnabled(.dailyNotes) { window.openDailyNote() }
             else if window.pane.current == nil, let last = window.model.recentFiles.first(where: window.model.vault.exists) {
                 window.open(path: last)
             }
@@ -104,6 +104,9 @@ struct VaultWindow: View {
         case .audio: AudioRecorderView()
         case .merge(let p): MergeSheet(source: p)
         case .openURL: OpenURLSheet()
+        case .meetingNote: MeetingNoteSheet()
+        case .newDatabase(let folder): NewDatabaseSheet(folder: folder)
+        case .newFromTemplate(let folder): NewNoteFromTemplateSheet(folder: folder)
         }
     }
 
@@ -220,6 +223,7 @@ struct PaneView: View {
     }
 
     private var compact: Bool { sizeClass == .compact }
+    private func enabled(_ p: CorePlugin) -> Bool { window.model.settings.isEnabled(p) }
 
     private func toggleInspector() {
         window.showInspector.toggle()
@@ -241,11 +245,13 @@ struct PaneView: View {
             if window.panes.count > 1 { Button("Close Pane", systemImage: "xmark.rectangle") { window.closePane(pane) } }
             Divider()
             if case .note(let n) = pane.current {
-                Menu("Open Local Graph", systemImage: "circle.hexagongrid") {
-                    Button("In New Pane", systemImage: "rectangle.split.2x1") { window.openLocalGraph(for: n) }
-                    Button("Full Window", systemImage: "rectangle") { window.openLocalGraph(for: n, newPane: false) }
+                if enabled(.graph) {
+                    Menu("Open Local Graph", systemImage: "circle.hexagongrid") {
+                        Button("In New Pane", systemImage: "rectangle.split.2x1") { window.openLocalGraph(for: n) }
+                        Button("Full Window", systemImage: "rectangle") { window.openLocalGraph(for: n, newPane: false) }
+                    }
                 }
-                Button("Start Presentation", systemImage: "play.rectangle") { window.presentingSlides = true }
+                if enabled(.slides) { Button("Start Presentation", systemImage: "play.rectangle") { window.presentingSlides = true } }
             }
             Button(window.model.isBookmarked(p) ? "Remove Bookmark" : "Bookmark", systemImage: "bookmark") {
                 if window.model.isBookmarked(p) { window.model.removeBookmark(.file(p)) } else { window.model.addBookmark(.file(p)) }
@@ -253,7 +259,7 @@ struct PaneView: View {
             Button("Copy Link", systemImage: "link") { copyToPasteboard(window.model.linkText(to: p)) }
             ShareLink(item: window.model.vault.url(for: p))
             Button("Rename…", systemImage: "pencil") { window.sheet = .rename(p) }
-            Button("Snapshots…", systemImage: "clock.arrow.circlepath") { window.sheet = .recovery(p) }
+            if enabled(.fileRecovery) { Button("Snapshots…", systemImage: "clock.arrow.circlepath") { window.sheet = .recovery(p) } }
             Button("Export…", systemImage: "square.and.arrow.up.on.square") { window.export(p) }
             #if os(macOS)
             Button("Reveal in Finder", systemImage: "finder") { NSWorkspace.shared.activateFileViewerSelecting([window.model.vault.url(for: p)]) }
@@ -278,7 +284,7 @@ struct EmptyPane: View {
             Button("Create New Note") { window.newNote() }
                 .buttonStyle(.borderedProminent)
             Button("Go to File…") { window.sheet = .quickSwitcher }
-            Button("Open Today's Daily Note") { window.openDailyNote() }
+            if window.model.settings.isEnabled(.dailyNotes) { Button("Open Today's Daily Note") { window.openDailyNote() } }
         }
         .overlay(alignment: .bottom) {
             TipView(DailyNoteTip()).frame(maxWidth: 420).padding()

@@ -112,6 +112,8 @@ enum SidebarTab: String, CaseIterable, Identifiable, Codable {
 
 enum ActiveSheet: Identifiable {
     case quickSwitcher, commandPalette, settings, vaultSettings(VaultSettingsPage?), rename(String), templates, importer, publish, workspaces, recovery(String), audio, merge(String), openURL
+    /// Plugin sheets; the string is the folder to create in.
+    case meetingNote, newDatabase(String), newFromTemplate(String)
     var id: String {
         switch self {
         case .rename(let p): "rename:\(p)"

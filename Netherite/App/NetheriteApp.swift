@@ -101,6 +101,9 @@ struct NetheriteCommands: Commands {
     @FocusedValue(\.editor) private var editor
     @Environment(\.openWindow) private var openWindow
 
+    /// Plugin commands stay visible when no vault window is focused (they're disabled then).
+    private func enabled(_ p: CorePlugin) -> Bool { window?.model.settings.isEnabled(p) ?? true }
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Note") { window?.newNote() }.keyboardShortcut("n").disabled(window == nil)
@@ -116,7 +119,12 @@ struct NetheriteCommands: Commands {
             Divider()
             Button("Go to File…") { window?.sheet = .quickSwitcher }.keyboardShortcut("o").disabled(window == nil)
             Button("Command Palette…") { window?.sheet = .commandPalette }.keyboardShortcut("p").disabled(window == nil)
-            Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
+            if enabled(.dailyNotes) {
+                Button("Open Today's Daily Note") { window?.openDailyNote() }.keyboardShortcut("d", modifiers: [.command, .shift]).disabled(window == nil)
+            }
+            if enabled(.meetingNotes) {
+                Button("New Meeting Note…") { window?.sheet = .meetingNote }.disabled(window == nil)
+            }
         }
         CommandGroup(after: .appSettings) {
             Button("Vault Settings…") { window?.sheet = .vaultSettings(nil) }
@@ -147,14 +155,18 @@ struct NetheriteCommands: Commands {
                 Button("Numbered List") { editor?.toggleLinePrefix("1. ") }
                 Button("Checklist") { editor?.toggleLinePrefix("- [ ] ") }.keyboardShortcut("l")
                 Button("Quote") { editor?.toggleLinePrefix("> ") }
-                Divider()
-                Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .shift])
+                if enabled(.templates) {
+                    Divider()
+                    Button("Insert Template…") { window?.sheet = .templates }.keyboardShortcut("t", modifiers: [.command, .shift])
+                }
             }
             .disabled(editor == nil)
         }
         CommandGroup(before: .sidebar) {
             Button("Toggle Reading View") { window?.pane.reading.toggle() }.keyboardShortcut("e").disabled(window?.currentNote == nil)
-            Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g", modifiers: [.command, .control]).disabled(window == nil)
+            if enabled(.graph) {
+                Button("Graph View") { window?.open(.graph) }.keyboardShortcut("g", modifiers: [.command, .control]).disabled(window == nil)
+            }
             Button("Split Right") { window?.split() }.keyboardShortcut("\\").disabled(window == nil)
             Button("Toggle Inspector") { window?.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option]).disabled(window == nil)
             Divider()
