@@ -11,6 +11,24 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(SyncStatus.combine([.init(isUbiquitous: true, isUploaded: false), .init(isUbiquitous: true, isDownloading: true)],
                                folderIsUbiquitous: true) == .syncing)
     #expect(SyncStatus.combine([.init(isUbiquitous: true, isUploaded: false, isUploading: true)], folderIsUbiquitous: true) == .syncing)
+    #expect(SyncStatus.File(isUbiquitous: true, isUploaded: false).transfer == .waiting)
+    #expect(SyncStatus.File(isUbiquitous: true, isDownloading: true).transfer == .download)
+    #expect(SyncStatus.File(isUbiquitous: true).transfer == nil)
+    #expect(SyncStatus.File(isUbiquitous: false, isUploaded: false).transfer == nil)
+}
+
+@Test func syncProgressEstimatesTimeLeft() {
+    let t0 = Date(timeIntervalSince1970: 0)
+    var p = SyncProgress()
+    p.record(pending: 1000, at: t0)
+    #expect(p.fraction == 0 && p.timeRemaining == nil)
+    p.record(pending: 600, at: t0.addingTimeInterval(2))          // 200 B/s
+    #expect(p.fraction == 0.4)
+    #expect(p.timeRemaining == 3)
+    p.record(pending: 900, at: t0.addingTimeInterval(3))          // a new 300 B file joins the run
+    #expect(p.total == 1300)
+    p.record(pending: 0, at: t0.addingTimeInterval(4))            // done: next run starts fresh
+    #expect(p == SyncProgress())
 }
 
 @Test func storageScanCountsFiles() throws {

@@ -24,6 +24,14 @@ public enum SyncStatus: Sendable, Hashable {
             self.isUploading = isUploading
             self.isDownloading = isDownloading
         }
+
+        /// What's happening to the file, or nil when it's in sync (or not in iCloud).
+        public var transfer: SyncTransfer.Direction? {
+            guard isUbiquitous else { return nil }
+            if isUploading { return .upload }
+            if isDownloading { return .download }
+            return isUploaded ? nil : .waiting
+        }
     }
 
     /// Combines file states: any transfer wins, then anything waiting, otherwise synced.
@@ -37,12 +45,64 @@ public enum SyncStatus: Sendable, Hashable {
     }
 }
 
+/// A file of an iCloud vault that isn't in sync yet.
+public struct SyncTransfer: Sendable, Hashable, Identifiable {
+    public enum Direction: Sendable, Hashable { case upload, download, waiting }
+    /// Path relative to the vault.
+    public var path: String
+    public var bytes: Int64
+    public var direction: Direction
+    public var id: String { path }
+
+    public init(path: String, bytes: Int64, direction: Direction) {
+        self.path = path
+        self.bytes = bytes
+        self.direction = direction
+    }
+}
+
+/// Progress and time left of a sync run, estimated from how fast the pending bytes go down between scans.
+public struct SyncProgress: Sendable, Hashable {
+    /// Bytes pending when the run started, plus any added during it.
+    public private(set) var total: Int64 = 0
+    public private(set) var remaining: Int64 = 0
+    /// Smoothed transfer speed in bytes per second, once something moved.
+    public private(set) var rate: Double?
+    private var lastDate: Date?
+
+    public init() {}
+
+    public mutating func record(pending: Int64, at now: Date = .now) {
+        guard pending > 0 else { self = SyncProgress(); return }
+        if let lastDate {
+            if pending > remaining { total += pending - remaining }
+            else if pending < remaining, now > lastDate {
+                let r = Double(remaining - pending) / now.timeIntervalSince(lastDate)
+                rate = rate.map { $0 * 0.6 + r * 0.4 } ?? r
+            }
+        } else {
+            total = pending
+        }
+        remaining = pending
+        lastDate = now
+    }
+
+    public var fraction: Double { total > 0 ? 1 - Double(remaining) / Double(total) : 1 }
+
+    /// Seconds left at the current speed; nil until a transfer has been measured.
+    public var timeRemaining: TimeInterval? { rate.flatMap { $0 > 0 ? Double(remaining) / $0 : nil } }
+}
+
 /// Size, file count and sync state of a vault folder, from one walk of the folder.
 public struct VaultStorage: Sendable, Hashable {
     public var bytes: Int64
     public var files: Int
     public var notes: Int
     public var status: SyncStatus
+    /// Files still uploading, downloading or waiting to upload (only for iCloud vaults).
+    public var transfers: [SyncTransfer] = []
+
+    public var pendingBytes: Int64 { transfers.reduce(0) { $0 + $1.bytes } }
 
     private static let keys: Set<URLResourceKey> = [
         .isDirectoryKey, .totalFileAllocatedSizeKey, .fileSizeKey, .isUbiquitousItemKey,
@@ -68,8 +128,13 @@ public struct VaultStorage: Sendable, Hashable {
                 out.files += 1
                 if name.lowercased().hasSuffix(".md") { out.notes += 1 }
             }
-            states.append(.init(isUbiquitous: v.isUbiquitousItem ?? false, isUploaded: v.ubiquitousItemIsUploaded ?? true,
-                                isUploading: v.ubiquitousItemIsUploading ?? false, isDownloading: v.ubiquitousItemIsDownloading ?? false))
+            let state = SyncStatus.File(isUbiquitous: v.isUbiquitousItem ?? false, isUploaded: v.ubiquitousItemIsUploaded ?? true,
+                                        isUploading: v.ubiquitousItemIsUploading ?? false, isDownloading: v.ubiquitousItemIsDownloading ?? false)
+            states.append(state)
+            if let direction = state.transfer {
+                let path = url.standardizedFileURL.pathComponents.dropFirst(rootDepth).joined(separator: "/")
+                out.transfers.append(SyncTransfer(path: path, bytes: Int64(v.fileSize ?? 0), direction: direction))
+            }
         }
         out.status = SyncStatus.combine(states, folderIsUbiquitous: folderIsUbiquitous)
         return out

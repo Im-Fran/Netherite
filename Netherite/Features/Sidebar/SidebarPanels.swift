@@ -26,8 +26,7 @@ struct SidebarView: View {
             case .bookmarks: BookmarksPanel()
             case .tags: TagsPanel()
             }
-            Divider()
-            VaultSyncFooter(vault: window.model.vault)
+            VaultSyncFooter(vault: window.model.vault) { window.sheet = .vaultSettings(.sync) }
         }
         .navigationTitle(window.model.name)
         .toolbar {
