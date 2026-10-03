@@ -25,6 +25,7 @@ cd Packages/NetheriteCore && swift test             # core tests (Swift Testing)
 - Build for macOS **and** iOS and run `swift test` before committing; commit with Conventional Commits.
 - UI follows Apple's HIG; user-facing strings go through the String Catalogs (`en` source, `es` translated).
 - Keep pure logic in `NetheriteCore` with a test; keep views thin.
+- Record user-visible changes under `## [Unreleased]` in `CHANGELOG.md` (Keep a Changelog sections, English). A Stop hook (`.claude/hooks/changelog-check.sh`) reminds you.
 
 ## What graphify is and how we use it
 

@@ -5,11 +5,15 @@
 # automatically with the team in project.yml; only these lanes switch the
 # targets to the match profiles, on the regenerated (throwaway) project.
 
+require_relative "changelog"
+
 ROOT = File.expand_path("..", __dir__)
 PROJECT = File.join(ROOT, "Netherite.xcodeproj")
 SCHEME = "Netherite"
 BUILD_DIR = "build"
 TEAM_ID = File.read(File.join(ROOT, "project.yml"))[/DEVELOPMENT_TEAM:\s*(\S+)/, 1]
+CHANGELOG = File.join(ROOT, "CHANGELOG.md")
+REPO_URL = "https://github.com/Im-Fran/Netherite"
 
 # Target => bundle identifier; each one gets its own App Store profile.
 TARGETS = {
@@ -67,6 +71,27 @@ lane :certificates do |options|
   match(type: "appstore", platform: "ios", api_key: key, readonly: readonly)
   match(type: "appstore", platform: "macos", api_key: key, readonly: readonly,
         additional_cert_types: ["mac_installer_distribution"])
+  # Developer ID signs the notarized .app attached to each GitHub Release.
+  match(type: "developer_id", platform: "macos", api_key: key, readonly: readonly)
+end
+
+desc "Stamp the Unreleased changelog as a version, commit, tag and push it (CI then ships it)"
+desc "Usage: fastlane release version:1.2.0"
+lane :release do |options|
+  version = options[:version].to_s
+  UI.user_error!("pass version:x.y.z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+  ensure_git_status_clean
+
+  text = File.read(CHANGELOG, encoding: "UTF-8")
+  UI.user_error!("## [Unreleased] in CHANGELOG.md is empty") if Changelog.section(text, "Unreleased").to_s.empty?
+  File.write(CHANGELOG, Changelog.stamp(text, version, Time.now.strftime("%Y-%m-%d"), REPO_URL))
+
+  project_yml = File.join(ROOT, "project.yml")
+  File.write(project_yml, File.read(project_yml).sub(/MARKETING_VERSION: "[^"]*"/, %(MARKETING_VERSION: "#{version}")))
+
+  git_commit(path: [CHANGELOG, project_yml], message: "chore(release): #{version}")
+  add_git_tag(tag: version)
+  push_to_git_remote(tags: true)
 end
 
 platform :ios do
@@ -89,7 +114,7 @@ platform :ios do
       xcargs: version_xcargs(options, key, "ios")
     )
 
-    upload(ipa: ipa, api_key: key) unless options[:upload] == false
+    upload(ipa: ipa, api_key: key, version: options[:version]) unless options[:upload] == false
   end
 end
 
@@ -124,7 +149,24 @@ platform :mac do
 
     pkg = lane_context[SharedValues::PKG_OUTPUT_PATH]
     UI.user_error!("no .pkg was produced") if pkg.nil?
-    upload(pkg: pkg, api_key: key) unless options[:upload] == false
+    upload(pkg: pkg, api_key: key, version: options[:version]) unless options[:upload] == false
+
+    # The App Store build only runs from the store; re-export the same archive
+    # with Developer ID, notarize it and zip it for the GitHub Release.
+    match(type: "developer_id", platform: "macos", api_key: key, readonly: true)
+    build_mac_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      skip_build_archive: true,
+      archive_path: "#{BUILD_DIR}/Netherite-macOS.xcarchive",
+      export_method: "developer-id",
+      export_options: { provisioningProfiles: profile_mapping },
+      output_directory: "#{BUILD_DIR}/DeveloperID"
+    )
+    app = "#{BUILD_DIR}/DeveloperID/Netherite.app"
+    notarize(package: app, api_key: key)
+    version = options[:version] || File.read(File.join(ROOT, "project.yml"))[/MARKETING_VERSION: "([^"]+)"/, 1]
+    sh("ditto", "-c", "-k", "--keepParent", File.join(ROOT, app), File.join(ROOT, BUILD_DIR, "Netherite-#{version}-macOS.zip"))
   end
 end
 
@@ -165,11 +207,25 @@ def version_xcargs(options, key, platform)
   args.join(" ")
 end
 
-def upload(api_key:, **package)
+def upload(api_key:, version:, **package)
+  notes = release_notes(version)
   upload_to_testflight(
     api_key: api_key,
-    # Processing takes minutes on Apple's side and nothing here depends on it.
-    skip_waiting_for_build_processing: true,
+    changelog: notes,
+    # TestFlight only takes the notes once the build is processed; without
+    # notes nothing here depends on processing, so don't wait for it.
+    skip_waiting_for_build_processing: notes.nil?,
     **package
   )
+end
+
+# The version's CHANGELOG section (Unreleased when it has none yet). Also left
+# in build/release-notes.md as Markdown for the GitHub Release.
+def release_notes(version)
+  text = File.read(CHANGELOG, encoding: "UTF-8")
+  section = (version && Changelog.section(text, version)) || Changelog.section(text, "Unreleased")
+  return nil if section.to_s.empty?
+  File.write(File.join(ROOT, BUILD_DIR, "release-notes.md"), section)
+  # TestFlight rejects "What to Test" over 4000 characters.
+  Changelog.release_notes(section)[0, 4000]
 end
