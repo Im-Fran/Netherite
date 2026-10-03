@@ -193,6 +193,7 @@ struct VaultSettingsForm: View {
             } footer: {
                 Text("Use {{title}}, {{date}}, {{time}} or {{date:YYYY-MM-DD}} in templates.")
             }
+            AddBuiltInTemplatesButton(model: model)
             Section("Unique note creator") {
                 folderField("Folder", $model.settings.uniqueNote.folder)
                 textField("Name format", $model.settings.uniqueNote.format)

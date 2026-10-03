@@ -341,7 +341,7 @@ struct SlashCommand: Identifiable {
             .init(id: "date", title: String(localized: "Insert date"), symbol: "calendar", text: date),
             .init(id: "time", title: String(localized: "Insert time"), symbol: "clock", text: time),
         ]
-        for t in Templates.list(in: model.index, folder: model.settings.templatesFolder) {
+        for t in model.settings.isEnabled(.templates) ? Templates.list(in: model.index, folder: model.settings.templatesFolder) : [] {
             list.append(.init(id: "tpl:\(t)", title: String(localized: "Template: \(t.noteName)"), symbol: "doc.on.doc",
                               text: Templates.render(model.text(of: t), title: "", date: now)))
         }

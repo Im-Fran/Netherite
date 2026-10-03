@@ -122,11 +122,23 @@ struct FileExplorer: View {
         Button("New Folder", systemImage: "folder.badge.plus") {
             if let p = window.model.newFolder(in: folder) { expanded.insert(folder); window.sheet = .rename(p) }
         }
-        Button("New Canvas", systemImage: "rectangle.3.group") {
-            if let p = window.model.newCanvas(in: folder) { window.open(path: p) }
+        let settings = window.model.settings
+        if settings.isEnabled(.templates) {
+            Button("New Note from Template…", systemImage: "doc.badge.plus") { window.sheet = .newFromTemplate(folder) }
         }
-        Button("New Base", systemImage: "tablecells") {
-            if let p = window.model.newBase(in: folder) { window.open(path: p) }
+        if settings.isEnabled(.meetingNotes) {
+            Button("New Meeting Note…", systemImage: "person.2") { window.sheet = .meetingNote }
+        }
+        if settings.isEnabled(.canvas) {
+            Button("New Canvas", systemImage: "rectangle.3.group") {
+                if let p = window.model.newCanvas(in: folder) { window.open(path: p) }
+            }
+        }
+        if settings.isEnabled(.bases) {
+            Button("New Base", systemImage: "tablecells") {
+                if let p = window.model.newBase(in: folder) { window.open(path: p) }
+            }
+            Button("New Database…", systemImage: "tablecells.badge.ellipsis") { window.sheet = .newDatabase(folder) }
         }
         Button("Import Files…", systemImage: "square.and.arrow.down") { window.importTarget = folder }
         if folder.isEmpty {

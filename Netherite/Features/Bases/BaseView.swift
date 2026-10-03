@@ -14,6 +14,14 @@ struct BaseView: View {
     @State private var showColumns = false
     @State private var loadError: String?
     @State private var confirmDeleteView = false
+    @State private var search = ""
+    @State private var entryRequest: EntryRequest?
+    @State private var entryName = ""
+    @State private var addingColumn = false
+    @State private var columnName = ""
+
+    /// A pending "New Entry": the board column it goes in, and whether to open it afterwards.
+    private struct EntryRequest { var group: String?; var opens: Bool }
 
     private var model: VaultModel { window.model }
 
@@ -33,25 +41,74 @@ struct BaseView: View {
         }
         .onAppear(perform: load)
         .onChange(of: path) { load() }
+        .alert("New Entry", isPresented: Binding(get: { entryRequest != nil }, set: { if !$0 { entryRequest = nil } }), presenting: entryRequest) { r in
+            TextField("Name", text: $entryName)
+            Button("Create") { createEntry(r) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("New Column", isPresented: $addingColumn) {
+            TextField("Name", text: $columnName)
+            Button("Add") {
+                let name = columnName.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty { update { if !$0.columns.contains(name) { $0.columns.append(name) } } }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
+    private var views: [BaseViewConfig] { base.views.isEmpty ? [BaseViewConfig(name: String(localized: "Table"))] : base.views }
+    private var currentView: BaseViewConfig { views[min(selected, views.count - 1)] }
+
+    /// Rows of a view before the quick search.
+    private func entries(_ view: BaseViewConfig) -> [BaseRow] { base.run(view, rows: BaseRow.all(from: model.index)) }
+
     @ViewBuilder private var baseBody: some View {
-        let views = base.views.isEmpty ? [BaseViewConfig(name: String(localized: "Table"))] : base.views
-        let view = views[min(selected, views.count - 1)]
-        let rows = base.run(view, rows: BaseRow.all(from: model.index))
+        let view = currentView
         let columns = view.order.isEmpty ? ["file.name"] : view.order
+        let rows = entries(view).filter { r in
+            search.isEmpty || (["file.name"] + columns).contains { base.value(of: $0, row: r).description.localizedCaseInsensitiveContains(search) }
+        }
         VStack(spacing: 0) {
             header(views: views, view: view, count: rows.count)
+            searchBar
             TipView(BasesTip()).padding(.horizontal).padding(.bottom, 8)
             Divider()
             content(view: view, rows: rows, columns: columns)
                 .overlay {
-                    if rows.isEmpty {
-                        ContentUnavailableView("No Results", systemImage: "line.3.horizontal.decrease.circle",
-                                               description: Text("No files match this view's filters."))
+                    if rows.isEmpty && view.kind != .board {
+                        if search.isEmpty {
+                            ContentUnavailableView("No Results", systemImage: "line.3.horizontal.decrease.circle",
+                                                   description: Text("No files match this view's filters."))
+                        } else {
+                            ContentUnavailableView.search(text: search)
+                        }
                     }
                 }
         }
+    }
+
+    /// Quick search over the shown properties, and the primary "New Entry" action.
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+                TextField("Search", text: $search, prompt: Text("Search entries"))
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+                if !search.isEmpty {
+                    Button("Clear Search", systemImage: "xmark.circle.fill") { search = "" }
+                        .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.fill.tertiary, in: .rect(cornerRadius: 8))
+            Button("New Entry", systemImage: "plus") { requestEntry(group: nil, opens: true) }
+                .buttonStyle(.borderedProminent)
+                .help("Create a note in this database")
+        }
+        .padding(.horizontal, sizeClass == .compact ? 8 : 16)
+        .padding(.bottom, 8)
     }
 
     // MARK: Header
@@ -136,6 +193,7 @@ struct BaseView: View {
         case .table: String(localized: "Table")
         case .cards: String(localized: "Cards")
         case .list: String(localized: "List")
+        case .board: String(localized: "Board")
         }
     }
 
@@ -144,6 +202,7 @@ struct BaseView: View {
         case .table: "New Table View"
         case .cards: "New Cards View"
         case .list: "New List View"
+        case .board: "New Board View"
         }
     }
 
@@ -188,6 +247,8 @@ struct BaseView: View {
             base.formulas.removeAll { $0.name == name }
             base.formulas.append((name, expr))
             update { $0.order.append("formula.\(name)") }
+        } addProperty: { name, kind in
+            addProperty(name, kind, to: view)
         }
     }
 
@@ -198,14 +259,24 @@ struct BaseView: View {
         switch view.kind {
         case .table where sizeClass != .compact && view.groupBy == nil:
             BaseTable(base: base, rows: rows, columns: columns, sort: view.sort.first,
-                      onSort: { s in update { $0.sort = [s] } }, cell: { cell($0, $1) })
+                      onSort: { s in update { $0.sort = [s] } }, cell: { cell($0, $1) }, menu: { entryMenu($0) })
+        case .board:
+            let property = view.boardProperty
+            BaseBoard(base: base, groups: base.board(view, rows: rows, property: property), property: property, fields: columns,
+                      editable: editableKey(property) != nil,
+                      open: { window.open(path: $0) },
+                      move: { r, v in moveEntry(r, to: v, property: property) },
+                      add: { requestEntry(group: $0, opens: false) },
+                      addColumn: { columnName = ""; addingColumn = true },
+                      removeColumn: { c in update { $0.columns.removeAll { $0 == c } } },
+                      trash: { window.pendingTrash = $0 })
         case .cards:
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
                     ForEach(groups, id: \.title) { g in
                         if let t = g.title { Text(t).font(.headline).padding(.horizontal, 4) }
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
-                            ForEach(g.rows) { card($0, columns: columns) }
+                            ForEach(g.rows) { r in card(r, columns: columns).contextMenu { entryMenu(r.path) } }
                         }
                     }
                 }
@@ -215,7 +286,7 @@ struct BaseView: View {
             List {
                 ForEach(groups, id: \.title) { g in
                     Section(g.title ?? "") {
-                        ForEach(g.rows) { r in listRow(r, columns: columns) }
+                        ForEach(g.rows) { r in listRow(r, columns: columns).contextMenu { entryMenu(r.path) } }
                     }
                 }
             }
@@ -305,6 +376,13 @@ struct BaseView: View {
         }
     }
 
+    @ViewBuilder private func entryMenu(_ path: String) -> some View {
+        Button("Open", systemImage: "doc.text") { window.open(path: path) }
+        Button("Open in New Pane", systemImage: "rectangle.split.2x1") { window.open(path: path, newPane: true) }
+        Divider()
+        Button("Move to Trash…", systemImage: "trash", role: .destructive) { window.pendingTrash = path }
+    }
+
     private func editableKey(_ column: String) -> String? {
         if column.hasPrefix("file.") || column.hasPrefix("formula.") { return nil }
         return column.hasPrefix("note.") ? String(column.dropFirst(5)) : column
@@ -315,6 +393,9 @@ struct BaseView: View {
         case .number: Double(s).map { .number($0) } ?? .text(s)
         case .date: Frontmatter.parseDate(s).map { .date($0) } ?? .text(s)
         case .list: .list(s.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        case .null:   // a new, untyped property: read the text like YAML would
+            if let n = Double(s) { .number(n) } else if let b = Bool(s) { .bool(b) }
+            else if let d = Frontmatter.parseDate(s) { .date(d) } else { s.isEmpty ? .null : .text(s) }
         default: s.isEmpty ? .null : .text(s)
         }
     }
@@ -325,6 +406,55 @@ struct BaseView: View {
         if let i = props.firstIndex(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame }) { props[i].value = value }
         else { props.append(Property(key: key, value: value)) }
         model.edit(note, text: Frontmatter.replacing(in: text, with: props))
+    }
+
+    // MARK: Entries
+
+    private func requestEntry(group: String?, opens: Bool) {
+        entryName = ""
+        entryRequest = EntryRequest(group: group, opens: opens)
+    }
+
+    /// A note in the database's folder with empty values for the view's note properties (and the board column's value).
+    private func createEntry(_ r: EntryRequest) {
+        let view = currentView
+        var props: [Property] = []
+        for key in noteKeys(view) where !props.contains(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame }) {
+            props.append(Property(key: key, value: .empty(kind(of: key))))
+        }
+        if let g = r.group, let key = editableKey(view.boardProperty),
+           let i = props.firstIndex(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame }) {
+            props[i].value = typed(g, like: .null)
+        }
+        let clean = Templates.fileName(entryName)
+        let folder = base.entryFolder ?? path.parentFolder
+        guard let p = model.newNote(in: folder, named: clean.isEmpty ? String(localized: "Untitled") : clean,
+                                    content: Frontmatter.replacing(in: "", with: props)) else { return }
+        if r.opens { window.open(path: p) }
+    }
+
+    private func moveEntry(_ r: BaseRow, to value: String?, property: String) {
+        guard let key = editableKey(property), r.path.isMarkdown else { return }
+        setProperty(key, value.map { typed($0, like: base.value(of: property, row: r)) } ?? .null, of: r.path)
+    }
+
+    /// Adds a column to the view and the property (empty) to every entry that lacks it.
+    private func addProperty(_ name: String, _ kind: PropertyValue.Kind, to view: BaseViewConfig) {
+        guard !name.isEmpty else { return }
+        let rows = entries(view)
+        update { if !$0.order.contains(name) { $0.order.append(name) } }
+        for r in rows where r.path.isMarkdown && !r.properties.contains(where: { $0.key.caseInsensitiveCompare(name) == .orderedSame }) {
+            setProperty(name, .empty(kind), of: r.path)
+        }
+    }
+
+    /// Frontmatter keys a new entry gets: the view's note columns, plus the board's grouping property.
+    private func noteKeys(_ view: BaseViewConfig) -> [String] {
+        (view.order + (view.kind == .board ? [view.boardProperty] : [])).compactMap(editableKey)
+    }
+
+    private func kind(of key: String) -> PropertyValue.Kind {
+        model.index.propertyKeys.first { $0.key.caseInsensitiveCompare(key) == .orderedSame }?.kind ?? .text
     }
 
     // MARK: Data
@@ -339,6 +469,7 @@ struct BaseView: View {
         case .table: "tablecells"
         case .cards: "square.grid.2x2"
         case .list: "list.bullet"
+        case .board: "rectangle.split.3x1"
         }
     }
 
@@ -401,13 +532,15 @@ private struct PropertyCell: View {
 
 // MARK: Table
 
-private struct BaseTable<Cell: View>: View {
+private struct BaseTable<Cell: View, RowMenu: View>: View {
     let base: BaseFile
     let rows: [BaseRow]
     let columns: [String]
     let sort: BaseSort?
     let onSort: (BaseSort) -> Void
     @ViewBuilder let cell: (BaseRow, String) -> Cell
+    @ViewBuilder let menu: (String) -> RowMenu
+    @State private var selection: String?
 
     struct Comparator: SortComparator {
         var property: String
@@ -425,10 +558,13 @@ private struct BaseTable<Cell: View>: View {
         let sortOrder = Binding<[Comparator]>(
             get: { sort.map { [Comparator(property: $0.property, order: $0.ascending ? .forward : .reverse, base: base)] } ?? [] },
             set: { if let f = $0.first { onSort(BaseSort(property: f.property, ascending: f.order == .forward)) } })
-        Table(rows, sortOrder: sortOrder) {
+        Table(rows, selection: $selection, sortOrder: sortOrder) {
             TableColumnForEach(columns, id: \.self) { c in
                 TableColumn(base.displayName(c), sortUsing: Comparator(property: c, base: base)) { r in cell(r, c) }
             }
+        }
+        .contextMenu(forSelectionType: String.self) { paths in
+            if let p = paths.first { menu(p) }
         }
     }
 }
@@ -550,8 +686,11 @@ private struct ColumnPicker: View {
     let formulas: [String]
     let apply: ([String]) -> Void
     let addFormula: (String, String) -> Void
+    let addProperty: (String, PropertyValue.Kind) -> Void
     @State private var name = ""
     @State private var expr = ""
+    @State private var property = ""
+    @State private var kind = PropertyValue.Kind.text
 
     var body: some View {
         Form {
@@ -569,6 +708,17 @@ private struct ColumnPicker: View {
                     Toggle(displayName(c), isOn: Binding(get: { false }, set: { if $0 { apply(order + [c]) } }))
                 }
             }
+            Section("Add property") {
+                TextField("Name", text: $property)
+                Picker("Type", selection: $kind) {
+                    ForEach(PropertyValue.Kind.allCases, id: \.self) { Label(Self.title($0), systemImage: Self.symbol($0)).tag($0) }
+                }
+                Button("Add Property", systemImage: "plus") {
+                    addProperty(property.trimmingCharacters(in: .whitespaces), kind)
+                    property = ""
+                }
+                .disabled(property.trimmingCharacters(in: .whitespaces).isEmpty || order.contains(property.trimmingCharacters(in: .whitespaces)))
+            }
             Section("Add formula") {
                 TextField("Name", text: $name)
                 TextField("Expression, e.g. rating * 2", text: $expr).font(.body.monospaced())
@@ -581,6 +731,26 @@ private struct ColumnPicker: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 320, minHeight: 440)
+    }
+
+    static func title(_ k: PropertyValue.Kind) -> LocalizedStringKey {
+        switch k {
+        case .text: "Text"
+        case .number: "Number"
+        case .checkbox: "Checkbox"
+        case .date: "Date"
+        case .list: "List"
+        }
+    }
+
+    static func symbol(_ k: PropertyValue.Kind) -> String {
+        switch k {
+        case .text: "text.alignleft"
+        case .number: "number"
+        case .checkbox: "checkmark.square"
+        case .date: "calendar"
+        case .list: "list.bullet"
+        }
     }
 }
 

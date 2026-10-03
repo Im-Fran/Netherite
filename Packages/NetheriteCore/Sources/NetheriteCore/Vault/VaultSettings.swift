@@ -15,6 +15,9 @@ public struct VaultSettings: Codable, Hashable, Sendable {
     public var uniqueNote = UniqueNote()
     public var snapshotIntervalMinutes = 5
     public var snapshotRetentionDays = 7
+    /// Ids of turned-off `CorePlugin`s; unknown ids are kept but ignored.
+    public var disabledPlugins: Set<String> = []
+    public var meetingNotes = MeetingNotes()
 
     public struct DailyNotes: Codable, Hashable, Sendable {
         public var folder = "Daily"
@@ -26,6 +29,21 @@ public struct VaultSettings: Codable, Hashable, Sendable {
         public var folder = ""
         public var format = "yyyyMMddHHmm"
         public var template = ""
+    }
+    public struct MeetingNotes: Codable, Hashable, Sendable {
+        public var folder = "Meetings"
+        /// Date prefix of the note name (`yyyy-MM-dd Title`).
+        public var format = "yyyy-MM-dd"
+        public var template = ""
+
+        public init() {}
+        public init(from decoder: Decoder) throws {
+            self.init()
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? c.decode(String.self, forKey: .folder) { folder = v }
+            if let v = try? c.decode(String.self, forKey: .format) { format = v }
+            if let v = try? c.decode(String.self, forKey: .template) { template = v }
+        }
     }
 
     public init() {}
@@ -40,6 +58,7 @@ public struct VaultSettings: Codable, Hashable, Sendable {
         d(.defaultToReadingMode, &defaultToReadingMode); d(.useWikilinks, &useWikilinks); d(.dailyNotes, &dailyNotes)
         d(.templatesFolder, &templatesFolder); d(.uniqueNote, &uniqueNote)
         d(.snapshotIntervalMinutes, &snapshotIntervalMinutes); d(.snapshotRetentionDays, &snapshotRetentionDays)
+        d(.disabledPlugins, &disabledPlugins); d(.meetingNotes, &meetingNotes)
     }
 }
 

@@ -46,7 +46,7 @@ public struct BaseSort: Hashable, Sendable {
 }
 
 public struct BaseViewConfig: Hashable, Sendable, Identifiable {
-    public enum Kind: String, CaseIterable, Sendable { case table, cards, list }
+    public enum Kind: String, CaseIterable, Sendable { case table, cards, list, board }
     public var type: String
     public var name: String
     public var limit: Int?
@@ -54,6 +54,8 @@ public struct BaseViewConfig: Hashable, Sendable, Identifiable {
     public var order: [String]
     public var sort: [BaseSort]
     public var groupBy: BaseSort?
+    /// Board columns kept even while no entry has that value (`columns:`, a Netherite extension).
+    public var columns: [String] = []
     /// Other keys (summaries, image, plugin settings…) kept verbatim.
     var extra: [String: String] = [:]
     public var id: String { name }
@@ -109,9 +111,10 @@ public struct BaseFile: Hashable, Sendable {
         v.order = n["order"]?.sequence?.compactMap(\.string) ?? []
         v.sort = (n["sort"]?.sequence ?? []).compactMap(sort)
         v.groupBy = n["groupBy"].flatMap(sort)
+        v.columns = n["columns"]?.sequence?.compactMap(\.string) ?? []
         if case .mapping(let m) = n {
             for (k, val) in m {
-                guard let key = k.string, !["type", "name", "limit", "filters", "order", "sort", "groupBy"].contains(key) else { continue }
+                guard let key = k.string, !["type", "name", "limit", "filters", "order", "sort", "groupBy", "columns"].contains(key) else { continue }
                 v.extra[key] = try? Yams.serialize(node: val)
             }
         }
@@ -145,6 +148,7 @@ public struct BaseFile: Hashable, Sendable {
             if let f = v.filters { p.append((Node("filters"), f.node)) }
             if !v.order.isEmpty { p.append((Node("order"), Node(v.order.map { Node($0) }))) }
             if !v.sort.isEmpty { p.append((Node("sort"), Node(v.sort.map(Self.sortNode)))) }
+            if !v.columns.isEmpty { p.append((Node("columns"), Node(v.columns.map { Node($0) }))) }
             for (k, frag) in v.extra.sorted(by: { $0.key < $1.key }) { if let n = try? Yams.compose(yaml: frag) { p.append((Node(k), n)) } }
             return Node(p)
         })))
