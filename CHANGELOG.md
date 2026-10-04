@@ -12,6 +12,7 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ### Added
 - Direct-download macOS build (notarized `Netherite.dmg`) that updates itself from GitHub releases: **Check for Updates…** in the app menu and an **Updates** tab in Settings.
+- **Template Gallery** in Settings › Templates: browse ready-made templates published on the Netherite website and install them into your templates folder.
 
 ### Changed
 - The GitHub release carries the Developer ID build as `Netherite.dmg` and `Netherite.zip` under `v<version>`, instead of a zip of the App Store build.
