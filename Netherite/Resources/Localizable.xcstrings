@@ -1037,6 +1037,16 @@
         }
       }
     },
+    "Browse Template Gallery" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorar galería de plantillas"
+          }
+        }
+      }
+    },
     "Building site…" : {
       "localizations" : {
         "es" : {
@@ -1775,6 +1785,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo cargar la página"
+          }
+        }
+      }
+    },
+    "Couldn't Load Templates" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar las plantillas"
           }
         }
       }
@@ -3341,6 +3361,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inspector"
+          }
+        }
+      }
+    },
+    "Install" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar"
+          }
+        }
+      }
+    },
+    "Installed" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalada"
           }
         }
       }
@@ -6301,6 +6341,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plantilla"
+          }
+        }
+      }
+    },
+    "Template Gallery" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Galería de plantillas"
           }
         }
       }
