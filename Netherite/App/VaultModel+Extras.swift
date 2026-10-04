@@ -84,13 +84,17 @@ extension VaultModel {
         return writeNew(vault.availablePath(folder: folder.parentFolder, base: String(localized: "Meetings"), ext: "base"), base.yaml)
     }
 
-    /// Copies the built-in templates into the templates folder, never overwriting; returns how many were added.
-    func addBuiltInTemplates() -> Int {
-        let folder = settings.templatesFolder
-        return Templates.builtIns.filter { t in
-            let path = "\(folder)/\(Templates.fileName(t.name)).md"
+    /// Copies templates into the templates folder, never overwriting; returns how many were added.
+    func addTemplates(_ list: [BuiltInTemplate] = Templates.builtIns) -> Int {
+        list.filter { t in
+            let path = templatePath(t)
             return !vault.exists(path) && writeNew(path, t.body) != nil
         }.count
+    }
+
+    /// Where `addTemplates` writes `t`.
+    func templatePath(_ t: BuiltInTemplate) -> String {
+        "\(settings.templatesFolder)/\(Templates.fileName(t.name)).md"
     }
 
     private func writeNew(_ path: String, _ content: String) -> String? {

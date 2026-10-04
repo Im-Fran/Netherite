@@ -108,7 +108,7 @@ struct AddBuiltInTemplatesButton: View {
 
     var body: some View {
         Section {
-            Button("Add Built-in Templates to Folder", systemImage: "square.and.arrow.down.on.square") { added = model.addBuiltInTemplates() }
+            Button("Add Built-in Templates to Folder", systemImage: "square.and.arrow.down.on.square") { added = model.addTemplates() }
                 .disabled(model.settings.templatesFolder.isEmpty)
         } footer: {
             if let added { Text("Added \(added) templates.") } else {
