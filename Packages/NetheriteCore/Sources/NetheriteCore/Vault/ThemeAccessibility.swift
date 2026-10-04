@@ -98,6 +98,14 @@ public extension Theme {
     /// Background colors are checked against when a theme sets none (the reader's white and dark gray).
     static let defaultBackground = Pair("#FFFFFF", "#1E1E1E")
 
+    /// Body (7:1) and secondary (4.5:1) text for a custom background: the reader's own text colors for its
+    /// polarity, pushed further when needed (a theme can pair a dark background with light mode, or the reverse).
+    static func textColors(on bg: RGB) -> (text: RGB, muted: RGB) {
+        let light = bg.luminance > 0.179
+        return (RGB(hex: light ? "#1D1D1F" : "#E8E8ED")!.ensuring(contrast: 7, against: bg),
+                RGB(hex: light ? "#6E6E73" : "#98989D")!.ensuring(contrast: 4.5, against: bg))
+    }
+
     /// WCAG contrast of two hex colors, nil when one doesn't parse.
     static func contrast(_ a: String, _ b: String) -> Double? {
         guard let a = RGB(hex: a), let b = RGB(hex: b) else { return nil }
@@ -124,7 +132,9 @@ public extension Theme {
             }
             return p.map { Pair(one($0.light, bg.light), one($0.dark, bg.dark)) }
         }
-        let bg = t.background ?? Self.defaultBackground
+        // Without a theme background the page may be transparent over the app's grouped/elevated gray, which
+        // is the harder case on both sides; passing there also passes on the reader's white and dark gray.
+        let bg = t.background ?? Pair(ColorVision.surfaces.light.hex, ColorVision.surfaces.dark.hex)
         t.accent = fix(t.accent, against: bg); t.link = fix(t.link, against: bg); t.tag = fix(t.tag, against: bg)
         // The highlight is a fill under body text, so it's the text that needs the contrast.
         t.highlight = fix(t.highlight, against: Pair("#1D1D1F", "#E8E8ED"))

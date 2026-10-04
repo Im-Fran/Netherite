@@ -8,6 +8,7 @@ struct SyncSettingsView: View {
 
     /// Rows shown at most; a vault being imported can have thousands of files in flight.
     private static let maxRows = 200
+    @ScaledMetric private var tile = 52.0
 
     var body: some View {
         let key = AppModel.key(model.vault.root)
@@ -38,7 +39,7 @@ struct SyncSettingsView: View {
         HStack(spacing: 14) {
             SyncStatusIcon(status: storage?.status, isInICloud: key.contains("/Mobile Documents/"))
                 .font(.title)
-                .frame(width: 52, height: 52)
+                .frame(width: tile, height: tile)
                 .background(.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(storage?.status.label ?? "Checking Sync Status…").font(.headline)
@@ -90,14 +91,15 @@ struct SyncSettingsView: View {
 
 private struct TransferRow: View {
     let transfer: SyncTransfer
+    @ScaledMetric private var iconWidth = 24.0
 
     var body: some View {
         let name = (transfer.path as NSString).lastPathComponent
         let folder = (transfer.path as NSString).deletingLastPathComponent
         HStack(spacing: 12) {
             Image(systemName: transfer.direction.symbol)
-                .foregroundStyle(transfer.direction == .waiting ? Color.secondary : Color.accentColor)
-                .frame(width: 24)
+                .foregroundStyle(transfer.direction == .waiting ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                .frame(width: iconWidth)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).lineLimit(1).truncationMode(.middle)

@@ -83,3 +83,14 @@ private func meets(_ ratio: Double, _ t: Theme, tag: Bool = false) -> Bool {
     #expect(css.contains(".callout[data-callout=faq]") && css.contains("--font:ui-serif,"))
     #expect(HTMLRenderer.page(title: nil, body: "", assets: "", theme: dark).contains(##"<meta name="color-scheme" content="dark">"##))
 }
+
+@Test func customBackgroundGetsReadableText() {
+    var t = Theme.netherite.variant(.light)
+    t.background = .init("#222222", "#222222")
+    let css = HTMLRenderer.themeCSS(t)
+    let text = css.firstMatch(of: /--text:(#[0-9A-F]{6})/).map { String($0.1) }
+    let muted = css.firstMatch(of: /--muted:(#[0-9A-F]{6})/).map { String($0.1) }
+    #expect(Theme.contrast(text ?? "", "#222222").map { $0 >= 7 } == true)
+    #expect(Theme.contrast(muted ?? "", "#222222").map { $0 >= 4.5 } == true)
+    #expect(HTMLRenderer.page(title: nil, body: "", assets: "", baseSize: 17.5).contains("--size:17.5px"))
+}

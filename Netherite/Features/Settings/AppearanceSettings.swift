@@ -99,9 +99,9 @@ private struct ThemeCard: View {
                 preview
                     .environment(\.colorScheme, appearance?.colorScheme ?? colorScheme)
                     .frame(height: 64)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .clipShape(.rect(cornerRadius: 10, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .strokeBorder(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator), lineWidth: selected ? 3 : 1)
                     }
                     .overlay(alignment: .topTrailing) {

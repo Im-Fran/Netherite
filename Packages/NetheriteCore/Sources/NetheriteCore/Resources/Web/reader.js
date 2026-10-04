@@ -10,13 +10,20 @@
     });
   }
   function renderMermaid() {
-    if (!window.mermaid || !document.querySelector('pre.mermaid')) return;
+    const blocks = document.querySelectorAll('pre.mermaid');
+    if (!window.mermaid || !blocks.length) return;
     // A theme can force light or dark through color-scheme; otherwise follow the system.
     const scheme = getComputedStyle(document.documentElement).colorScheme;
     const dark = scheme === 'dark' || (scheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    // Keep each diagram's source: re-rendering after an appearance change starts from it, not the SVG.
+    blocks.forEach(el => {
+      if (el.dataset.source === undefined) el.dataset.source = el.textContent;
+      else { el.textContent = el.dataset.source; el.removeAttribute('data-processed'); }
+    });
     mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' });
     mermaid.run({ querySelector: 'pre.mermaid' });
   }
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderMermaid);
   function highlight() {
     if (!window.hljs) return;
     document.querySelectorAll('pre code:not(.nohighlight)').forEach(el => hljs.highlightElement(el));

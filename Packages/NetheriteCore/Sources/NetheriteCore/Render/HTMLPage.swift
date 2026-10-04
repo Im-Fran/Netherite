@@ -32,7 +32,7 @@ public extension HTMLRenderer {
         }
         if needsMermaid { head += "\n<script src=\"\(a)mermaid.min.js\"></script>" }
         if let theme { head += "\n<style>\(themeCSS(theme, baseSize: baseSize))</style>" }
-        else if baseSize != 16 { head += "\n<style>:root{--size:\(Int(baseSize))px}</style>" }
+        else if baseSize != 16 { head += "\n<style>:root{--size:\(px(baseSize))}</style>" }
         if transparentBackground, theme?.background == nil { head += "\n<style>html{background:transparent}</style>" }
         if increaseContrast { head += "\n<style>\(increasedContrastCSS)</style>" }
         if reduceMotion { head += "\n<style>.flash{animation:none;outline:2px solid var(--accent)}</style>" }
@@ -48,8 +48,12 @@ public extension HTMLRenderer {
         """
     }
 
-    /// Darker secondary text and borders for Increase Contrast.
-    static let increasedContrastCSS = ":root{--muted:light-dark(#3a3a3c,#c7c7cc);--faint:light-dark(#6e6e73,#8e8e93)}"
+    /// Darker secondary text and borders for Increase Contrast, mixed from the text and background so they
+    /// also hold on a theme's own background.
+    static let increasedContrastCSS = ":root{--muted:color-mix(in srgb,var(--text) 80%,var(--bg));--faint:color-mix(in srgb,var(--text) 55%,var(--bg))}"
+
+    /// A CSS pixel size that keeps fractions (Dynamic Type body sizes such as 17.5).
+    private static func px(_ size: Double) -> String { String(format: "%gpx", size) }
 
     static func themeCSS(_ t: Theme, baseSize: Double = 16) -> String {
         // Theme files come from the vault (possibly someone else's), so only hex colors, plain font names and
@@ -69,7 +73,15 @@ public extension HTMLRenderer {
         if let c = t.link.flatMap(color) { v.append("--link:\(c)") }
         if let c = t.tag.flatMap(color) { v.append("--tag:\(c)") }
         if let c = t.highlight.flatMap(color) { v.append("--mark:\(c)") }
-        if let c = t.background.flatMap(color) { v.append("--bg:\(c)") }
+        if let bg = t.background, let c = color(bg) {
+            v.append("--bg:\(c)")
+            // The default text colors assume the default background; a custom one gets text that reads on it.
+            if let l = RGB(hex: bg.light), let d = RGB(hex: bg.dark) {
+                let (lt, dt) = (Theme.textColors(on: l), Theme.textColors(on: d))
+                if let c = color(Theme.Pair(lt.text.hex, dt.text.hex)) { v.append("--text:\(c)") }
+                if let c = color(Theme.Pair(lt.muted.hex, dt.muted.hex)) { v.append("--muted:\(c)") }
+            }
+        }
         // `ui-serif`, `ui-rounded`… are generic families and must stay unquoted.
         func family(_ f: String) -> String? {
             guard !f.contains(where: { "\"'\\<>;{}()".contains($0) || $0.isNewline }) else { return nil }
@@ -77,7 +89,7 @@ public extension HTMLRenderer {
         }
         if let f = t.textFont.flatMap(family) { v.append("--font:\(f), -apple-system, sans-serif") }
         if let f = t.monoFont.flatMap(family) { v.append("--mono:\(f), ui-monospace, monospace") }
-        if t.fontScale != nil || baseSize != 16 { v.append("--size:\(Int(baseSize * (t.fontScale ?? 1)))px") }
+        if t.fontScale != nil || baseSize != 16 { v.append("--size:\(px(baseSize * (t.fontScale ?? 1)))") }
         if let l = t.lineHeight { v.append("--line:\(l * 1.28)") }
         var css = ":root{\(v.joined(separator: ";"))}"
         for (category, p) in (t.callouts ?? [:]).sorted(by: { $0.key < $1.key }) {

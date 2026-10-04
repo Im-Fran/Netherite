@@ -86,7 +86,7 @@ struct AudioRecorderView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text(rec.recording ? "Recording…" : "Audio recorder").font(.title2.bold())
+            Text(rec.recording ? "Recording…" : "Audio Recorder").font(.title2.bold())
             Text(Duration.seconds(rec.elapsed).formatted(.time(pattern: .minuteSecond)))
                 .font(.system(.largeTitle, design: .rounded).monospacedDigit())
             Gauge(value: Double(rec.level)) { Text("Input level") }

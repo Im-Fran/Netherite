@@ -96,8 +96,14 @@ struct BaseView: View {
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
                 if !search.isEmpty {
-                    Button("Clear Search", systemImage: "xmark.circle.fill") { search = "" }
-                        .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(.secondary)
+                    // A bigger hit area without growing the field: the padding is undone for layout.
+                    Button { search = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .padding(.vertical, 12).padding(.leading, 6).padding(.trailing, 12).contentShape(.rect)
+                    }
+                    .buttonStyle(.borderless).foregroundStyle(.secondary)
+                    .padding(.vertical, -12).padding(.leading, -6).padding(.trailing, -12)
+                    .accessibilityLabel("Clear Search")
                 }
             }
             .padding(.horizontal, 8)

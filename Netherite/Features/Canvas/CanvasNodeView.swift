@@ -134,6 +134,7 @@ struct CanvasNodeView: View {
                             .onEnded { v in model.pendingEdge = nil; model.connect(from: node.id, side: side, toPoint: v.location) }
                     )
                     .accessibilityLabel(connectLabel(side))
+                    .accessibilityHidden(true)   // drag-only; the card's "Connect…" action covers VoiceOver
             }
             if selected {
                 Image(systemName: "arrow.down.right")
@@ -150,6 +151,7 @@ struct CanvasNodeView: View {
                             .onEnded { _ in model.dragEnded("Resize") }
                     )
                     .accessibilityLabel("Resize")
+                    .accessibilityHidden(true)   // drag-only; "Make larger/smaller" covers VoiceOver
             }
         }
     }

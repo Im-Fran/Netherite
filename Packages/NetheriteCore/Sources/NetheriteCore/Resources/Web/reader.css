@@ -13,8 +13,11 @@ body.full-width { max-width: none; }
 h1,h2,h3,h4,h5,h6 { line-height: 1.25; margin: 1.4em 0 .5em; }
 h1 { font-size: 1.75em; } h2 { font-size: 1.45em; } h3 { font-size: 1.25em; } h4 { font-size: 1.1em; } h6 { color: var(--muted); }
 .inline-title { font-size: 2em; font-weight: 700; margin: .3em 0 .6em; }
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* Underlined always, not only on hover: color alone doesn't set links apart (no hover on iOS or the keyboard). */
+a { color: var(--link); text-decoration: underline; text-decoration-thickness: .06em; text-underline-offset: .15em;
+    text-decoration-color: color-mix(in srgb, var(--link) 45%, transparent); }
+a:hover, a:focus-visible { text-decoration-color: currentColor; }
+a.tag { text-decoration: none; }
 a.is-unresolved { color: var(--muted); text-decoration: underline dashed; }
 a.tag { color: var(--tag); background: color-mix(in srgb, var(--tag) 12%, transparent); padding: 0 .35em; border-radius: 1em; font-size: .92em; }
 mark { background: var(--mark); color: inherit; padding: 0 .1em; border-radius: 3px; }
@@ -36,15 +39,16 @@ table.properties th { width: 30%; text-align: left; font-weight: 500; color: var
 li.task-list-item { list-style: none; margin-left: -1.3em; }
 li.task-list-item.is-checked { color: var(--muted); text-decoration: line-through; }
 input.task-checkbox { accent-color: var(--accent); width: 1em; height: 1em; vertical-align: -.1em; margin-right: .3em; }
+@media (pointer: coarse) { input.task-checkbox { width: 1.5em; height: 1.5em; margin: -.25em .3em -.25em 0; vertical-align: -.35em; } }
 .callout { --c: #086DDD; margin: 1em 0; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c) 10%, transparent); border-left: 3px solid var(--c); }
 .callout-title { font-weight: 600; color: var(--text); }
 summary.callout-title { cursor: pointer; } summary.callout-title::marker { color: var(--c); }
 .callout-content > :first-child { margin-top: .4em; } .callout-content > :last-child { margin-bottom: 0; }
-.callout[data-callout=tip], .callout[data-callout=hint], .callout[data-callout=important], .callout[data-callout=success], .callout[data-callout=check], .callout[data-callout=done] { --c: #08B94E; }
-.callout[data-callout=warning], .callout[data-callout=caution], .callout[data-callout=attention], .callout[data-callout=question], .callout[data-callout=help], .callout[data-callout=faq] { --c: #EC7500; }
+.callout[data-callout=tip], .callout[data-callout=hint], .callout[data-callout=important], .callout[data-callout=success], .callout[data-callout=check], .callout[data-callout=done] { --c: light-dark(#078A3B, #08B94E); }
+.callout[data-callout=warning], .callout[data-callout=caution], .callout[data-callout=attention], .callout[data-callout=question], .callout[data-callout=help], .callout[data-callout=faq] { --c: light-dark(#B85B00, #EC7500); }
 .callout[data-callout=danger], .callout[data-callout=error], .callout[data-callout=failure], .callout[data-callout=fail], .callout[data-callout=missing], .callout[data-callout=bug] { --c: #E93147; }
 .callout[data-callout=example] { --c: #7852EE; }
-.callout[data-callout=quote], .callout[data-callout=cite] { --c: #9E9E9E; }
+.callout[data-callout=quote], .callout[data-callout=cite] { --c: light-dark(#757575, #9E9E9E); }
 .embed { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; margin: 1em 0; }
 .embed-title { font-weight: 600; margin-bottom: .3em; }
 .embed.is-unresolved { color: var(--muted); font-style: italic; }

@@ -402,7 +402,7 @@ struct EdgeView<Pan: Gesture>: View {
                 shape.stroke(selected ? Color.accentColor : color.opacity(contrast == .increased ? 1 : 0.85),
                              style: StrokeStyle(lineWidth: selected ? (contrast == .increased ? 5 : 3.5) : (contrast == .increased ? 3 : 2),
                                                 lineCap: .round, dash: selected && contrast == .increased ? [10, 4] : []))
-                shape.stroke(Color.white.opacity(0.001), lineWidth: hitWidth)   // generous hit area, constant on screen
+                shape.stroke(Color.clear, lineWidth: hitWidth)   // generous hit area, constant on screen
                     .contentShape(shape.stroke(lineWidth: hitWidth))
                     .onTapGesture { select() }
                     .onTapGesture(count: 2) { editLabel() }
