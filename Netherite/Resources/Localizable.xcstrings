@@ -1217,6 +1217,16 @@
         }
       }
     },
+    "Check back later for new templates." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve más tarde para ver nuevas plantillas."
+          }
+        }
+      }
+    },
     "Check for Updates…" : {
       "localizations" : {
         "es" : {
@@ -1263,6 +1273,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elige una carpeta o un .zip de archivos Markdown. Se conserva la estructura de carpetas."
+          }
+        }
+      }
+    },
+    "Choose a templates folder to enable these." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige una carpeta de plantillas para activarlas."
           }
         }
       }
@@ -1775,6 +1795,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo crear el tema"
+          }
+        }
+      }
+    },
+    "Couldn't Install Template" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo instalar la plantilla"
           }
         }
       }
@@ -3665,6 +3695,16 @@
         }
       }
     },
+    "Loading Templates…" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargando plantillas…"
+          }
+        }
+      }
+    },
     "Local Graph: %@" : {
       "localizations" : {
         "es" : {
@@ -4441,6 +4481,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aún no hay notas"
+          }
+        }
+      }
+    },
+    "No Templates Yet" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay plantillas"
           }
         }
       }

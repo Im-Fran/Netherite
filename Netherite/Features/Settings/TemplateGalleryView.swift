@@ -15,7 +15,16 @@ struct TemplateGalleryView: View {
                 List(shown) { e in
                     NavigationLink { TemplatePreview(model: model, entry: e) } label: { row(e) }
                 }
-                .overlay { if shown.isEmpty && !query.isEmpty { ContentUnavailableView.search(text: query) } }
+                .searchable(text: $query)
+                .overlay {
+                    if shown.isEmpty {
+                        if query.isEmpty {
+                            ContentUnavailableView("No Templates Yet", systemImage: "square.grid.2x2", description: Text("Check back later for new templates."))
+                        } else {
+                            ContentUnavailableView.search(text: query)
+                        }
+                    }
+                }
             } else if let error {
                 ContentUnavailableView {
                     Label("Couldn't Load Templates", systemImage: "wifi.exclamationmark")
@@ -25,12 +34,11 @@ struct TemplateGalleryView: View {
                     Button("Try Again") { Task { await load() } }
                 }
             } else {
-                ProgressView()
+                ProgressView("Loading Templates…")
             }
         }
-        .searchable(text: $query)
         .navigationTitle("Template Gallery")
-        .task { await load() }
+        .task { if entries == nil { await load() } }
     }
 
     private func load() async {
@@ -45,7 +53,12 @@ struct TemplateGalleryView: View {
     }
 
     private func row(_ e: TemplateCatalog.Entry) -> some View {
-        Label { Text(e.name); Text(e.description) } icon: { Image(systemName: e.symbol) }
+        Label {
+            VStack(alignment: .leading) {
+                Text(e.name)
+                Text(e.description).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            }
+        } icon: { Image(systemName: e.symbol) }
     }
 }
 
@@ -54,6 +67,7 @@ private struct TemplatePreview: View {
     let model: VaultModel
     let entry: TemplateCatalog.Entry
     @State private var installed = false
+    @State private var failed = false
 
     var body: some View {
         ScrollView {
@@ -65,13 +79,16 @@ private struct TemplatePreview: View {
         }
         .navigationTitle(entry.name)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .primaryAction) {
                 Button(installed ? "Installed" : "Install", systemImage: installed ? "checkmark" : "square.and.arrow.down") {
-                    installed = model.addTemplates([entry.builtIn]) == 1
+                    model.addTemplates([entry.builtIn])
+                    installed = model.vault.exists(model.templatePath(entry.builtIn))
+                    failed = !installed
                 }
                 .disabled(installed)
             }
         }
+        .alert("Couldn't Install Template", isPresented: $failed) { Button("OK") {} } message: { Text(model.lastError ?? "") }
         .onAppear { installed = model.vault.exists(model.templatePath(entry.builtIn)) }
     }
 }

@@ -113,7 +113,9 @@ struct AddBuiltInTemplatesButton: View {
                 Label("Browse Template Gallery", systemImage: "square.grid.2x2")
             }
         } footer: {
-            if let added { Text("Added \(added) templates.") } else {
+            if let added { Text("Added \(added) templates.") } else if model.settings.templatesFolder.isEmpty {
+                Text("Choose a templates folder to enable these.")
+            } else {
                 Text("Meeting, daily journal, weekly review, project, book notes, to-do list and decision record. Existing files are kept.")
             }
         }
