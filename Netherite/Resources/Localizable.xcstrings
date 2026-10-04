@@ -657,6 +657,16 @@
         }
       }
     },
+    "Add the built-in templates (meeting, daily journal, weekly review, project, book notes, to-do list and decision record) or browse more in the gallery. Existing files are kept." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añade las plantillas incorporadas (reunión, diario, revisión semanal, proyecto, notas de libro, lista de tareas y registro de decisión) o explora más en la galería. Los archivos existentes se conservan."
+          }
+        }
+      }
+    },
     "Added %lld templates." : {
       "localizations" : {
         "es" : {
@@ -3845,16 +3855,6 @@
         }
       }
     },
-    "Meeting, daily journal, weekly review, project, book notes, to-do list and decision record. Existing files are kept." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reunión, diario, revisión semanal, proyecto, notas de libro, lista de tareas y registro de decisiones. Los archivos existentes se conservan."
-          }
-        }
-      }
-    },
     "Meetings" : {
       "localizations" : {
         "es" : {
@@ -6561,6 +6561,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo guardar la grabación."
+          }
+        }
+      }
+    },
+    "The template gallery isn't available right now." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La galería de plantillas no está disponible en este momento."
           }
         }
       }

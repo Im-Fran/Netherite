@@ -116,7 +116,7 @@ struct AddBuiltInTemplatesButton: View {
             if let added { Text("Added \(added) templates.") } else if model.settings.templatesFolder.isEmpty {
                 Text("Choose a templates folder to enable these.")
             } else {
-                Text("Meeting, daily journal, weekly review, project, book notes, to-do list and decision record. Existing files are kept.")
+                Text("Add the built-in templates (meeting, daily journal, weekly review, project, book notes, to-do list and decision record) or browse more in the gallery. Existing files are kept.")
             }
         }
         .disabled(model.settings.templatesFolder.isEmpty)

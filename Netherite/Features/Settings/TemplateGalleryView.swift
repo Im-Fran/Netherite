@@ -44,7 +44,11 @@ struct TemplateGalleryView: View {
     private func load() async {
         error = nil
         do { entries = try await TemplateCatalog.fetch().entries() }
-        catch { self.error = error.localizedDescription }
+        catch {
+            let offline: [URLError.Code] = [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost]
+            if let e = error as? URLError, offline.contains(e.code) { self.error = e.localizedDescription }
+            else { self.error = String(localized: "The template gallery isn't available right now.") }
+        }
     }
 
     private func filtered(_ list: [TemplateCatalog.Entry]) -> [TemplateCatalog.Entry] {
@@ -88,7 +92,7 @@ private struct TemplatePreview: View {
                 .disabled(installed)
             }
         }
-        .alert("Couldn't Install Template", isPresented: $failed) { Button("OK") {} } message: { Text(model.lastError ?? "") }
+        .alert("Couldn't Install Template", isPresented: $failed) { Button("OK") { model.lastError = nil } } message: { Text(model.lastError ?? "") }
         .onAppear { installed = model.vault.exists(model.templatePath(entry.builtIn)) }
     }
 }

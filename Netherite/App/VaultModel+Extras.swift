@@ -85,6 +85,7 @@ extension VaultModel {
     }
 
     /// Copies templates into the templates folder, never overwriting; returns how many were added.
+    @discardableResult
     func addTemplates(_ list: [BuiltInTemplate] = Templates.builtIns) -> Int {
         list.filter { t in
             let path = templatePath(t)
