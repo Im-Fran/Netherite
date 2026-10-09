@@ -39,7 +39,7 @@ table.properties th { width: 30%; text-align: left; font-weight: 500; color: var
 li.task-list-item { list-style: none; margin-left: -1.3em; }
 li.task-list-item.is-checked { color: var(--muted); text-decoration: line-through; }
 input.task-checkbox { accent-color: var(--accent); width: 1em; height: 1em; vertical-align: -.1em; margin-right: .3em; }
-@media (pointer: coarse) { input.task-checkbox { width: 1.5em; height: 1.5em; margin: -.25em .3em -.25em 0; vertical-align: -.35em; } }
+@media (pointer: coarse) { input.task-checkbox { width: 1.5em; height: 1.5em; margin: -.25em .3em -.25em 0; vertical-align: middle; } }
 .callout { --c: #086DDD; margin: 1em 0; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c) 10%, transparent); border-left: 3px solid var(--c); }
 .callout-title { font-weight: 600; color: var(--text); }
 summary.callout-title { cursor: pointer; } summary.callout-title::marker { color: var(--c); }

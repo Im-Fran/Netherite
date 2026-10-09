@@ -103,9 +103,9 @@ public enum Frontmatter {
             ? timeFormatterT.string(from: d) : dayFormatter.string(from: d)
     }
 
-    nonisolated(unsafe) static let dayFormatter = formatter("yyyy-MM-dd")
-    nonisolated(unsafe) static let timeFormatter = formatter("yyyy-MM-dd HH:mm")
-    nonisolated(unsafe) static let timeFormatterT = formatter("yyyy-MM-dd'T'HH:mm")
+    static let dayFormatter = formatter("yyyy-MM-dd")
+    static let timeFormatter = formatter("yyyy-MM-dd HH:mm")
+    static let timeFormatterT = formatter("yyyy-MM-dd'T'HH:mm")
     static func formatter(_ f: String) -> DateFormatter {
         let d = DateFormatter()
         d.locale = Locale(identifier: "en_US_POSIX")

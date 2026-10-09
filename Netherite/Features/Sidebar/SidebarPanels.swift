@@ -67,6 +67,8 @@ struct SidebarView: View {
 struct SearchPanel: View {
     @Environment(WindowState.self) private var window
     @State private var hits: [SearchHit] = []
+    /// The query `hits` answers; while it lags the field, results are still loading.
+    @State private var hitsQuery = ""
     @State private var caseSensitive = false
     @FocusState private var focused: Bool
 
@@ -114,7 +116,7 @@ struct SearchPanel: View {
             TipView(SearchTip())
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
-            if !window.searchQuery.isEmpty {
+            if !window.searchQuery.isEmpty && hitsQuery == window.searchQuery {
                 Text("\(hits.count) results").font(.caption).foregroundStyle(.secondary).padding(.top, 6)
             }
             List {
@@ -123,22 +125,30 @@ struct SearchPanel: View {
                         ForEach(hit.matches, id: \.self) { m in
                             Button { window.open(path: hit.path, line: m.line) } label: {
                                 highlighted(m).font(.callout).lineLimit(3)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
                     } header: {
                         Button { window.open(path: hit.path) } label: {
                             Label(hit.path.noteName, systemImage: symbol(for: hit.path)).font(.headline)
+                                .foregroundStyle(Color.primary)   // .primary would resolve against the header's gray
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
+            #if os(iOS)
+            .listStyle(.plain)
+            #endif
             .overlay {
                 if window.searchQuery.isEmpty {
                     ContentUnavailableView("Search Your Vault", systemImage: "magnifyingglass",
                                            description: Text("Find text, tags and properties across all your notes."))
-                } else if hits.isEmpty {
+                } else if hits.isEmpty && hitsQuery == window.searchQuery {
                     ContentUnavailableView.search(text: window.searchQuery)
                 }
             }
@@ -148,7 +158,9 @@ struct SearchPanel: View {
             if !window.searchQuery.isEmpty { NetheriteTips.donate(NetheriteTips.searchUsed) }
             let query = SearchQuery(window.searchQuery, caseSensitive: caseSensitive)
             let notes = window.model.index.notes
+            let q = window.searchQuery
             hits = await Task.detached { Search.run(query, in: notes) }.value
+            hitsQuery = q
         }
         .onAppear { focused = true }
     }
@@ -158,7 +170,10 @@ struct SearchPanel: View {
         guard m.range.location != NSNotFound, NSMaxRange(m.range) <= ns.length else { return Text(m.text) }
         let start = max(0, m.range.location - 40)
         let prefix = (start > 0 ? "…" : "") + ns.substring(with: NSRange(location: start, length: m.range.location - start))
-        return Text(prefix) + Text(ns.substring(with: m.range)).bold().foregroundStyle(Color.accentColor) + Text(ns.substring(from: NSMaxRange(m.range)))
+        var match = AttributedString(ns.substring(with: m.range))
+        match.inlinePresentationIntent = .stronglyEmphasized
+        match.foregroundColor = .accentColor
+        return Text(AttributedString(prefix) + match + AttributedString(ns.substring(from: NSMaxRange(m.range))))
     }
 }
 
@@ -188,6 +203,7 @@ struct TagsPanel: View {
                         Spacer()
                         Text("\(node.count)").foregroundStyle(.secondary).monospacedDigit()
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

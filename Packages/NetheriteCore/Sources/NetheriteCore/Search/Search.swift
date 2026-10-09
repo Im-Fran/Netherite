@@ -40,7 +40,9 @@ public struct SearchQuery: Sendable {
         for c in s {
             if let q = quote { cur.append(c); if c == q { quote = nil }; continue }
             switch c {
-            case "\"", "/" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"): quote = c; cur.append(c)
+            // A quote or regex only opens at the start of a term (after "-" or "prop:"), so `don"t` stays one word.
+            case "\"" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"),
+                 "/" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"): quote = c; cur.append(c)
             case "[": depth += 1; cur.append(c)
             case "]": depth -= 1; cur.append(c)
             case " " where depth == 0: if !cur.isEmpty { toks.append(cur); cur = "" }

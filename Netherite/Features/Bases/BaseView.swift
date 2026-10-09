@@ -113,7 +113,7 @@ struct BaseView: View {
                 .buttonStyle(.borderedProminent)
                 .help("Create a note in this database")
         }
-        .padding(.horizontal, sizeClass == .compact ? 8 : 16)
+        .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
 
@@ -228,16 +228,16 @@ struct BaseView: View {
                     }
                 } label: {
                     if let s = view.sort.first, s.property == p {
-                        Label(base.displayName(p), systemImage: s.ascending ? "chevron.up" : "chevron.down")
+                        Label(base.label(p), systemImage: s.ascending ? "chevron.up" : "chevron.down")
                     } else {
-                        Text(base.displayName(p))
+                        Text(base.label(p))
                     }
                 }
             }
             Divider()
             Menu("Group By") {
                 Button("None") { update { $0.groupBy = nil } }
-                ForEach(allProperties, id: \.self) { p in Button(base.displayName(p)) { update { $0.groupBy = BaseSort(property: p) } } }
+                ForEach(allProperties, id: \.self) { p in Button(base.label(p)) { update { $0.groupBy = BaseSort(property: p) } } }
             }
             if !view.sort.isEmpty { Button("Clear Sort") { update { $0.sort = [] } } }
         } label: { Label("Sort", systemImage: "arrow.up.arrow.down") }
@@ -247,7 +247,7 @@ struct BaseView: View {
     }
 
     private func columnPicker(_ view: BaseViewConfig) -> some View {
-        ColumnPicker(order: view.order, all: allProperties, displayName: base.displayName, formulas: base.formulas.map(\.name)) { order in
+        ColumnPicker(order: view.order, all: allProperties, displayName: base.label, formulas: base.formulas.map(\.name)) { order in
             update { $0.order = order }
         } addFormula: { name, expr in
             base.formulas.removeAll { $0.name == name }
@@ -316,7 +316,7 @@ struct BaseView: View {
             openButton(r).font(.headline)
             let props = columns.filter { $0 != "file.name" }.map { ($0, base.value(of: $0, row: r)) }.filter { !$0.1.isEmpty }
             if !props.isEmpty {
-                Text(props.map { "\(base.displayName($0.0)): \($0.1)" }.joined(separator: " · "))
+                Text(props.map { "\(base.label($0.0)): \($0.1.displayText)" }.joined(separator: " · "))
                     .font(.callout).foregroundStyle(.secondary).lineLimit(2)
             }
         }
@@ -333,7 +333,7 @@ struct BaseView: View {
             ForEach(columns.filter { $0 != "file.name" }.prefix(4), id: \.self) { c in
                 let v = base.value(of: c, row: r)
                 if !v.isEmpty {
-                    LabeledContent(base.displayName(c)) { Text(v.description).lineLimit(1) }.font(.caption)
+                    LabeledContent(base.label(c)) { Text(v.displayText).lineLimit(1) }.font(.caption)
                 }
             }
         }
@@ -372,13 +372,13 @@ struct BaseView: View {
             openButton(r)
         } else if let key = editableKey(column), r.path.isMarkdown {
             if case .bool(let b) = v {
-                Toggle(base.displayName(column), isOn: Binding(get: { b }, set: { setProperty(key, .bool($0), of: r.path) }))
+                Toggle(base.label(column), isOn: Binding(get: { b }, set: { setProperty(key, .bool($0), of: r.path) }))
                     .labelsHidden()
             } else {
-                PropertyCell(label: base.displayName(column), value: v.description) { setProperty(key, typed($0, like: v), of: r.path) }
+                PropertyCell(label: base.label(column), value: v.description) { setProperty(key, typed($0, like: v), of: r.path) }
             }
         } else {
-            Text(v.description).foregroundStyle(.secondary)
+            Text(v.displayText).foregroundStyle(.secondary)
         }
     }
 
@@ -566,7 +566,7 @@ private struct BaseTable<Cell: View, RowMenu: View>: View {
             set: { if let f = $0.first { onSort(BaseSort(property: f.property, ascending: f.order == .forward)) } })
         Table(rows, selection: $selection, sortOrder: sortOrder) {
             TableColumnForEach(columns, id: \.self) { c in
-                TableColumn(base.displayName(c), sortUsing: Comparator(property: c, base: base)) { r in cell(r, c) }
+                TableColumn(base.label(c), sortUsing: Comparator(property: c, base: base)) { r in cell(r, c) }
             }
         }
         .contextMenu(forSelectionType: String.self) { paths in
@@ -778,5 +778,38 @@ private extension View {
         #else
         self
         #endif
+    }
+}
+
+extension BaseFile {
+    /// Column title: the base's own display name, else a localized name for built-in file properties.
+    func label(_ property: String) -> String {
+        if let custom = displayNames[property] { return custom }
+        return switch property {
+        case "file.name": String(localized: "Name")
+        case "file.basename": String(localized: "Base Name")
+        case "file.path": String(localized: "Path")
+        case "file.folder": String(localized: "Folder")
+        case "file.ext": String(localized: "Extension")
+        case "file.size": String(localized: "Size")
+        case "file.ctime": String(localized: "Created")
+        case "file.mtime": String(localized: "Modified")
+        case "file.tags": String(localized: "Tags")
+        case "file.links": String(localized: "Links")
+        case "file.properties": String(localized: "Properties")
+        default: displayName(property)
+        }
+    }
+}
+
+extension BaseValue {
+    /// Read-only presentation; `description` stays the raw form used for editing and filters.
+    var displayText: String {
+        switch self {
+        case .date(let d): d.formatted(date: .abbreviated, time: .shortened)
+        case .bool(let b): b ? String(localized: "Yes") : String(localized: "No")
+        case .list(let l): l.map(\.displayText).joined(separator: ", ")
+        default: description
+        }
     }
 }

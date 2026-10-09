@@ -15,6 +15,8 @@ struct PaletteItem: Identifiable {
 /// Keyboard-driven filter list used by the quick switcher, command palette and template picker.
 struct PaletteView: View {
     let prompt: LocalizedStringKey
+    /// Sheet title on iOS; the prompt already shows in the field, so nil leaves the bar untitled.
+    var title: LocalizedStringKey? = nil
     let items: (String) -> [PaletteItem]
     var footer: LocalizedStringKey?
     @Environment(\.dismiss) private var dismiss
@@ -29,7 +31,7 @@ struct PaletteView: View {
         NavigationStack {
             content
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-                .navigationTitle(prompt)
+                .navigationTitle(title ?? "")
                 .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.large])
@@ -123,7 +125,7 @@ struct QuickSwitcher: View {
     @Environment(WindowState.self) private var window
 
     var body: some View {
-        PaletteView(prompt: "Find or create a note…", items: items,
+        PaletteView(prompt: "Find or create a note…", title: "Go to File", items: items,
                     footer: "↩ open · ⌘↩ open in new pane · ⇧↩ create")
     }
 
@@ -158,7 +160,7 @@ struct CommandPalette: View {
     @Environment(WindowState.self) private var window
 
     var body: some View {
-        PaletteView(prompt: "Type a command…", items: { q in
+        PaletteView(prompt: "Type a command…", title: "Command Palette", items: { q in
             AppCommands.all(window: window, editor: window.editor).compactMap { c in
                 (q.isEmpty ? 0 : Search.fuzzyScore(q, c.title)).map { (c, $0) }
             }
@@ -204,7 +206,7 @@ enum AppCommands {
             .init(id: "base", title: String(localized: "Bases: Create new base"), symbol: "tablecells", plugin: .bases) {
                 if let p = w.model.newBase(in: w.model.settings.newNoteFolder) { w.open(path: p) }
             },
-            .init(id: "database", title: String(localized: "Bases: Create new database"), symbol: "tablecells.badge.ellipsis", plugin: .bases) {
+            .init(id: "database", title: String(localized: "Bases: Create new database with a folder…"), symbol: "tablecells.badge.ellipsis", plugin: .bases) {
                 w.sheet = .newDatabase(w.model.settings.newNoteFolder)
             },
             .init(id: "meeting", title: String(localized: "Meeting notes: New meeting note"), symbol: "person.2", plugin: .meetingNotes) { w.sheet = .meetingNote },

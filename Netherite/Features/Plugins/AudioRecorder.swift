@@ -3,7 +3,7 @@ import AVFoundation
 import NetheriteCore
 
 @Observable
-final class AudioRecorderModel: NSObject, AVAudioRecorderDelegate {
+final class AudioRecorderModel {
     var recording = false
     var elapsed: TimeInterval = 0
     var level: Float = 0
@@ -33,7 +33,6 @@ final class AudioRecorderModel: NSObject, AVAudioRecorderDelegate {
         do {
             let r = try AVAudioRecorder(url: fileURL, settings: settings)
             r.isMeteringEnabled = true
-            r.delegate = self
             r.record()
             recorder = r
             recording = true

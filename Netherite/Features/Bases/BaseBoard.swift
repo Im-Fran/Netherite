@@ -91,7 +91,7 @@ struct BaseBoard: View {
                 ForEach(fields.filter { $0 != "file.name" && $0 != property }.prefix(3), id: \.self) { c in
                     let v = base.value(of: c, row: r)
                     if !v.isEmpty {
-                        Text("\(base.displayName(c)): \(v.description)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text("\(base.label(c)): \(v.displayText)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
             }

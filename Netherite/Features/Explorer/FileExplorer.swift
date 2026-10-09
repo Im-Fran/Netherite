@@ -13,7 +13,8 @@ struct FileNode: Identifiable, Hashable {
         var byParent: [String: [FileNode]] = [:]
         for f in folders { byParent[f.parentFolder, default: []].append(FileNode(path: f, name: (f as NSString).lastPathComponent, isFolder: true)) }
         for f in files {
-            let name = f.isMarkdown ? f.noteName : (f as NSString).lastPathComponent
+            // Notes, canvases and bases show their icon instead of an extension; other files keep it.
+            let name = ["md", "canvas", "base"].contains(f.fileExtension) ? f.noteName : (f as NSString).lastPathComponent
             byParent[f.parentFolder, default: []].append(FileNode(path: f, name: name, isFolder: false))
         }
         func build(_ parent: String) -> [FileNode] {

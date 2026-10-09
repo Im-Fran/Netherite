@@ -160,6 +160,8 @@ final class WindowState {
     var importTarget: String?
     var searchQuery = ""
     var explorerSelection: String?
+    /// A note created by "New Note" that should open with its title selected for renaming.
+    @ObservationIgnored var freshNote: String?
     var presentingSlides = false
     /// Toolbar tips shown one at a time, in this order.
     @ObservationIgnored let toolbarTips = TipGroup(.ordered) {
@@ -249,7 +251,7 @@ final class WindowState {
 
     func newNote() {
         let folder = explorerSelection.map { model.index.folders.contains($0) ? $0 : $0.parentFolder }
-        if let p = model.newNote(in: folder ?? model.settings.newNoteFolder) { open(path: p) }
+        if let p = model.newNote(in: folder ?? model.settings.newNoteFolder) { freshNote = p; open(path: p) }
     }
 
     func rename(_ path: String, to name: String) {
