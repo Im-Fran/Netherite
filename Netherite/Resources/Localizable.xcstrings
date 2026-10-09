@@ -907,6 +907,16 @@
         }
       }
     },
+    "Base Name" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre base"
+          }
+        }
+      }
+    },
     "Bases filter and sort by properties" : {
       "localizations" : {
         "es" : {
@@ -927,12 +937,12 @@
         }
       }
     },
-    "Bases: Create new database" : {
+    "Bases: Create new database with a folder…" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bases: Crear nueva base de datos"
+            "value" : "Bases: crear nueva base de datos con carpeta…"
           }
         }
       }
@@ -2029,6 +2039,16 @@
         }
       }
     },
+    "Created" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creado"
+          }
+        }
+      }
+    },
     "Created “%@”." : {
       "localizations" : {
         "es" : {
@@ -2379,12 +2399,12 @@
         }
       }
     },
-    "Double-click (or double-tap) empty space to add a card. Drag the dots on a card's edge to connect it." : {
+    "Double-click empty space to add a card. Drag the dots on a card's edge to connect it." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Haz doble clic (o toca dos veces) en un espacio vacío para agregar una tarjeta. Arrastra los puntos del borde para conectarla."
+            "value" : "Haz doble clic en un espacio vacío para agregar una tarjeta. Arrastra los puntos del borde para conectarla."
           }
         }
       }
@@ -2395,6 +2415,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Haz doble clic para editar"
+          }
+        }
+      }
+    },
+    "Double-tap empty space to add a card. Drag the dots on a card's edge to connect it." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca dos veces un espacio vacío para agregar una tarjeta. Arrastra los puntos del borde para conectarla."
           }
         }
       }
@@ -2685,6 +2715,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Expresión, p. ej. rating * 2"
+          }
+        }
+      }
+    },
+    "Extension" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extensión"
           }
         }
       }
@@ -3935,6 +3975,16 @@
         }
       }
     },
+    "Modified" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modificado"
+          }
+        }
+      }
+    },
     "Monospaced" : {
       "localizations" : {
         "es" : {
@@ -4361,6 +4411,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Página siguiente"
+          }
+        }
+      }
+    },
+    "No" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
           }
         }
       }
@@ -5111,6 +5171,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Página %1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "Path" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruta"
           }
         }
       }
@@ -6021,6 +6091,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Muestra los archivos que se están sincronizando"
+          }
+        }
+      }
+    },
+    "Shows the “Explore the Guide” card and the welcome tour button on the start page." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra la tarjeta “Explorar la guía” y el botón del recorrido de bienvenida en la página de inicio."
           }
         }
       }
@@ -7317,6 +7397,16 @@
         }
       }
     },
+    "Yes" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sí"
+          }
+        }
+      }
+    },
     "You can restore it from the Trash." : {
       "localizations" : {
         "es" : {
@@ -7900,16 +7990,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ocultar en la página de inicio"
-          }
-        }
-      }
-    },
-    "Hides the “Explore the Guide” card and the welcome tour button on the start page." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Oculta la tarjeta “Explorar la guía” y el botón del recorrido de bienvenida en la página de inicio."
           }
         }
       }

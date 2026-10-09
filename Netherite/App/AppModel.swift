@@ -174,7 +174,7 @@ final class AppModel {
         let parents = await Self.vaultParents().map(Self.key)
         if parents.contains(Self.key(url.deletingLastPathComponent())) {
             close(recent.path)
-            try await Task.detached { try VaultTrash.trash(url) }.value
+            _ = try await Task.detached { try VaultTrash.trash(url) }.value
         } else {
             #if os(macOS)
             close(recent.path)

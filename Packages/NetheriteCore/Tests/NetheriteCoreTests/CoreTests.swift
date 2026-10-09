@@ -115,6 +115,17 @@ Footnote here[^1].
     #expect(texts(.marker).contains("Note|"))
 }
 
+@Test func searchQuotesOnlyOpenTerms() {
+    #expect(SearchQuery.tokenize(#"don"t -"a b" path:"x y""#) == [#"don"t"#, #"-"a b""#, #"path:"x y""#])
+}
+
+@Test func highlighterSingleCharCode() {
+    let t = "con `/`. Usa `{{title}}` y `x`"
+    let ns = t as NSString
+    let code = MarkdownHighlighter.spans(t).filter { $0.kind == .inlineCode }.map { ns.substring(with: $0.range) }
+    #expect(code == ["`/`", "`{{title}}`", "`x`"])
+}
+
 @Test func templates() {
     var c = DateComponents(); c.year = 2024; c.month = 3; c.day = 9; c.hour = 14; c.minute = 5
     let d = Calendar.current.date(from: c)!

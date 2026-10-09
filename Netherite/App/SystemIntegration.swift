@@ -1,5 +1,5 @@
 import SwiftUI
-import CoreSpotlight
+@preconcurrency import CoreSpotlight
 import WidgetKit
 import NetheriteCore
 

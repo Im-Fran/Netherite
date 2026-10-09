@@ -255,10 +255,10 @@ struct CanvasSurface: View {
             }
             .toggleStyle(.button).buttonStyle(.borderless)
             .help("Drag on empty space to select (or hold ⇧)")
-            // Hidden shortcuts
-            Button("Select All") { model.selectAll() }.keyboardShortcut("a").hidden().frame(width: 0)
+            // Hidden shortcuts. Zero height too: a zero-width label wraps one letter per line and stretches the bar.
+            Button("Select All") { model.selectAll() }.keyboardShortcut("a").hidden().frame(width: 0, height: 0)
                 .disabled(model.editing != nil)
-            Button("Deselect") { model.endEditing(); model.clearSelection() }.keyboardShortcut(.escape, modifiers: []).hidden().frame(width: 0)
+            Button("Deselect") { model.endEditing(); model.clearSelection() }.keyboardShortcut(.escape, modifiers: []).hidden().frame(width: 0, height: 0)
         }
         .padding(.horizontal, 6)
         .glassEffect(.regular, in: .capsule)

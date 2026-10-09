@@ -28,7 +28,7 @@ public final class ENEXParser: NSObject, XMLParserDelegate {
         return d.notes
     }
 
-    nonisolated(unsafe) static let dateFormatter: DateFormatter = {
+    static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = TimeZone(identifier: "UTC")

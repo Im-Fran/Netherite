@@ -185,7 +185,13 @@ nonisolated struct DailyNoteTip: Tip {
 
 nonisolated struct CanvasTip: Tip {
     var title: Text { Text("Think on a Canvas") }
-    var message: Text? { Text("Double-click (or double-tap) empty space to add a card. Drag the dots on a card's edge to connect it.") }
+    var message: Text? {
+        #if os(iOS)
+        Text("Double-tap empty space to add a card. Drag the dots on a card's edge to connect it.")
+        #else
+        Text("Double-click empty space to add a card. Drag the dots on a card's edge to connect it.")
+        #endif
+    }
     var image: Image? { Image(systemName: "rectangle.3.group") }
     var rules: [Rule] {
         #Rule(NetheriteTips.onboardingFinished) { $0.donations.count >= 1 }

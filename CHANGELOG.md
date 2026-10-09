@@ -21,8 +21,21 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Larger tap targets for task checkboxes on touch screens, Recent Notes widget rows and the Bases clear-search button.
 - Settings labels use title case consistently, and icons and tiles scale with Dynamic Type.
 - Mermaid diagrams follow the system appearance when it changes.
+- A new note opens with its title selected, so you can name it right away; Return moves to the body.
+- Bases show localized column names (Modified, Created, Size…) and readable dates instead of raw keys and ISO timestamps.
+- Graph view hides labels that would overlap, keeping the most connected notes labeled.
+- Canvases and bases show without their file extension in the file list, like notes.
+- The guide mentions touch alternatives to keyboard shortcuts, and the canvas tip says "double-tap" on iPhone and iPad.
+- The command palette and quick switcher have their own titles on iPhone instead of repeating the search prompt.
 
 ### Fixed
+- Inline code with a single character, such as `` `/` ``, renders correctly in Live Preview.
+- The canvas toolbar no longer stretches into a large circle on iPhone, which made split canvases unusable.
+- A `$…$` equation alone on its line renders in Live Preview, not only in Reading view.
+- Tapping anywhere on a tag row or search result opens it, not just its text; search results no longer look disabled or flash "No results" while searching.
+- Task checkboxes in Reading view line up with their text on touch screens.
+- The "Show the Guide and Welcome Tour" setting describes what it shows, not what it hides.
+- Search terms with a quote in the middle, such as `don"t`, stay one word instead of starting a phrase.
 - Deleting all snapshots now reports a failure instead of silently doing nothing.
 - VoiceOver announces long-running vault operations and which split pane is focused, and skips drag-only canvas handles.
 

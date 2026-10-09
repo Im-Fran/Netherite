@@ -25,7 +25,7 @@ public enum GuideVault {
         This vault is a tour. Every note teaches one idea, and they're all **plain Markdown files** in a folder you own.
 
         > [!tip] How to use this guide
-        > Click a link to follow it. Press ⌘E to switch between editing and reading. Nothing here can break — experiment freely.
+        > Click a link to follow it. Press ⌘E (or tap the book button) to switch between editing and reading. Nothing here can break — experiment freely.
 
         ## The tour
         1. [[Writing notes]] — formatting, callouts, math and diagrams
@@ -81,7 +81,7 @@ public enum GuideVault {
         - Link to a heading with `[[Writing notes#Callouts]]`.
         - Show another note inside this one with `![[Keyboard shortcuts]]`.
         - Open the **right sidebar** to see **backlinks**: every note that links here.
-        - Open the **graph view** (⌃⌘G) to see how your notes connect.
+        - Open the **graph view** (⌃⌘G, or from the command palette) to see how your notes connect.
 
         Next: [[Organizing]]
         """),
@@ -108,9 +108,9 @@ public enum GuideVault {
         ---
         # Daily notes and templates
 
-        Press ⇧⌘D to open **today's note** — a note named after the date, perfect for journaling and quick capture. Its folder and format are in Settings.
+        Press ⇧⌘D, or choose it in the command palette, to open **today's note** — a note named after the date, perfect for journaling and quick capture. Its folder and format are in Settings.
 
-        **Templates** are notes in the `Templates` folder. Insert one with ⇧⌘T or `/`. Use `{{title}}`, `{{date}}` and `{{time}}` as placeholders — see [[Templates/Meeting]].
+        **Templates** are notes in the `Templates` folder. Insert one with ⇧⌘T, the command palette or `/`. Use `{{title}}`, `{{date}}` and `{{time}}` as placeholders — see [[Templates/Meeting]].
 
         Next: [[Visual thinking]]
         """),
@@ -120,7 +120,7 @@ public enum GuideVault {
         ---
         # Visual thinking
 
-        - **Canvas** is an infinite board for cards, notes, links and arrows. Open [[Guide board.canvas]] and double-click empty space to add a card.
+        - **Canvas** is an infinite board for cards, notes, links and arrows. Open [[Guide board.canvas]] and double-click (or double-tap) empty space to add a card.
         - **Bases** turn notes into a table you can filter and sort by their properties. Open [[Guide notes.base]] — it lists every note tagged #guide.
 
         Next: [[Keyboard shortcuts]]
@@ -175,7 +175,7 @@ public enum GuideVault {
 
     static let canvasEN = (path: "Guide board.canvas", text: """
     {"nodes":[
-     {"id":"c1","type":"text","text":"# Ideas board\\nDouble-click empty space to add a card, drag the dots on a card's edge to connect it.","x":-40,"y":-20,"width":320,"height":160,"color":"6"},
+     {"id":"c1","type":"text","text":"# Ideas board\\nDouble-click or double-tap empty space to add a card, drag the dots on a card's edge to connect it.","x":-40,"y":-20,"width":320,"height":160,"color":"6"},
      {"id":"c2","type":"file","file":"Start Here.md","x":360,"y":-60,"width":340,"height":260},
      {"id":"c3","type":"text","text":"Cards can hold **Markdown**, notes, web pages or groups.","x":-40,"y":220,"width":320,"height":110,"color":"4"}
     ],"edges":[{"id":"e1","fromNode":"c1","fromSide":"right","toNode":"c2","toSide":"left","label":"see"}]}
@@ -193,7 +193,7 @@ public enum GuideVault {
         Esta bóveda es un recorrido. Cada nota enseña una idea, y todas son **archivos Markdown** en una carpeta que es tuya.
 
         > [!tip] Cómo usar esta guía
-        > Haz clic en un enlace para seguirlo. Pulsa ⌘E para cambiar entre edición y lectura. Aquí nada se rompe: experimenta.
+        > Haz clic en un enlace para seguirlo. Pulsa ⌘E (o toca el botón del libro) para cambiar entre edición y lectura. Aquí nada se rompe: experimenta.
 
         ## El recorrido
         1. [[Escribir notas]]: formato, callouts, fórmulas y diagramas
@@ -249,7 +249,7 @@ public enum GuideVault {
         - Enlaza a un título con `[[Escribir notas#Callouts]]`.
         - Muestra otra nota dentro de esta con `![[Atajos de teclado]]`.
         - Abre la **barra lateral derecha** para ver los **enlaces entrantes**: las notas que enlazan aquí.
-        - Abre la **vista de grafo** (⌃⌘G) para ver cómo se conectan tus notas.
+        - Abre la **vista de grafo** (⌃⌘G, o desde la paleta de comandos) para ver cómo se conectan tus notas.
 
         Siguiente: [[Organizar]]
         """),
@@ -276,9 +276,9 @@ public enum GuideVault {
         ---
         # Notas diarias y plantillas
 
-        Pulsa ⇧⌘D para abrir la **nota de hoy**: una nota con la fecha como nombre, ideal para un diario o apuntes rápidos. Su carpeta y formato están en Ajustes.
+        Pulsa ⇧⌘D, o elígela en la paleta de comandos, para abrir la **nota de hoy**: una nota con la fecha como nombre, ideal para un diario o apuntes rápidos. Su carpeta y formato están en Ajustes.
 
-        Las **plantillas** son notas de la carpeta `Templates`. Inserta una con ⇧⌘T o con `/`. Usa `{{title}}`, `{{date}}` y `{{time}}` como marcadores; mira [[Templates/Reunión]].
+        Las **plantillas** son notas de la carpeta `Templates`. Inserta una con ⇧⌘T, la paleta de comandos o `/`. Usa `{{title}}`, `{{date}}` y `{{time}}` como marcadores; mira [[Templates/Reunión]].
 
         Siguiente: [[Pensamiento visual]]
         """),
@@ -288,7 +288,7 @@ public enum GuideVault {
         ---
         # Pensamiento visual
 
-        - Un **lienzo** es un tablero infinito de tarjetas, notas, enlaces y flechas. Abre [[Tablero guía.canvas]] y haz doble clic en un espacio vacío para añadir una tarjeta.
+        - Un **lienzo** es un tablero infinito de tarjetas, notas, enlaces y flechas. Abre [[Tablero guía.canvas]] y haz doble clic (o toca dos veces) en un espacio vacío para añadir una tarjeta.
         - Las **bases** convierten notas en una tabla que puedes filtrar y ordenar por sus propiedades. Abre [[Notas de la guía.base]]: lista todas las notas con la etiqueta #guía.
 
         Siguiente: [[Atajos de teclado]]
@@ -343,7 +343,7 @@ public enum GuideVault {
 
     static let canvasES = (path: "Tablero guía.canvas", text: """
     {"nodes":[
-     {"id":"c1","type":"text","text":"# Tablero de ideas\\nHaz doble clic en un espacio vacío para añadir una tarjeta y arrastra los puntos del borde para conectarla.","x":-40,"y":-20,"width":320,"height":160,"color":"6"},
+     {"id":"c1","type":"text","text":"# Tablero de ideas\\nHaz doble clic o toca dos veces un espacio vacío para añadir una tarjeta y arrastra los puntos del borde para conectarla.","x":-40,"y":-20,"width":320,"height":160,"color":"6"},
      {"id":"c2","type":"file","file":"Empieza aquí.md","x":360,"y":-60,"width":340,"height":260},
      {"id":"c3","type":"text","text":"Las tarjetas pueden contener **Markdown**, notas, páginas web o grupos.","x":-40,"y":220,"width":320,"height":110,"color":"4"}
     ],"edges":[{"id":"e1","fromNode":"c1","fromSide":"right","toNode":"c2","toSide":"left","label":"ver"}]}

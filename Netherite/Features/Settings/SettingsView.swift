@@ -173,7 +173,7 @@ struct GeneralSettingsView: View {
             } header: {
                 Text("Start Page")
             } footer: {
-                Text("Hides the “Explore the Guide” card and the welcome tour button on the start page.")
+                Text("Shows the “Explore the Guide” card and the welcome tour button on the start page.")
             }
             Section("Help") {
                 Button("Show Welcome Tour") { UserDefaults.standard.set(false, forKey: "hasSeenOnboarding") }

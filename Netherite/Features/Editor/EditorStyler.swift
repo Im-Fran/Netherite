@@ -215,6 +215,11 @@ struct EditorStyler {
             switch span.kind {
             case .mathBlock:
                 out.append((span.range, .math(String(ns.substring(with: span.range).dropFirst(2).dropLast(2)).trimmingCharacters(in: .whitespacesAndNewlines))))
+            case .math:
+                // ponytail: only a `$…$` alone on its line renders; mid-sentence math needs inline attachments.
+                let line = ns.substring(with: ns.lineRange(for: span.range)).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard line == ns.substring(with: span.range) else { continue }
+                out.append((span.range, .math(String(line.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces))))
             case .codeBlock:
                 let block = ns.substring(with: span.range)
                 guard block.hasPrefix("```mermaid") || block.hasPrefix("~~~mermaid") else { continue }

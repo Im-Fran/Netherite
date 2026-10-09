@@ -10,6 +10,7 @@ struct NoteEditorView: View {
     @State private var controller = EditorController()
     @State private var title = ""
     @FocusState private var titleFocused: Bool
+    @State private var titleSelection: TextSelection?
     @State private var headerHeight: CGFloat = 80
     @State private var renderToken = 0
     @AppStorage("hasSeenOnboarding") private var onboarded = false
@@ -28,8 +29,8 @@ struct NoteEditorView: View {
             }
         }
         .background(Color(pair: model.theme.background, fallback: .clear))
-        .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded() }
-        .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded() }
+        .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded(); selectTitleIfFresh() }
+        .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
         .onDisappear { model.save(path) }
         .focusedSceneValue(\.editor, controller)
@@ -118,10 +119,19 @@ struct NoteEditorView: View {
         }
     }
 
+    /// A just-created note opens with its placeholder title selected, so typing names it and Return moves to the body.
+    private func selectTitleIfFresh() {
+        guard window.freshNote == path else { return }
+        window.freshNote = nil
+        titleFocused = true
+        // Focusing places the caret; select on the next turn so the selection isn't overwritten.
+        Task { @MainActor in titleSelection = TextSelection(range: title.startIndex..<title.endIndex) }
+    }
+
     /// Inline title and properties, drawn inside the editor so they scroll with the note.
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Title", text: $title, axis: .vertical)
+            TextField("Title", text: $title, selection: $titleSelection, axis: .vertical)
                 .font(.largeTitle.bold())
                 .textFieldStyle(.plain)
                 .focused($titleFocused)

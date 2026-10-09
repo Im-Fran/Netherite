@@ -213,6 +213,7 @@ struct GraphView: View {
                            lineWidth: lit ? lineWidth * 2 : lineWidth)
             }
             let labelOpacity = min(1, max(0, (zoom - 0.7) / 0.5))
+            var labels: [(node: GraphNode, at: CGPoint, radius: CGFloat, pinned: Bool, opacity: Double)] = []
             for n in data.nodes {
                 guard let p = sim.positions[n.id] else { continue }
                 let r = sim.radius(n)
@@ -243,10 +244,18 @@ struct GraphView: View {
                 }
                 let showLabel = n.id == hovered || n.id == active
                 let opacity = showLabel ? 1 : labelOpacity * (dimmed ? 0.3 : 1)
-                if opacity > 0.02 {
-                    ctx.draw(Text(n.label).font(.system(size: labelSize / max(zoom, 0.6))).foregroundStyle(.primary.opacity(opacity)),
-                             at: CGPoint(x: p.x, y: p.y + r + 8 / zoom), anchor: .top)
-                }
+                if opacity > 0.02 { labels.append((n, CGPoint(x: p.x, y: p.y + r + 8 / zoom), r, showLabel, opacity)) }
+            }
+            // Labels go on top of every node, most important first; one that would overlap a placed label is skipped.
+            // ponytail: O(n²) overlap check over visible labels, fine for vault-sized graphs.
+            var placed: [CGRect] = []
+            for l in labels.sorted(by: { ($0.pinned ? 1 : 0, $0.radius) > ($1.pinned ? 1 : 0, $1.radius) }) {
+                let text = ctx.resolve(Text(l.node.label).font(.system(size: labelSize / max(zoom, 0.6))).foregroundStyle(.primary.opacity(l.opacity)))
+                let size = text.measure(in: CGSize(width: CGFloat.infinity, height: .infinity))
+                let frame = CGRect(x: l.at.x - size.width / 2, y: l.at.y, width: size.width, height: size.height)
+                guard l.pinned || !placed.contains(where: { $0.intersects(frame) }) else { continue }
+                placed.append(frame)
+                ctx.draw(text, at: l.at, anchor: .top)
             }
         }
         .accessibilityElement(children: .contain)

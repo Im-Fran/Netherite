@@ -155,7 +155,7 @@ public enum MarkdownHighlighter {
         static let fenced = NoteParser.Regex.fenced
         static let mathBlock = NoteParser.Regex.mathBlock
         static let comment = NoteParser.Regex.comment
-        static let inlineCode = re(#"(`+)([^`\n](?:.*?[^`\n])?)(\1)"#)
+        static let inlineCode = re(#"(`+)([^`\n](?:.*?[^`\n])??)(\1)"#)
         static let inlineMath = NoteParser.Regex.inlineMath
         static let heading = re(#"^((#{1,6})[ \t]+).*$"#)
         static let callout = re(#"^(>[ \t]*\[!([\w-]+)\][+-]?[ \t]*).*$"#)

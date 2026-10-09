@@ -175,7 +175,7 @@ struct PublishView: View {
 }
 
 /// A built site folder handed to `.fileExporter`.
-struct SiteFolder: FileDocument {
+struct SiteFolder: FileDocument, @unchecked Sendable {   // FileWrapper is only read after the export starts
     static var readableContentTypes: [UTType] { [.folder] }
     var wrapper: FileWrapper
     init(wrapper: FileWrapper) { self.wrapper = wrapper }
