@@ -45,6 +45,12 @@ Footnote here[^1].
     if case .date = p.property("date") {} else { Issue.record("date not parsed") }
 }
 
+@Test func readableLineShowsLinkText() {
+    #expect(NoteParser.readableLine("Links to [[Welcome]] and [[Folder/Missing note]]") == "Links to Welcome and Missing note")
+    #expect(NoteParser.readableLine("See [[Flights#Outbound|flights]], ![[map.png]] and [md](Notes/Hotels.md).") == "See flights, map and md.")
+    #expect(NoteParser.readableLine("Volver a [[Empieza aquí]] `[[code]]`") == "Volver a Empieza aquí `[[code]]`")
+}
+
 @Test func frontmatterRoundTrip() {
     let props = [Property(key: "tags", value: .list(["a", "b c"])), Property(key: "title", value: .text("Hi: there"))]
     let text = Frontmatter.replacing(in: "body", with: props)
