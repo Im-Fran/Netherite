@@ -77,7 +77,8 @@ private func renderPlain(_ md: String) -> String {
     #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
     #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
     // R2-19: the same breaks inside code, frontmatter or math don't shift the heading lines.
-    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`"] {
+    // R3-09: NEL (U+0085) too.
+    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`", "```\na\u{85}b\n```"] {
         #expect(HTMLRenderer.section(of: "# A\n\(hidden)\nalpha\n# B\nbeta\n", subpath: "B") == "# B\nbeta", "\(hidden.debugDescription)")
     }
     #expect(HTMLRenderer.section(of: "---\nk: \"a\u{2028}b\"\n---\n# B\nbeta", subpath: "B") == "# B\nbeta")

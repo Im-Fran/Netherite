@@ -171,10 +171,10 @@ public enum NoteParser {
 
     // MARK: Masking
 
-    /// Spaces out a range but keeps its line breaks (`enumerateLines` also breaks on \r, U+2028 and U+2029),
+    /// Spaces out a range but keeps its line breaks (`enumerateLines` also breaks on \r, U+0085, U+2028 and U+2029),
     /// so line numbers on the masked text match the original's.
     static func blank(_ u: inout [UInt16], _ r: NSRange) {
-        for i in r.location..<min(NSMaxRange(r), u.count) where ![10, 13, 0x2028, 0x2029].contains(u[i]) { u[i] = 32 }
+        for i in r.location..<min(NSMaxRange(r), u.count) where ![10, 13, 0x85, 0x2028, 0x2029].contains(u[i]) { u[i] = 32 }
     }
 
     /// Blanks fenced code, `$$` math blocks, inline code, inline math and `%%comments%%`.
