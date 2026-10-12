@@ -92,7 +92,7 @@ public struct Importer: Sendable {
                 if !note.tags.isEmpty { props.append(Property(key: "tags", value: .list(note.tags.map { $0.replacingOccurrences(of: " ", with: "-") }))) }
                 if let s = note.sourceURL { props.append(Property(key: "source", value: .text(s))) }
                 if let a = note.author { props.append(Property(key: "author", value: .text(a))) }
-                w.note(Frontmatter.replacing(in: body, with: props), name: note.title, folder: files.count > 1 ? notebook : "", converter: nil)
+                w.note((try? Frontmatter.replacing(in: body, with: props)) ?? body, name: note.title, folder: files.count > 1 ? notebook : "", converter: nil)
             }
         }
     }
@@ -267,16 +267,16 @@ struct Writer {
     init(vault: Vault, root: String) { self.vault = vault; self.root = root }
 
     /// Archive paths are untrusted: `..`, `.` and empty components never shape the destination.
+    /// With `shortensLinks`, folders get note-safe names too: a `#`, `|` or `]` would cut the full-path links to them.
     func folderPath(_ sub: String) -> String {
-        "\(root)/\(sub)".split(separator: "/").filter { $0 != "." && $0 != ".." }.joined(separator: "/")
+        let parts = sub.split(separator: "/").filter { $0 != "." && $0 != ".." }.map { shortensLinks ? Self.safeName(String($0)) : String($0) }
+        return (root.split(separator: "/").filter { $0 != "." && $0 != ".." }.map(String.init) + parts).joined(separator: "/")
     }
 
     static func safeName(_ s: String) -> String {
         let cleaned = s.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]\n\r\t]"#, with: " ", options: .regularExpression)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"^[.\s]+"#, with: "", options: .regularExpression)   // ".NET tips" would be a hidden file
-            .trimmingCharacters(in: .whitespaces)
-        return cleaned.isEmpty ? String(localized: "Untitled", bundle: .module) : String(cleaned.prefix(120))
+        return String(Vault.noteName(for: cleaned).prefix(120))   // ".NET tips" would be a hidden file
     }
 
     @discardableResult

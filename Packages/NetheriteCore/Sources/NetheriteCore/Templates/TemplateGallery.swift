@@ -35,7 +35,8 @@ public extension Templates {
         if !template.isEmpty { return render(template, title: title, date: date, attendees: attendees) }
         let props = [Property(key: "type", value: .text("meeting")), Property(key: "date", value: .date(date)),
                      Property(key: "attendees", value: .list(attendees)), Property(key: "tags", value: .list(["meeting"]))]
-        return Frontmatter.replacing(in: "# \(title)\n\n" + meetingSections, with: props)
+        // ponytail: the text has no frontmatter, so it can't throw.
+        return try! Frontmatter.replacing(in: "# \(title)\n\n" + meetingSections, with: props)
     }
 
     static var meetingSections: String {

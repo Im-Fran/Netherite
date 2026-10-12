@@ -120,12 +120,13 @@ public enum Frontmatter {
 
     public static func serialize(_ props: [Property]) -> String {
         props.map { p in
-            switch p.value {
-            case .list(let l): l.isEmpty ? "\(p.key): []" : "\(p.key):\n" + l.map { "  - \(scalar($0))" }.joined(separator: "\n")
-            case .text(let s): "\(p.key): \(scalar(s))"
-            case .null: "\(p.key):"
-            case .date(let d): "\(p.key): \(dateString(d, time: true))"
-            default: "\(p.key): \(p.value.displayString)"
+            let key = scalar(p.key)
+            return switch p.value {
+            case .list(let l): l.isEmpty ? "\(key): []" : "\(key):\n" + l.map { "  - \(scalar($0))" }.joined(separator: "\n")
+            case .text(let s): "\(key): \(scalar(s))"
+            case .null: "\(key):"
+            case .date(let d): "\(key): \(dateString(d, time: true))"
+            default: "\(key): \(p.value.displayString)"
             }
         }.joined(separator: "\n")
     }
@@ -136,11 +137,24 @@ public enum Frontmatter {
         return out.hasSuffix("\n...") ? String(out.dropLast(4)) : out
     }
 
+    public struct InvalidYAML: LocalizedError, Sendable {
+        public var errorDescription: String? {
+            String(localized: "The note's properties aren't valid YAML. Fix them in the editor first.", bundle: .module)
+        }
+    }
+
     /// Returns `text` with its frontmatter replaced by `props` (removed when empty).
     /// Keys whose value didn't change keep their original YAML (quoting, comments, nested values).
-    public static func replacing(in text: String, with props: [Property]) -> String {
+    /// Throws `InvalidYAML` instead of overwriting a block that isn't a YAML mapping, since its keys couldn't be read.
+    public static func replacing(in text: String, with props: [Property]) throws -> String {
         let ns = text as NSString
         let fm = locate(in: text)
+        if let fm {
+            switch Result(catching: { try Yams.compose(yaml: fm.yaml) }) {
+            case .success(nil), .success(.mapping?): break
+            default: throw InvalidYAML()
+            }
+        }
         let body = fm.map { ns.substring(from: NSMaxRange($0.range)) } ?? text
         guard !props.isEmpty else { return body }
         return "---\n\(fm.flatMap { merge(props, into: $0.yaml) } ?? serialize(props))\n---\n" + body

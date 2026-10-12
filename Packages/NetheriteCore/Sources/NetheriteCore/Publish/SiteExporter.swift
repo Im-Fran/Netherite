@@ -86,7 +86,9 @@ public enum SiteExporter {
         // Search index and graph data (JSON + JS so they also work when opened from file://)
         let search = notes.compactMap { p -> [String: String]? in
             guard let rec = index.notes[p] else { return nil }
-            let body = rec.parsed.frontmatterRange.map { (rec.text as NSString).substring(from: NSMaxRange($0)) } ?? rec.text
+            // Frontmatter, code, math and `%%comments%%` (private, never rendered) stay out of the published index.
+            let body = NoteParser.maskedText(rec.text).trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
             return ["title": p.noteName, "path": pagePath(p), "text": String(body.prefix(4000))]
         }
         let searchJSON = try json(search)

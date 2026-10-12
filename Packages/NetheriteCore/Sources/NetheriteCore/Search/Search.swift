@@ -10,7 +10,8 @@ public struct SearchQuery: Sendable {
         case path(String)
         case file(String)
         case line(String)
-        case task(String)
+        /// `done` nil matches any task (`task:`), else only open (`task-todo:`) or completed (`task-done:`) ones.
+        case task(String, done: Bool?)
         case property(key: String, value: String?)
         indirect case not(Term)
         indirect case or(Term, Term)
@@ -74,7 +75,9 @@ public struct SearchQuery: Sendable {
             case "path": return .path(val)
             case "file": return .file(val)
             case "line", "section", "block", "content": return .line(val)
-            case "task", "task-todo", "task-done": return .task(val)
+            case "task": return .task(val, done: nil)
+            case "task-todo": return .task(val, done: false)
+            case "task-done": return .task(val, done: true)
             default: break
             }
         }
@@ -112,7 +115,11 @@ public enum Search {
         case .path(let p): rec.path.range(of: p, options: opts) != nil
         case .file(let f): rec.path.noteName.range(of: f, options: opts) != nil
         case .line(let l): rec.text.components(separatedBy: "\n").contains { $0.range(of: l, options: opts) != nil }
-        case .task(let t): rec.text.components(separatedBy: "\n").contains { $0.range(of: #"^\s*[-*+] \[.\]"#, options: .regularExpression) != nil && $0.range(of: t, options: opts) != nil }
+        case .task(let t, let done): rec.text.components(separatedBy: "\n").contains { line in
+            let ns = line as NSString
+            guard let m = NoteParser.Regex.task.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return false }
+            return (done.map { $0 == (ns.substring(with: m.range(at: 1)) != " ") } ?? true) && line.range(of: t, options: opts) != nil
+        }
         case .property(let key, let value):
             if let p = rec.parsed.property(key) { value.map { v in p.displayString.range(of: v, options: opts) != nil } ?? true } else { false }
         case .not(let t): !matches(t, rec, opts)
@@ -125,7 +132,7 @@ public enum Search {
         var needles: [String] = [], regexes: [NSRegularExpression] = []
         func collect(_ t: SearchQuery.Term) {
             switch t {
-            case .text(let s), .line(let s), .task(let s): needles.append(s)
+            case .text(let s), .line(let s), .task(let s, _): needles.append(s)
             case .regex(let r): regexes.append(r)
             case .or(let a, let b): collect(a); collect(b)
             default: break
