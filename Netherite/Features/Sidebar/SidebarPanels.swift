@@ -153,13 +153,19 @@ struct SearchPanel: View {
                 }
             }
         }
-        .task(id: "\(window.searchQuery)|\(caseSensitive)|\(window.model.index.revision)") {
-            try? await Task.sleep(for: .milliseconds(150))
-            if !window.searchQuery.isEmpty { NetheriteTips.donate(NetheriteTips.searchUsed) }
-            let query = SearchQuery(window.searchQuery, caseSensitive: caseSensitive)
-            let notes = window.model.index.notes
+        // Notes only matter while there is a query: typing in a note doesn't restart an empty search.
+        .task(id: "\(window.searchQuery)|\(caseSensitive)|\(window.searchQuery.isEmpty ? 0 : window.model.index.revision)") {
+            // A newer keystroke (or edit) cancels this one during the pause, so only the last one searches.
+            do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
             let q = window.searchQuery
-            hits = await Task.detached { Search.run(query, in: notes) }.value
+            guard !q.isEmpty else { hits = []; hitsQuery = q; return }
+            NetheriteTips.donate(NetheriteTips.searchUsed)
+            let query = SearchQuery(q, caseSensitive: caseSensitive)
+            let notes = window.model.index.notes
+            let found = await Task.detached { Search.run(query, in: notes) }.value
+            // Results of a query that changed while searching would replace the newer ones.
+            guard !Task.isCancelled else { return }
+            hits = found
             hitsQuery = q
         }
         .onAppear { focused = true }
