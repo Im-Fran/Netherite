@@ -110,6 +110,24 @@ Footnote here[^1].
     try? FileManager.default.removeItem(at: dir)
 }
 
+/// Renames `Old.md` to `New.md` in a vault holding `files` and returns the new text of `read`.
+@MainActor func renamed(_ files: [String: String], read: String) async throws -> String {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let vault = Vault(root: dir)
+    for (path, text) in files { try vault.write(text, to: path) }
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    try index.move("Old.md", to: "New.md")
+    return try vault.read(read)
+}
+
+// N-16: renaming rewrites links in frontmatter values.
+@MainActor @Test func renameRewritesFrontmatterLinks() async throws {
+    let a = "---\nrelated: \"[[Old]]\"\nlist:\n  - \"[[Old#H|x]]\"\n---\nbody"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == a.replacingOccurrences(of: "[[Old", with: "[[New"))
+}
+
 @Test func searchOperators() {
     let notes = [
         "a.md": NoteRecord(path: "a.md", text: "Hello world #x\n- [ ] buy milk", parsed: NoteParser.parse("Hello world #x\n- [ ] buy milk"), modified: .now, created: .now),

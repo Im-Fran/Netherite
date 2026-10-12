@@ -189,7 +189,15 @@ public final class VaultIndex {
     public nonisolated static func rewriteLinks(in text: String, parsed: ParsedNote,
                                                 newTarget: (NoteLink) -> String?, linkText: (String) -> String) -> String {
         let ns = NSMutableString(string: text)
-        for link in parsed.links.reversed() where link.range.location != NSNotFound {
+        // Frontmatter links are parsed from YAML values without a range: find them in the raw block.
+        let frontmatterLinks: [NoteLink] = parsed.frontmatterRange.map { fm in
+            NoteParser.Regex.wiki.matches(in: text, range: fm).map { m -> NoteLink in
+                var link = NoteParser.splitWiki(ns.substring(with: m.range(at: 2)), isEmbed: m.range(at: 1).length > 0)
+                link.range = m.range
+                return link
+            }
+        } ?? []
+        for link in (frontmatterLinks + parsed.links).reversed() where link.range.location != NSNotFound {
             guard let target = newTarget(link) else { continue }
             let replacement: String
             if link.isWiki {
