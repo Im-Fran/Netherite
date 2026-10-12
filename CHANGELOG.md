@@ -48,6 +48,10 @@ version, and the release notes on TestFlight and GitHub come from here.
 - A failed move to Recently Deleted keeps your latest edits, and a recording that can't be saved shows an error.
 - Copies of a vault keep separate File Recovery history, and opening a vault no longer rewrites its settings files.
 - The iPhone welcome tour responds to the first tap.
+- Opening a note from a link or Spotlight with different capitals keeps your typing, Spotlight results work from the vault picker and for names with `|`, and a capitals-only rename outside the app warns before edits are lost.
+- Moving a vault opened in place to Recently Deleted or iCloud Drive works again, and notes save their latest edits before going to the trash.
+- A recording that can't be saved in the vault is kept in Application Support, and the error says where.
+- Highlights and formulas that contain a link render again; link titles and reference definitions no longer create tags.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
