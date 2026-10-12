@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public extension HTMLRenderer {
     /// URL of the bundled web assets folder (KaTeX, Mermaid, highlight.js, reader.css/js).
@@ -8,16 +9,17 @@ public extension HTMLRenderer {
     /// `baseSize` is the body text size in points (pass the Dynamic Type body size on iOS); `transparentBackground`
     /// lets a non-opaque web view show the app background, unless the theme sets its own; `increaseContrast`
     /// strengthens secondary text and borders; `reduceMotion` drops the heading flash (the system setting is honored by CSS).
+    /// `pinScriptsByHash` is for published pages: they're public, so a nonce in them could be read and reused.
     static func page(title: String?, body: String, assets: String, theme: Theme? = nil, fullWidth: Bool = false,
                      initialSubpath: String? = nil, extraHead: String = "", extraBody: String = "",
                      baseSize: Double = 16, transparentBackground: Bool = false, increaseContrast: Bool = false,
-                     reduceMotion: Bool = false) -> String {
+                     reduceMotion: Bool = false, pinScriptsByHash: Bool = false) -> String {
         let a = assets.hasSuffix("/") ? assets : assets + "/"
         let needsMath = body.contains("class=\"math ")
         let needsMermaid = body.contains("class=\"mermaid\"")
         let needsCode = body.contains("<pre><code class=\"language-")
         var head = """
-        <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="\(theme?.appearance?.rawValue ?? "light dark")">
         <link rel="stylesheet" href="\(a)reader.css">
         """
@@ -41,11 +43,32 @@ public extension HTMLRenderer {
             head += "\n<script>window.netheriteInitialSubpath = \(json);</script>"
         }
         head += "\n<script src=\"\(a)reader.js\"></script>" + extraHead
+        // Only the page's own scripts are allowed (by nonce, or by the hash of each inline one); the note body's never are.
+        var extraBody = extraBody, allowed = "'nonce-\(scriptNonce)'"
+        if pinScriptsByHash {
+            allowed = (head + extraBody).matches(of: /<script>([\s\S]*?)<\/script>/)
+                .map { "'sha256-\(Data(SHA256.hash(data: Data($0.1.utf8))).base64EncodedString())'" }.joined(separator: " ")
+        } else {
+            let nonced = { (s: String) in s.replacingOccurrences(of: "<script", with: "<script nonce=\"\(scriptNonce)\"") }
+            head = nonced(head)
+            extraBody = nonced(extraBody)
+        }
+        head = "<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"\(contentSecurityPolicy(scripts: allowed))\">\n" + head
         let titleHTML = title.map { "<div class=\"inline-title\">\(escape($0))</div>" } ?? ""
         return """
         <!doctype html><html><head>\(head)<title>\(escape(title ?? ""))</title></head>
         <body class="\(fullWidth ? "full-width" : "")">\(titleHTML)\(body)\(extraBody)</body></html>
         """
+    }
+
+    /// Per launch (not per page, so re-rendering the same note yields the same HTML); a note can't know it in advance.
+    static let scriptNonce = UUID().uuidString
+
+    /// Defense in depth behind `sanitize` (N-05): scripts run only from the bundle (`nth://web/`, not vault files) or
+    /// site, or when `scripts` (a nonce or hashes) allows them; plugins, `<base>` and form posts are off.
+    static func contentSecurityPolicy(scripts: String) -> String {
+        "default-src 'self' nth: file: data: blob: https: http:; script-src 'self' nth://web/ file: \(scripts); "
+            + "style-src 'self' nth: file: https: 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'"
     }
 
     /// Darker secondary text and borders for Increase Contrast, mixed from the text and background so they

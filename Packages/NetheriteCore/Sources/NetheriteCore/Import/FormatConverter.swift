@@ -97,6 +97,6 @@ public struct FormatConverter: Sendable {
             }
             changed = true
         }
-        return changed ? Frontmatter.replacing(in: text, with: props) : text
+        return changed ? (try? Frontmatter.replacing(in: text, with: props)) ?? text : text
     }
 }

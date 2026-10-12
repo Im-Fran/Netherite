@@ -10,8 +10,19 @@ public struct Vault: Sendable, Hashable {
     public var name: String { root.lastPathComponent }
     public var configURL: URL { root.appending(path: Self.configFolder, directoryHint: .isDirectory) }
 
+    /// Every path is confined to `root`: `..` can't climb above it and `.`, empty or leading `/` components are dropped.
     public func url(for path: String) -> URL {
-        path.isEmpty ? root : root.appending(path: path)
+        let clean = Self.normalize(path)
+        return clean.isEmpty ? root : root.appending(path: clean)
+    }
+
+    /// Lexically resolves `.`/`..` and drops empty components, clamping at the vault root.
+    public static func normalize(_ path: String) -> String {
+        var parts: [Substring] = []
+        for c in path.split(separator: "/") where c != "." {
+            if c == ".." { _ = parts.popLast() } else { parts.append(c) }
+        }
+        return parts.joined(separator: "/")
     }
 
     public func relativePath(of url: URL) -> String {
@@ -73,15 +84,34 @@ public struct Vault: Sendable, Hashable {
     }
 
     public func write(_ data: Data, to path: String) throws {
-        let target = url(for: path)
+        // A note may be a symlink: replace the file it points to, not the link (`replaceItemAt` refuses a link).
+        let target = url(for: path).resolvingSymlinksInPath()
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         var result: Result<Void, Error> = .success(())
         var coordError: NSError?
         NSFileCoordinator().coordinate(writingItemAt: target, options: .forReplacing, error: &coordError) { u in
-            result = Result { try data.write(to: u, options: .atomic) }
+            // Replacing (not `.atomic`, which swaps in a new file) keeps the existing file's creation date.
+            result = Result {
+                let fm = FileManager.default
+                guard fm.fileExists(atPath: u.path(percentEncoded: false)) else { return try data.write(to: u, options: .atomic) }
+                let dir = try fm.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: u, create: true)
+                defer { try? fm.removeItem(at: dir) }
+                let temp = dir.appending(path: u.lastPathComponent)
+                try data.write(to: temp)
+                _ = try fm.replaceItemAt(u, withItemAt: temp)
+            }
         }
         if let coordError { throw coordError }
         try result.get()
+    }
+
+    /// File attributes of the note itself: a symlinked note reports its target's dates, not the link's.
+    public func resourceValues(of path: String, forKeys keys: Set<URLResourceKey>) -> URLResourceValues? {
+        try? url(for: path).resolvingSymlinksInPath().resourceValues(forKeys: keys)
+    }
+
+    public func modificationDate(of path: String) -> Date? {
+        resourceValues(of: path, forKeys: [.contentModificationDateKey])?.contentModificationDate
     }
 
     public func exists(_ path: String) -> Bool {
@@ -89,11 +119,19 @@ public struct Vault: Sendable, Hashable {
     }
 
     /// Returns `folder/base.ext`, or `folder/base 1.ext`, `base 2.ext`… when taken.
+    /// A name that stays visible in the vault: leading dots (a hidden file, never listed or indexed) and spaces
+    /// are dropped, and an empty name becomes "Untitled".
+    public static func noteName(for name: String) -> String {
+        let n = name.replacingOccurrences(of: #"^[.\s]+"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? String(localized: "Untitled", bundle: .module) : n
+    }
+
     public func availablePath(folder: String, base: String, ext: String = "md") -> String {
+        let base = Self.noteName(for: base)
         func make(_ n: Int) -> String {
             let name = n == 0 ? base : "\(base) \(n)"
             let file = ext.isEmpty ? name : "\(name).\(ext)"
-            return folder.isEmpty ? file : "\(folder)/\(file)"
+            return Self.normalize(folder.isEmpty ? file : "\(folder)/\(file)")
         }
         var n = 0
         while exists(make(n)) { n += 1 }

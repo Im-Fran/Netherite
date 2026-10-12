@@ -6,18 +6,34 @@ import NetheriteCore
 final class VaultModel {
     let vault: Vault
     let index: VaultIndex
-    var settings: VaultSettings { didSet { if settings != oldValue { vault.saveConfig("app.json", settings) } } }
+    var settings: VaultSettings { didSet { if settings != oldValue, !reloadingConfig { vault.saveConfig("app.json", settings) } } }
     private(set) var themes: [Theme] = []
     /// The vault's chosen theme, as stored (what publishing and "Create Theme from Current" use).
     var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
     /// The theme as drawn on this device, after the Accessibility preferences.
     var theme: Theme { A11y.shared.apply(vaultTheme) }
-    private(set) var recentFiles: [String]
+    private(set) var recentFiles: [String] {
+        didSet {
+            vault.saveConfig("recent.json", recentFiles)
+            SharedVault.publishRecents(recentFiles, vault: AppModel.key(vault.root))
+        }
+    }
     private(set) var dirty: Set<String> = []
-    var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }
+    /// Notes created but not opened yet: they open in the editor even with "Open Notes in Reading View" on.
+    @ObservationIgnored var createdNotes: Set<String> = []
+    var bookmarks: [Bookmark] = [] { didSet { if !reloadingConfig { vault.saveConfig("bookmarks.json", bookmarks) } } }
+    /// Modification dates of the config read last, to reload it when another device or app changes it.
+    @ObservationIgnored private var configDates: [String: Date] = [:]
+    @ObservationIgnored private var reloadingConfig = false
     private var saveTasks: [String: Task<Void, Never>] = [:]
     private var watcher: VaultWatcher?
+    /// Windows showing this vault, so file operations and external changes update every one of them.
+    @ObservationIgnored private let windows = NSHashTable<WindowState>.weakObjects()
+    /// Windows not in the background; the watcher runs while there is at least one.
+    @ObservationIgnored private var foregroundWindows = Set<ObjectIdentifier>()
     var lastError: String?
+    /// While the vault folder is being moved: edits stay unsaved (in `dirty`) instead of recreating it at the old path.
+    @ObservationIgnored var savesPaused = false
 
     init(vault: Vault) {
         self.vault = vault
@@ -26,6 +42,7 @@ final class VaultModel {
         recentFiles = vault.loadConfig("recent.json", fallback: [String]())
         themes = vault.themes()
         bookmarks = vault.loadConfig("bookmarks.json", fallback: [Bookmark]())
+        for name in Self.reloadedConfig { configDates[name] = configDate(name) }
         Task.detached { [vault] in vault.downloadPlaceholders() }
         Task {
             await index.load()
@@ -49,6 +66,15 @@ final class VaultModel {
 
     /// Updates the index immediately and writes to disk after a short pause in typing.
     func edit(_ path: String, text: String) {
+        // A file moved or deleted outside this window must not be recreated at its old path: say so and close it.
+        guard !isGone(path) else {
+            lastError = String(localized: "“\(path.noteName)” was moved or deleted outside Netherite, so its latest changes weren’t saved.")
+            for pane in panes { pane.removePath(path) }
+            return
+        }
+        // On disk but not indexed yet (made by a widget, the Share Extension or an intent before the next refresh).
+        // `isGone` matched the exact spelling, so this can't add a second record for a file the index has in other case.
+        if index.isLoaded && !index.files.contains(path) { index.didCreate(path) }
         index.update(path, text: text)
         dirty.insert(path)
         saveTasks[path]?.cancel()
@@ -61,7 +87,7 @@ final class VaultModel {
 
     func save(_ path: String) {
         saveTasks[path]?.cancel(); saveTasks[path] = nil
-        guard dirty.contains(path), let text = index.notes[path]?.text else { return }
+        guard !savesPaused, dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
         do {
             try vault.write(text, to: path)
             dirty.remove(path)
@@ -74,38 +100,91 @@ final class VaultModel {
     func flushAll() { for p in dirty { save(p) } }
 
     private func externalChange() async {
+        // Mid-move the folder looks gone: that must not drop the unsaved edits kept for the new place.
+        guard !savesPaused else { return }
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
+        reloadConfigIfChanged()
         await index.refreshFromDisk(skipping: dirty)
+        // Files moved or deleted outside Netherite: drop their unsaved edits (warning about them) and close them.
+        let lost = dirty.filter(isGone)
+        for p in lost { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
+        if let p = lost.first {
+            lastError = String(localized: "“\(p.noteName)” was moved or deleted outside Netherite, so its latest changes weren’t saved.")
+        }
+        guard index.isLoaded else { return }
+        let files = Set(index.files)
+        for pane in panes { pane.removeMissing(files) }
     }
+
+    private static let reloadedConfig = ["app.json", "bookmarks.json", "themes"]
+
+    /// Latest modification date of a config file, or of a config folder and the files in it.
+    private func configDate(_ name: String) -> Date? {
+        let url = vault.configURL.appending(path: name)
+        let files = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return ([url] + files).compactMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }.max()
+    }
+
+    /// Picks up settings, bookmarks and themes changed elsewhere (iCloud, another app) without writing them back,
+    /// so a later change here doesn't overwrite them with stale values.
+    private func reloadConfigIfChanged() {
+        func changed(_ name: String) -> Bool {
+            let date = configDate(name)
+            defer { configDates[name] = date }
+            return date != configDates[name]
+        }
+        /// The file's new contents, if it changed. A missing or unreadable file (evicted by iCloud, mid-sync) keeps
+        /// the values in memory and its old date, so it's read again next time instead of resetting to defaults.
+        func reloaded<T: Decodable>(_ name: String) -> T? {
+            let date = configDate(name)
+            guard date != configDates[name], let value = vault.loadConfig(name, as: T?.self, fallback: nil) else { return nil }
+            configDates[name] = date
+            return value
+        }
+        reloadingConfig = true
+        defer { reloadingConfig = false }
+        if let s: VaultSettings = reloaded("app.json"), s != settings { settings = s }
+        if let b: [Bookmark] = reloaded("bookmarks.json"), b != bookmarks { bookmarks = b }
+        if changed("themes") { reloadThemes() }
+    }
+
+    /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
+    /// Case counts: after an outside rename to other capitals, `exists` still finds the file on APFS, but this path is gone.
+    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.existsExactly(path) }
 
     func refresh() async { await externalChange() }
 
-    /// Stops observing the vault folder (iOS suspends apps holding file presenters in the background).
-    func suspendWatching() { watcher?.isWatching = false }
+    func register(_ window: WindowState) { windows.add(window) }
 
-    /// Resumes observing and picks up whatever changed while suspended.
-    func resumeWatching() {
-        guard let watcher, !watcher.isWatching else { return }
-        watcher.isWatching = true
-        Task { await externalChange() }
+    private var panes: [Pane] { windows.allObjects.flatMap(\.panes) }
+
+    /// Observes the vault folder while any of its windows is in the foreground
+    /// (iOS suspends apps holding file presenters in the background), catching up on resume.
+    func window(_ window: WindowState, isForeground: Bool) {
+        let id = ObjectIdentifier(window)
+        if isForeground { foregroundWindows.insert(id) } else { foregroundWindows.remove(id) }
+        let wanted = !foregroundWindows.isEmpty
+        guard let watcher, watcher.isWatching != wanted else { return }
+        watcher.isWatching = wanted
+        if wanted { Task { await externalChange() } }
     }
 
     // MARK: File operations
 
     func noteDidOpen(_ path: String) {
-        recentFiles.removeAll { $0 == path }
-        recentFiles.insert(path, at: 0)
-        if recentFiles.count > 50 { recentFiles.removeLast(recentFiles.count - 50) }
-        vault.saveConfig("recent.json", recentFiles)
-        SharedVault.publishRecents(recentFiles)
+        recentFiles = Array(([path] + recentFiles.filter { $0 != path }).prefix(50))
     }
 
+    /// `opens`: the caller opens the note right away, so it starts in the editor (see `createdNotes`).
     @discardableResult
-    func newNote(in folder: String? = nil, named name: String? = nil, content: String = "") -> String? {
-        perform {
+    func newNote(in folder: String? = nil, named name: String? = nil, content: String = "", opens: Bool = true) -> String? {
+        // The core strips leading dots (and falls back to "Untitled") so a note never ends up hidden.
+        let path = perform {
             try index.createNote(in: folder ?? settings.newNoteFolder,
                                  named: name ?? String(localized: "Untitled", comment: "Default new note name"), content: content)
         }
+        if let path, opens { createdNotes.insert(path) }
+        return path
     }
 
     @discardableResult
@@ -116,8 +195,11 @@ final class VaultModel {
     /// Renames the file's base name (keeping extension/folder); returns the new path.
     @discardableResult
     func rename(_ path: String, to newName: String) -> String? {
-        let clean = newName.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
-        guard !clean.isEmpty else { return nil }
+        // Line breaks (pasted into a title or rename field) must never reach the file name.
+        let raw = newName.split(whereSeparator: \.isNewline).joined(separator: " ").replacingOccurrences(of: "/", with: "-")
+        // Only dots and spaces would leave nothing visible: keep the old name rather than renaming to "Untitled".
+        guard raw.contains(where: { $0 != "." && !$0.isWhitespace }) else { return nil }
+        let clean = Vault.noteName(for: raw)
         let ext = path.fileExtension
         let isFolder = index.folders.contains(path)
         let file = isFolder || ext.isEmpty ? clean : "\(clean).\(ext)"
@@ -128,22 +210,38 @@ final class VaultModel {
     @discardableResult
     func move(_ path: String, to target: String) -> String? {
         guard target != path else { return path }
+        // Drops can carry any text, and a folder can't go inside itself.
+        guard index.files.contains(path) || index.folders.contains(path), !target.hasPrefix(path + "/") else { return nil }
         guard !vault.exists(target) || target.lowercased() == path.lowercased() else {
             lastError = String(localized: "A file named “\(target.noteName)” already exists.")
             return nil
         }
         // Flush unsaved edits of the item and, for folders, of every note inside it.
         for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
-        let result: String? = perform { try index.move(path, to: target); return target }
-        if result != nil { recentFiles = recentFiles.map { $0 == path ? target : $0 } }
+        let result: String? = perform { try index.move(path, to: target, skipping: dirty); return target }
+        if result != nil {
+            func moved(_ p: String) -> String { p == path || p.hasPrefix(path + "/") ? target + p.dropFirst(path.count) : p }
+            recentFiles = recentFiles.map(moved)
+            let marks = bookmarks.map { var b = $0; b.path = b.path.map(moved); return b }
+            if marks != bookmarks { bookmarks = marks }
+            updateWorkspaces { $0.renamed(from: path, to: target) }
+            for pane in panes { pane.replacePaths(from: path, to: target) }
+        }
         return result
     }
 
     func trash(_ path: String) {
-        // Drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
+        // Unsaved edits go into the trashed files, so restoring them from the Trash keeps them.
+        for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
+        // Once trashed, drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
+        // If trashing fails they stay, so the edits are still saved.
+        guard perform({ try index.trash(path) }) != nil else { return }
         for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
-        _ = perform { try index.trash(path) }
-        recentFiles.removeAll { $0 == path || $0.hasPrefix(path + "/") }
+        func inside(_ p: String?) -> Bool { p.map { $0 == path || $0.hasPrefix(path + "/") } ?? false }
+        recentFiles.removeAll { inside($0) }
+        if bookmarks.contains(where: { inside($0.path) }) { bookmarks.removeAll { inside($0.path) } }
+        updateWorkspaces { inside($0.path) ? nil : $0 }
+        for pane in panes { pane.removePath(path) }
     }
 
     /// Writes new content for a file (not via the editor) and reindexes it.

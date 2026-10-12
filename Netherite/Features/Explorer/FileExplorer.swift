@@ -88,7 +88,7 @@ struct FileExplorer: View {
                         .onTapGesture { withAnimation(reduceMotion ? nil : .default) { if expanded.contains(node.path) { expanded.remove(node.path) } else { expanded.insert(node.path) } } }
                         #endif
                         .dropDestination(for: String.self) { paths, _ in
-                            paths.filter { $0 != node.path }.forEach { window.move($0, toFolder: node.path) }
+                            paths.forEach { window.move($0, toFolder: node.path) }
                             expanded.insert(node.path)
                             return true
                         }

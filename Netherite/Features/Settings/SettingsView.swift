@@ -335,6 +335,8 @@ struct VaultDetailView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var export: ExportRequest?
+    /// Folder whose security-scoped access the export started.
+    @State private var exportScope: URL?
     @State private var confirmTrash = false
     @State private var working = false
     @State private var error: String?
@@ -342,7 +344,9 @@ struct VaultDetailView: View {
     @ScaledMetric private var tile = 52.0
 
     var body: some View {
-        if let recent = app.recents.first(where: { $0.path == path }) {
+        // After "Move to iCloud Drive" the vault is listed at its new path: keep showing it.
+        if let recent = app.recents.first(where: { $0.path == path })
+            ?? app.relocated[path].flatMap({ new in app.recents.first { $0.path == new } }) {
             form(recent)
         } else {
             ContentUnavailableView("Vault Not Found", systemImage: "questionmark.folder")
@@ -379,7 +383,9 @@ struct VaultDetailView: View {
             }
             Section {
                 Button("Export Vault…", systemImage: "square.and.arrow.up") {
-                    export = ExportRequest(vault: Vault(root: URL(filePath: recent.path, directoryHint: .isDirectory)), path: "")
+                    let url = app.resolvedURL(recent)
+                    if url.startAccessingSecurityScopedResource() { exportScope = url }
+                    export = ExportRequest(vault: Vault(root: url), path: "")
                 }
                 if !recent.isInICloud && iCloudAvailable {
                     Button("Move to iCloud Drive", systemImage: "icloud.and.arrow.up") { run { try await app.moveToICloud(recent) } }
@@ -400,6 +406,7 @@ struct VaultDetailView: View {
         .overlay { if working { ProgressView("Working…").controlSize(.large) } }
         .onChange(of: working) { if working { AccessibilityNotification.Announcement(String(localized: "Working…")).post() } }
         .exporting($export)
+        .onChange(of: export == nil) { if $1 { exportScope?.stopAccessingSecurityScopedResource(); exportScope = nil } }
         .confirmationDialog("Delete “\(recent.name)”?", isPresented: $confirmTrash, titleVisibility: .visible) {
             Button("Move to Recently Deleted", role: .destructive) { run { try await app.trashVault(recent); dismiss() } }
         } message: {

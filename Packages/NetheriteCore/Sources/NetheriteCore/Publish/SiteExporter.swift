@@ -86,7 +86,9 @@ public enum SiteExporter {
         // Search index and graph data (JSON + JS so they also work when opened from file://)
         let search = notes.compactMap { p -> [String: String]? in
             guard let rec = index.notes[p] else { return nil }
-            let body = rec.parsed.frontmatterRange.map { (rec.text as NSString).substring(from: NSMaxRange($0)) } ?? rec.text
+            // Frontmatter, code, math and `%%comments%%` (private, never rendered) stay out of the published index.
+            let body = NoteParser.maskedText(rec.text).trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
             return ["title": p.noteName, "path": pagePath(p), "text": String(body.prefix(4000))]
         }
         let searchJSON = try json(search)
@@ -143,7 +145,10 @@ public enum SiteExporter {
     /// "Books/Thinking, Fast and Slow.md" → "books/thinking-fast-and-slow.html"
     // ponytail: two notes that slug to the same name collide; add a numeric suffix map if that shows up.
     public nonisolated static func pagePath(_ path: String) -> String {
-        let parts = (path as NSString).deletingPathExtension.split(separator: "/").map { slug(String($0)) }
+        var parts = (path as NSString).deletingPathExtension.split(separator: "/").map { slug(String($0)) }
+        // Notes can't take the site's own pages (index, 404, graph) or folders (assets, files, tags).
+        let reserved: Set = parts.count == 1 ? ["index", "404", "graph"] : ["assets", "files", "tags"]
+        if let first = parts.first, reserved.contains(first) { parts[0] = first + "-note" }
         return parts.joined(separator: "/") + ".html"
     }
 
@@ -213,7 +218,7 @@ public enum SiteExporter {
         let scripts = "<script src=\"\(pre)assets/search-index.js\"></script><script src=\"\(pre)assets/site.js\"></script>"
         let main = "<main class=\"\(wide ? "wide" : "")\"><h1 class=\"inline-title\">\(HTMLRenderer.escape(title))</h1>\(body)</main>"
         return HTMLRenderer.page(title: nil, body: nav + main, assets: pre + "assets/", theme: theme, fullWidth: true,
-                                 extraHead: head, extraBody: scripts)
+                                 extraHead: head, extraBody: scripts, pinScriptsByHash: true)
             .replacingOccurrences(of: "<title></title>", with: "<title>\(HTMLRenderer.escape(title)) · \(HTMLRenderer.escape(siteName))</title>")
     }
 

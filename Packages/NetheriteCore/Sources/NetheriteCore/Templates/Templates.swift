@@ -30,10 +30,20 @@ public enum Templates {
     }
 
     public static func format(_ date: Date, _ pattern: String) -> String {
+        formatter(pattern).string(from: date)
+    }
+
+    /// Formats and parses note names: localized month and day names, but always Gregorian years and
+    /// Latin digits, so `th_TH` doesn't write 2569 and `ar_SA` doesn't write Arabic-Indic digits.
+    public static func formatter(_ pattern: String, locale: Locale = .current) -> DateFormatter {
+        var c = Locale.Components(locale: locale)
+        c.calendar = .gregorian
+        c.numberingSystem = "latn"
         let f = DateFormatter()
-        f.locale = Locale.current
+        f.locale = Locale(components: c)
+        f.calendar = Calendar(identifier: .gregorian)
         f.dateFormat = unicodePattern(pattern)
-        return f.string(from: date)
+        return f
     }
 
     /// Converts Moment.js tokens to Unicode date-format tokens (no-op for Unicode patterns).
@@ -52,7 +62,8 @@ public enum Templates {
     }
 
     public static func dailyNotePath(for date: Date, settings: VaultSettings) -> String {
-        let name = format(date, settings.dailyNotes.format)
+        let pattern = settings.dailyNotes.format.trimmingCharacters(in: .whitespaces)
+        let name = format(date, pattern.isEmpty ? "yyyy-MM-dd" : pattern)   // an empty name would be the hidden ".md"
         let folder = settings.dailyNotes.folder
         return (folder.isEmpty ? name : "\(folder)/\(name)") + ".md"
     }

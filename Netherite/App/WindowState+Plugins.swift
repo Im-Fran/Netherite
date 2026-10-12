@@ -11,7 +11,7 @@ extension WindowState {
         // The index may still be loading at startup: check the disk too so today's note is never overwritten.
         if !model.index.files.contains(path) && !model.vault.exists(path) {
             let content = s.dailyNotes.template.isEmpty ? "" : Templates.render(templateText(s.dailyNotes.template), title: path.noteName, date: date)
-            do { try model.vault.write(content, to: path); model.index.didCreate(path) } catch { model.lastError = error.localizedDescription; return }
+            do { try model.vault.write(content, to: path); model.index.didCreate(path); model.createdNotes.insert(path) } catch { model.lastError = error.localizedDescription; return }
         }
         open(path: path)
         NetheriteTips.donate(NetheriteTips.dailyOpened)
@@ -21,8 +21,7 @@ extension WindowState {
     func openAdjacentDailyNote(_ delta: Int) {
         let s = model.settings
         let folder = s.dailyNotes.folder
-        let f = DateFormatter()
-        f.dateFormat = Templates.unicodePattern(s.dailyNotes.format)
+        let f = Templates.formatter(s.dailyNotes.format)
         let dated: [(Date, String)] = model.index.markdownFiles
             .filter { $0.parentFolder == folder }
             .compactMap { p in f.date(from: p.noteName).map { ($0, p) } }
@@ -96,24 +95,35 @@ extension WindowState {
         let name = firstLine.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces).prefix(80)
-        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text) else { return }
+        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text, opens: false) else { return }
         e.insert(model.linkText(to: p))
     }
 
-    /// Appends `source` to `target`, repoints links to `source`, then deletes it.
+    /// Appends the body of `source` to `target` and its properties to the target's, repoints links to `source`, then deletes it.
     func merge(_ source: String, into target: String) {
         guard source != target else { return }
         model.save(source)
         let index = model.index
-        let body = model.text(of: source)
-        model.edit(target, text: model.text(of: target) + "\n\n" + body)
+        // The index may predate an external edit: notes without unsaved edits are read from disk, as `VaultIndex.move` does.
+        func current(_ path: String) -> String? {
+            model.dirty.contains(path) ? index.notes[path]?.text : (try? model.vault.read(path)) ?? index.notes[path]?.text
+        }
+        let sourceText = current(source) ?? model.text(of: source)
+        var targetText = current(target) ?? model.text(of: target)
+        // Properties go to the target's frontmatter (lists joined, the target's value kept otherwise), not mid-note.
+        let body: String
+        do {
+            body = try Frontmatter.replacing(in: sourceText, with: [])
+            targetText = try Frontmatter.merging(sourceText, into: targetText)
+        } catch { model.lastError = error.localizedDescription; return }
+        model.edit(target, text: targetText + "\n\n" + body)
         model.save(target)
         for from in index.backlinks(for: source).map(\.source) where from != source {
-            guard let rec = index.notes[from] else { continue }
-            let text = VaultIndex.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
+            guard let old = current(from) else { continue }
+            let text = VaultIndex.rewriteLinks(in: old, parsed: NoteParser.parse(old)) { link in
                 index.resolver.resolve(link.target, from: from) == source ? target : nil
             } linkText: { index.resolver.linkText(for: $0) }
-            if text != rec.text { model.overwrite(from, with: text) }
+            if text != old { model.overwrite(from, with: text) }
         }
         trash(source)
         open(path: target)
@@ -126,7 +136,8 @@ extension WindowState {
     func openURL(_ string: String) {
         var s = string.trimmingCharacters(in: .whitespaces)
         if !s.contains("://") { s = "https://" + s }
-        if let url = URL(string: s) { open(.web(url)) }
+        // Web pages only: file:// or nth:// would reach local files and the app's own handlers.
+        if let url = URL(string: s), ["http", "https"].contains(url.scheme?.lowercased()) { open(.web(url)) }
     }
 }
 

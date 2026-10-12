@@ -73,7 +73,6 @@ struct Daily: AsyncParsableCommand {
 }
 
 struct ExportOptions: ParsableArguments {
-    @Option(help: "Output folder.") var out: String
     @Option(help: "Only publish this folder.") var folder: String?
     @Flag(help: "Only publish notes with `publish: true`.") var onlyPublished = false
     @Option(help: "Home note path.") var home: String?
@@ -85,17 +84,18 @@ struct ExportOptions: ParsableArguments {
         o.home = home ?? ""
         return o
     }
-    var outURL: URL { URL(filePath: (out as NSString).expandingTildeInPath).standardizedFileURL }
 }
 
 struct Export: AsyncParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Export the vault as a static website.")
     @OptionGroup var v: VaultArg
     @OptionGroup var e: ExportOptions
+    @Option(help: "Output folder.") var out: String
     @MainActor func run() async throws {
         let index = try await v.load()
-        let r = try await SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
-        print("Exported \(r.pages) pages and \(r.attachments) attachments to \(e.outURL.path(percentEncoded: false))")
+        let outURL = URL(filePath: (out as NSString).expandingTildeInPath).standardizedFileURL
+        let r = try await SiteExporter.export(index, to: outURL, options: e.options, theme: .netherite)
+        print("Exported \(r.pages) pages and \(r.attachments) attachments to \(outURL.path(percentEncoded: false))")
     }
 }
 
@@ -110,9 +110,12 @@ struct Publish: AsyncParsableCommand {
             throw ValidationError("Set CLOUDFLARE_API_TOKEN to a token with Cloudflare Pages: Edit permission.")
         }
         let index = try await v.load()
-        try await SiteExporter.export(index, to: e.outURL, options: e.options, theme: .netherite)
+        // Deploy a fresh export only: an existing folder could hold stale or unrelated files (and its assets/ is replaced).
+        let site = FileManager.default.temporaryDirectory.appending(path: "netherite-site-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: site) }
+        try await SiteExporter.export(index, to: site, options: e.options, theme: .netherite)
         let url = try await CloudflarePagesDeployer(accountID: account, projectName: project, apiToken: token)
-            .deploy(e.outURL) { print($0) }
+            .deploy(site) { print($0) }
         print("Deployed: \(url.absoluteString)")
     }
 }

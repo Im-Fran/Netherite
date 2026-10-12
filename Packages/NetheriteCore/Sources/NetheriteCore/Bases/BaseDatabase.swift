@@ -5,7 +5,7 @@ public extension BaseFile {
     /// `<folder>.base` content listing the notes in `folder` (a table, plus a board when `boardColumns` is given).
     static func database(folder: String, properties: [String] = ["status", "tags", "date"], boardColumns: [String]? = nil) -> BaseFile {
         var f = BaseFile()
-        let quoted = folder.replacingOccurrences(of: "\"", with: "\\\"")
+        let quoted = folder.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         f.filters = .and([.expr("file.inFolder(\"\(quoted)\")"), .expr("file.ext == \"md\"")])
         f.views = [BaseViewConfig(name: String(localized: "Table", bundle: .module), order: ["file.name"] + properties)]
         if let boardColumns {

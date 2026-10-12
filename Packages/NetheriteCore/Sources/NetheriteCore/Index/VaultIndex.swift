@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Yams
 
 public struct NoteRecord: Sendable {
     public var path: String
@@ -33,6 +34,8 @@ public final class VaultIndex {
     public private(set) var isLoaded = false
     /// Bumped on every change so views can cheaply observe "anything changed".
     public private(set) var revision = 0
+    /// Bumped only when files, resolved or unresolved links, or tags change (what the graph draws), not on every keystroke.
+    public private(set) var linkRevision = 0
 
     public init(vault: Vault) { self.vault = vault }
 
@@ -40,6 +43,7 @@ public final class VaultIndex {
 
     public func load() async {
         let vault = self.vault
+        let before = notes.mapValues(\.modified), beforeFiles = files
         let (entries, records) = await Task.detached(priority: .userInitiated) {
             let entries = vault.entries()
             var records: [String: NoteRecord] = [:]
@@ -48,16 +52,19 @@ public final class VaultIndex {
             }
             return (entries, records)
         }.value
-        files = entries.filter { !$0.isFolder }.map(\.path)
+        // Notes edited or created while the scan ran (the last note opens before the index loads) keep their newer text.
+        let scannedFiles = entries.filter { !$0.isFolder }.map(\.path)
+        let added = Set(files).subtracting(beforeFiles).subtracting(scannedFiles)
+        files = added.isEmpty ? scannedFiles : (scannedFiles + added).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
         folders = entries.filter(\.isFolder).map(\.path)
-        notes = records
+        notes = records.merging(notes.filter { before[$0.key] != $0.value.modified }) { _, mem in mem }
         relinkAll()
         isLoaded = true
     }
 
     nonisolated static func record(_ vault: Vault, _ path: String) -> NoteRecord? {
         guard let text = try? vault.read(path) else { return nil }
-        let values = try? vault.url(for: path).resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+        let values = vault.resourceValues(of: path, forKeys: [.contentModificationDateKey, .creationDateKey])
         return NoteRecord(path: path, text: text, parsed: NoteParser.parse(text),
                           modified: values?.contentModificationDate ?? .now, created: values?.creationDate ?? .now)
     }
@@ -73,7 +80,7 @@ public final class VaultIndex {
             let entries = vault.entries()
             var changed: [String: NoteRecord] = [:]
             for e in entries where !e.isFolder && e.path.isMarkdown {
-                let mod = try? vault.url(for: e.path).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                let mod = vault.modificationDate(of: e.path)
                 if known[e.path] == .distantFuture { continue }
                 if known[e.path] == nil || mod != known[e.path] { if let r = Self.record(vault, e.path) { changed[e.path] = r } }
             }
@@ -101,9 +108,11 @@ public final class VaultIndex {
     public func update(_ path: String, text: String) {
         guard notes[path]?.text != text else { return }
         let now = Date.now
+        let before = (outgoing[path], unresolved[path], notes[path]?.parsed.tags)
         notes[path] = NoteRecord(path: path, text: text, parsed: NoteParser.parse(text), modified: now, created: notes[path]?.created ?? now)
         relink(path)
         revision += 1
+        if before.0 != outgoing[path] || before.1 != unresolved[path] || before.2 != notes[path]?.parsed.tags { linkRevision += 1 }
     }
 
     public func didCreate(_ path: String, isFolder: Bool = false) {
@@ -146,8 +155,10 @@ public final class VaultIndex {
 
     /// Moves/renames a file or folder and rewrites every link that pointed into it.
     /// Returns the paths of notes whose text was rewritten.
+    /// Notes changed on disk since they were indexed are rewritten from their disk text, except the paths
+    /// (before the move) in `skipping`: unsaved editor buffers, whose in-memory text wins.
     @discardableResult
-    public func move(_ from: String, to: String) throws -> [String] {
+    public func move(_ from: String, to: String, skipping: Set<String> = []) throws -> [String] {
         guard from != to else { return [] }
         let oldResolver = resolver
         let isFolder = folders.contains(from)
@@ -155,7 +166,8 @@ public final class VaultIndex {
             ? files.filter { $0.hasPrefix(from + "/") }.map { ($0, to + $0.dropFirst(from.count)) }
             : [(from, to)]
         let movedMap = Dictionary(moved, uniquingKeysWith: { a, _ in a })
-        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] })
+        // The moved notes too: their links to themselves (`[[Old#Heading]]`) aren't in `incoming`.
+        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] } + moved.map(\.0))
         try vault.move(from, to: to)
 
         // Update in-memory state for moved files
@@ -169,9 +181,15 @@ public final class VaultIndex {
         var rewritten: [String] = []
         for oldSource in affected {
             let source = movedMap[oldSource] ?? oldSource
-            guard let rec = notes[source] else { continue }
+            guard var rec = notes[source] else { continue }
+            if !skipping.contains(oldSource) {
+                // Gone from disk (deleted elsewhere, or evicted to an iCloud placeholder): writing would recreate it.
+                guard let disk = Self.record(vault, source) else { notes[source] = nil; files.removeAll { $0 == source }; continue }
+                if disk.modified != rec.modified { rec = disk; notes[source] = disk }
+            }
             let text = Self.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
-                guard let target = oldResolver.resolve(link.target, from: oldSource), let newTarget = movedMap[target] else { return nil }
+                guard !link.target.isEmpty, let target = oldResolver.resolve(link.target, from: oldSource),
+                      let newTarget = movedMap[target] else { return nil }
                 return newTarget
             } linkText: { resolver.linkText(for: $0) }
             if text != rec.text {
@@ -189,18 +207,67 @@ public final class VaultIndex {
     public nonisolated static func rewriteLinks(in text: String, parsed: ParsedNote,
                                                 newTarget: (NoteLink) -> String?, linkText: (String) -> String) -> String {
         let ns = NSMutableString(string: text)
-        for link in parsed.links.reversed() where link.range.location != NSNotFound {
+        // Frontmatter links are parsed from YAML values without a range: find them in the raw block.
+        let frontmatterLinks: [NoteLink] = parsed.frontmatterRange.map { fm in
+            NoteParser.Regex.wiki.matches(in: text, range: fm).map { m -> NoteLink in
+                var link = NoteParser.splitWiki(ns.substring(with: m.range(at: 2)), isEmbed: m.range(at: 1).length > 0)
+                link.range = m.range
+                return link
+            }
+        } ?? []
+        // A link inside a quoted YAML scalar needs the new name escaped for that quote style (`Mom's` → `Mom''s`).
+        // The scalar holding a name is the last one starting before it (`- [[x]]` is a plain `x` in nested sequences).
+        // Composing repeats an aliased scalar with its anchor's mark, so "last" is by position, not by tree order.
+        let scalars = Frontmatter.locate(in: text).flatMap { try? Yams.compose(yaml: $0.yaml) }.map(scalarStyles) ?? []
+        let yamlStart = text.hasPrefix("---\r\n") ? 5 : 4
+        func quoted(_ name: String, at location: Int) -> String {
+            // Lines and columns as libyaml counts them: it breaks on \n, \r, \r\n, U+0085, U+2028 and U+2029.
+            var at = (line: 1, column: 1), previous: Unicode.Scalar?
+            for c in ns.substring(with: NSRange(location: yamlStart, length: location - yamlStart)).unicodeScalars {
+                if "\n\r\u{85}\u{2028}\u{2029}".unicodeScalars.contains(c) {
+                    if !(c == "\n" && previous == "\r") { at.line += 1 }
+                    at.column = 1
+                } else {
+                    at.column += 1
+                }
+                previous = c
+            }
+            let position = { (s: (mark: Mark, style: Node.Scalar.Style)) in (s.mark.line, s.mark.column) }
+            switch scalars.filter({ position($0) <= at }).max(by: { position($0) < position($1) })?.style {
+            case .singleQuoted: return name.replacingOccurrences(of: "'", with: "''")
+            case .doubleQuoted: return name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            default: return name
+            }
+        }
+        let inFrontmatter = Set(frontmatterLinks.map(\.range.location))
+        for link in (frontmatterLinks + parsed.links).reversed() where link.range.location != NSNotFound {
             guard let target = newTarget(link) else { continue }
             let replacement: String
             if link.isWiki {
-                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { "|" + $0 } ?? "") + "]]"
+                // Keep a table cell's escaped `\|` so the rewrite doesn't split the column.
+                let bar = ns.substring(with: link.range).contains("\\|") ? "\\|" : "|"
+                let name = inFrontmatter.contains(link.range.location) ? quoted(linkText(target), at: link.range.location + (link.isEmbed ? 3 : 2)) : linkText(target)
+                replacement = (link.isEmbed ? "!" : "") + "[[" + name + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
             } else {
                 let encoded = target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "()"))) ?? target
-                replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + ")"
+                let original = ns.substring(with: link.range)
+                let title = NoteParser.Regex.mdLink.firstMatch(in: original, range: NSRange(location: 0, length: (original as NSString).length))
+                    .flatMap { Range($0.range(at: 4), in: original).map { String(original[$0]) } } ?? ""
+                replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + title + ")"
             }
             ns.replaceCharacters(in: link.range, with: replacement)
         }
         return ns as String
+    }
+
+    /// Every scalar of a YAML tree with where it starts, in document order.
+    private nonisolated static func scalarStyles(_ node: Node) -> [(mark: Mark, style: Node.Scalar.Style)] {
+        switch node {
+        case .scalar(let s): s.mark.map { [($0, s.style)] } ?? []
+        case .sequence(let seq): seq.flatMap(scalarStyles)
+        case .mapping(let map): map.flatMap { scalarStyles($0.key) + scalarStyles($0.value) }
+        default: []
+        }
     }
 
     // MARK: Link graph
@@ -210,6 +277,7 @@ public final class VaultIndex {
         outgoing = [:]; incoming = [:]; unresolved = [:]
         for path in notes.keys { link(path) }
         revision += 1
+        linkRevision += 1
     }
 
     private func relink(_ path: String) {

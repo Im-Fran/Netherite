@@ -182,7 +182,7 @@ struct GraphView: View {
 
     /// Anything that changes which nodes/edges exist or how the layout behaves.
     private var rebuildKey: String {
-        "\(model.index.revision)|\(focus ?? "")|\(settings.hashValue)|\(loaded)"
+        "\(model.index.linkRevision)|\(focus ?? "")|\(settings.hashValue)|\(loaded)"
     }
 
     // MARK: Drawing

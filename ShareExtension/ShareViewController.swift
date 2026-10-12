@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import WidgetKit
 import NetheriteCore
 
 /// What was shared, normalized.
@@ -29,7 +30,19 @@ final class ClipModel {
         [input.text, input.url.map { "[\(title)](\($0.absoluteString))" }].compactMap { $0 }.joined(separator: "\n\n")
     }
     var input = SharedInput()
-    let vault = SharedVault.current()?.resolve()
+    let shared = SharedVault.current()
+    /// Whether the vault folder can be read (nil while checking); `save()` holds folder access only while it writes.
+    private(set) var canReachVault: Bool?
+    /// The vault the app shares, even when this extension can't reach its folder (it's inside the app's own container).
+    var sharedName: String? { shared?.name }
+
+    /// Off the main thread: reaching an iCloud vault can block.
+    func checkVault() async {
+        let shared = shared
+        canReachVault = await Task.detached {
+            shared?.withVault { (try? FileManager.default.contentsOfDirectory(at: $0.root, includingPropertiesForKeys: nil)) != nil } ?? false
+        }.value
+    }
 
     func load(_ items: [NSExtensionItem]) async {
         for provider in items.flatMap({ $0.attachments ?? [] }) {
@@ -91,35 +104,43 @@ final class ClipModel {
 
     /// Writes the clip; returns false (with `error` set) on failure.
     func save() -> Bool {
-        guard let vault else { error = String(localized: "Open a vault in Netherite first."); return false }
         do {
-            var parts: [String] = []
-            for img in input.images {
-                let path = vault.availablePath(folder: vault.settings.attachmentFolder, base: String(localized: "Clipped image"), ext: img.ext)
-                try vault.write(img.data, to: path)
-                parts.append("![[\((path as NSString).lastPathComponent)]]")
+            guard try shared?.withVault({ try write(into: $0) }) != nil else {
+                error = String(localized: "Open a vault in Netherite first.")
+                return false
             }
-            // The daily-note bullet already carries the link, so skip the fetch-failure fallback body there.
-            if !body.isEmpty && !(fetchFailed && destination == .dailyNote && body == fallbackBody) { parts.append(body) }
-            let tagList = tags.split(whereSeparator: { $0 == "," || $0 == " " }).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
-            switch destination {
-            case .newNote:
-                var props: [Property] = []
-                if let url = input.url { props.append(Property(key: "source", value: .text(url.absoluteString))) }
-                props.append(Property(key: "clipped", value: .text(Frontmatter.dateString(.now))))
-                if !tagList.isEmpty { props.append(Property(key: "tags", value: .list(tagList))) }
-                let content = Frontmatter.replacing(in: parts.joined(separator: "\n\n") + "\n", with: props)
-                let name = title.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "-", options: .regularExpression)
-                try vault.createNote(in: Self.folder, named: String(name.prefix(100)), content: content)
-            case .dailyNote:
-                let link = input.url.map { "[\(title)](\($0.absoluteString))" } ?? title
-                let tagText = tagList.map { " #\($0)" }.joined()
-                try vault.appendToDailyNote("- " + link + tagText + (parts.isEmpty ? "" : "\n\n" + parts.joined(separator: "\n\n")))
-            }
+            WidgetCenter.shared.reloadAllTimelines()
             return true
         } catch {
             self.error = error.localizedDescription
             return false
+        }
+    }
+
+    private func write(into vault: Vault) throws {
+        var parts: [String] = []
+        for img in input.images {
+            let path = vault.availablePath(folder: vault.settings.attachmentFolder, base: String(localized: "Clipped image"), ext: img.ext)
+            try vault.write(img.data, to: path)
+            parts.append("![[\((path as NSString).lastPathComponent)]]")
+        }
+        // The daily-note bullet already carries the link, so skip the fetch-failure fallback body there.
+        if !body.isEmpty && !(fetchFailed && destination == .dailyNote && body == fallbackBody) { parts.append(body) }
+        let tagList = tags.split(whereSeparator: { $0 == "," || $0 == " " }).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
+        switch destination {
+        case .newNote:
+            var props: [Property] = []
+            if let url = input.url { props.append(Property(key: "source", value: .text(url.absoluteString))) }
+            props.append(Property(key: "clipped", value: .text(Frontmatter.dateString(.now))))
+            if !tagList.isEmpty { props.append(Property(key: "tags", value: .list(tagList))) }
+            // Shared text is the body: never read a leading `---` block in it as the note's properties.
+            let content = try Frontmatter.replacing(in: "", with: props) + parts.joined(separator: "\n\n") + "\n"
+            let name = title.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "-", options: .regularExpression)
+            try vault.createNote(in: Self.folder, named: String(name.prefix(100)), content: content)
+        case .dailyNote:
+            let link = input.url.map { "[\(title)](\($0.absoluteString))" } ?? title
+            let tagText = tagList.map { " #\($0)" }.joined()
+            try vault.appendToDailyNote("- " + link + tagText + (parts.isEmpty ? "" : "\n\n" + parts.joined(separator: "\n\n")))
         }
     }
 }
@@ -131,9 +152,13 @@ struct ClipView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if model.vault == nil {
+                if model.canReachVault == false {
                     Section {
-                        Label("Open a vault in Netherite first, then share again.", systemImage: "exclamationmark.triangle")
+                        if let name = model.sharedName {
+                            Label("Netherite’s extensions can’t reach “\(name)”. Move it to iCloud Drive from the vault list, then share again.", systemImage: "exclamationmark.triangle")
+                        } else {
+                            Label("Open a vault in Netherite first, then share again.", systemImage: "exclamationmark.triangle")
+                        }
                     }
                 }
                 Section {
@@ -182,13 +207,14 @@ struct ClipView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     // Saving while the page downloads keeps just the link.
                     Button("Save") { model.skipFetch(); if model.save() { done(true) } }
-                        .disabled(!model.itemsLoaded || model.vault == nil)
+                        .disabled(!model.itemsLoaded || model.canReachVault != true)
                 }
             }
         }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 460)
         #endif
+        .task { await model.checkVault() }
     }
 }
 

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import NetheriteCore
 
@@ -33,4 +34,23 @@ import Testing
     s = GraphSettings(); s.search = "b"
     g = GraphData.build(files: files, outgoing: out, unresolved: [:], tags: [:], settings: s)
     #expect(g.nodes.map(\.id) == ["B.md"])
+}
+
+// R4-08: the graph only rebuilds when links, files or tags change, not on every keystroke.
+@MainActor @Test func linkRevisionIgnoresPlainTyping() async throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let vault = Vault(root: dir)
+    try vault.write("Hi [[B]]", to: "A.md")
+    try vault.write("B", to: "B.md")
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    var seen = index.linkRevision
+    index.update("A.md", text: "Hi there [[B]]")
+    #expect(index.linkRevision == seen)
+    for text in ["Hi there [[B]] [[C]]", "Hi there [[B]] [[C]] #tag", "Hi there"] {
+        index.update("A.md", text: text)
+        #expect(index.linkRevision > seen)
+        seen = index.linkRevision
+    }
 }

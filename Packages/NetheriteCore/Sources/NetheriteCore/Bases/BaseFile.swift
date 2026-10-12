@@ -76,6 +76,8 @@ public struct BaseFile: Hashable, Sendable {
     public var views: [BaseViewConfig] = []
     /// Unknown top-level keys, serialized YAML fragments.
     var extra: [(String, String)] = []
+    /// Per-property settings other than `displayName` (width…), serialized YAML fragments.
+    var propertyExtra: [String: [(String, String)]] = [:]
 
     public init() {}
 
@@ -90,10 +92,18 @@ public struct BaseFile: Hashable, Sendable {
             switch key {
             case "filters": f.filters = BaseFilter(v)
             case "formulas":
-                if case .mapping(let m) = v { f.formulas = m.compactMap { k, v in k.string.flatMap { n in v.string.map { (n, $0) } } } }
+                // Scalars of any tag (`x: 5`, `y: true`) are expressions too.
+                if case .mapping(let m) = v { f.formulas = m.compactMap { k, v in k.string.flatMap { n in v.scalar.map { (n, $0.string) } } } }
             case "properties":
                 if case .mapping(let m) = v {
-                    for (pk, pv) in m { if let id = pk.string, let dn = pv["displayName"]?.string { f.displayNames[id] = dn } }
+                    for (pk, pv) in m {
+                        guard let id = pk.string, case .mapping(let settings) = pv else { continue }
+                        for (sk, sv) in settings {
+                            guard let key = sk.string else { continue }
+                            if key == "displayName", let dn = sv.string { f.displayNames[id] = dn }
+                            else { f.propertyExtra[id, default: []].append((key, (try? Yams.serialize(node: sv)) ?? "")) }
+                        }
+                    }
                 }
             case "views":
                 f.views = (v.sequence ?? []).map(view)
@@ -135,9 +145,12 @@ public struct BaseFile: Hashable, Sendable {
         var pairs: [(Node, Node)] = []
         if let filters { pairs.append((Node("filters"), filters.node)) }
         if !formulas.isEmpty { pairs.append((Node("formulas"), Node(formulas.map { (Node($0.name), Node($0.expr)) }))) }
-        if !displayNames.isEmpty {
-            pairs.append((Node("properties"), Node(displayNames.sorted { $0.key < $1.key }.map {
-                (Node($0.key), Node([(Node("displayName"), Node($0.value))]))
+        let propertyIDs = Set(displayNames.keys).union(propertyExtra.keys).sorted()
+        if !propertyIDs.isEmpty {
+            pairs.append((Node("properties"), Node(propertyIDs.map { id in
+                var p = displayNames[id].map { [(Node("displayName"), Node($0))] } ?? []
+                for (k, frag) in propertyExtra[id] ?? [] { if let n = try? Yams.compose(yaml: frag) { p.append((Node(k), n)) } }
+                return (Node(id), Node(p))
             })))
         }
         for (k, frag) in extra { if let n = try? Yams.compose(yaml: frag) { pairs.append((Node(k), n)) } }
@@ -152,7 +165,7 @@ public struct BaseFile: Hashable, Sendable {
             for (k, frag) in v.extra.sorted(by: { $0.key < $1.key }) { if let n = try? Yams.compose(yaml: frag) { p.append((Node(k), n)) } }
             return Node(p)
         })))
-        return (try? Yams.serialize(node: Node(pairs))) ?? ""
+        return Frontmatter.unescapingAstral((try? Yams.serialize(node: Node(pairs), width: -1, allowUnicode: true)) ?? "")
     }
 
     // MARK: Querying
@@ -208,7 +221,7 @@ public extension BaseRow {
     @MainActor static func all(from index: VaultIndex) -> [BaseRow] {
         index.files.map { path in
             let rec = index.notes[path]
-            let values = rec == nil ? try? index.vault.url(for: path).resourceValues(forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey]) : nil
+            let values = rec == nil ? index.vault.resourceValues(of: path, forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey]) : nil
             return BaseRow(path: path, properties: rec?.parsed.properties ?? [], tags: rec?.parsed.tags ?? [],
                            links: index.outgoing[path] ?? [], size: rec?.text.utf8.count ?? values?.fileSize ?? 0,
                            ctime: rec?.created ?? values?.creationDate ?? .distantPast,

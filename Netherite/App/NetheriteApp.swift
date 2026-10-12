@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 import NetheriteCore
 #if DIRECT_DISTRIBUTION
 import OpenUpdater
@@ -13,6 +14,12 @@ struct NetheriteApp: App {
 
     init() {
         NetheriteTips.configure()
+        #if os(macOS)
+        // ⌘Q doesn't change the scene phase: save the edits still waiting for their debounced write.
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { for m in AppModel.shared.open.values { m.flushAll() } }
+        }
+        #endif
         #if DIRECT_DISTRIBUTION
         updater.start()
         #endif
@@ -59,6 +66,8 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
     @State private var window: WindowState?
+    /// A deep link for another vault, followed once this window shows it.
+    @State private var pendingLink: URL?
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
@@ -69,13 +78,11 @@ struct RootView: View {
                     .tint(Color(pair: window.model.theme.accent, fallback: .accentColor))
             } else {
                 VaultPicker { vaultPath = AppModel.key($0.vault.root) }
-                    .onOpenURL { url in
-                        // netherite://guide opens the guide vault from the start page (and from Shortcuts).
-                        guard url.host() == "guide" else { return }
-                        Task {
-                            let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
-                            if let m = try? app.createGuideVault(in: parent) { vaultPath = AppModel.key(m.vault.root) }
-                        }
+                    .onOpenURL(perform: follow)
+                    // A Spotlight result names its vault too: follow it as an `open` link.
+                    .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                        if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                           let url = SystemIntegration.openLink(forIdentifier: id) { follow(url) }
                     }
             }
         }
@@ -101,10 +108,30 @@ struct RootView: View {
         .task(id: vaultPath) {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
-            window?.closeVault = { vaultPath = "" }
+            // Capture only the bindings: capturing `self` would retain the window through its @State (a cycle).
+            window?.closeVault = { [vaultPath = $vaultPath] in vaultPath.wrappedValue = "" }
+            window?.switchVault = { [vaultPath = $vaultPath, pendingLink = $pendingLink] path, link in
+                pendingLink.wrappedValue = link; vaultPath.wrappedValue = path
+            }
+            window?.pendingLink = pendingLink
+            pendingLink = nil
         }
         // Outermost, so the onboarding cover and every sheet inherit it.
         .accessibilityRoot(appearance: window?.model.theme.appearance)
+    }
+
+    private func follow(_ url: URL) {
+        // Widget and Shortcuts links name their vault: open it, then follow the link.
+        if let vault = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "vault" })?.value {
+            if app.isKnownVault(vault) { pendingLink = url; vaultPath = vault }
+            return
+        }
+        // netherite://guide opens the guide vault from the start page (and from Shortcuts).
+        guard url.host() == "guide" else { return }
+        Task {
+            let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
+            if let m = try? app.createGuideVault(in: parent) { vaultPath = AppModel.key(m.vault.root) }
+        }
     }
 }
 

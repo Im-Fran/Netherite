@@ -50,14 +50,14 @@ extension VaultModel {
     func isBookmarked(_ path: String) -> Bool { bookmarks.contains { $0.kind == .file && $0.path == path } }
 
     @discardableResult
-    func newCanvas(in folder: String) -> String? {
-        let path = vault.availablePath(folder: folder, base: String(localized: "Untitled"), ext: "canvas")
+    func newCanvas(in folder: String, named name: String = String(localized: "Untitled")) -> String? {
+        let path = vault.availablePath(folder: folder, base: name, ext: "canvas")
         return writeNew(path, #"{"nodes":[],"edges":[]}"#)
     }
 
     @discardableResult
-    func newBase(in folder: String) -> String? {
-        let path = vault.availablePath(folder: folder, base: String(localized: "Untitled"), ext: "base")
+    func newBase(in folder: String, named name: String = String(localized: "Untitled")) -> String? {
+        let path = vault.availablePath(folder: folder, base: name, ext: "base")
         return writeNew(path, "views:\n  - type: table\n    name: \(String(localized: "Table"))\n    order:\n      - file.name\n")
     }
 

@@ -30,8 +30,9 @@
   }
   window.netheriteScrollTo = function (sub) {
     let el = null;
-    if (sub.startsWith('^')) el = document.getElementById(sub);
-    else {
+    // Blocks (`^id`) and footnotes (`fn-label`, from the reading view) by id; otherwise a heading.
+    if (sub.startsWith('^') || sub.startsWith('fn-')) el = document.getElementById(sub);
+    if (!el && !sub.startsWith('^')) {
       const want = sub.split('#').pop().trim().toLowerCase();
       el = [...document.querySelectorAll('[data-heading]')].find(h => h.dataset.heading.toLowerCase() === want);
     }

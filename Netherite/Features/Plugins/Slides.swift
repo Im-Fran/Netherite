@@ -22,10 +22,17 @@ struct SlidesView: View {
         return out.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
+    /// A slide is a slice of the note, so its task lines aren't the note's: toggling one would change the wrong line.
+    private var context: RenderContext {
+        var ctx = RenderContext.app(window.model.index, source: path)
+        ctx.interactiveTasks = false
+        return ctx
+    }
+
     var body: some View {
         let slides = Self.slides(window.model.text(of: path))
         let i = min(index, max(0, slides.count - 1))
-        let html = slides.isEmpty ? "" : HTMLRenderer.render(slides[i], context: .app(window.model.index, source: path))
+        let html = slides.isEmpty ? "" : HTMLRenderer.render(slides[i], context: context)
         let style = "<style>body{font-size:1.6em;display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 150px);max-width:1000px}</style>"
         ZStack(alignment: .bottom) {
             HTMLWebView(html: HTMLRenderer.page(title: nil, body: html, assets: "nth://web/", theme: window.model.theme, extraHead: style),

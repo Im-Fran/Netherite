@@ -9,6 +9,8 @@ struct VaultWindow: View {
     @State var window: WindowState
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window's startup ran; `.task` runs again when the view reappears (after a full-screen cover on iOS).
+    @State private var started = false
 
     var body: some View {
         @Bindable var window = window
@@ -47,24 +49,29 @@ struct VaultWindow: View {
         } message: {
             Text(window.model.lastError ?? "")
         }
-        .onChange(of: scenePhase) { _, phase in
-            // A suspended app shouldn't keep a file presenter registered (it can stall coordinated writes from extensions).
-            switch phase {
-            case .active: window.model.resumeWatching()
-            case .background: window.model.flushAll(); window.model.suspendWatching()
-            default: window.model.flushAll()
-            }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase != .active { window.model.flushAll() }
+            // A suspended app shouldn't keep a file presenter registered (it can stall coordinated writes from extensions);
+            // the model keeps watching while any other window of the vault is still in the foreground.
+            window.model.window(window, isForeground: phase != .background)
         }
+        // Reappearing (a full-screen cover was dismissed) turns the watcher back on.
+        .onAppear { window.model.window(window, isForeground: scenePhase != .background) }
+        .onDisappear { window.model.window(window, isForeground: false) }
         .task {
+            guard !started else { return }
+            started = true
             if sizeClass == .compact { window.showInspector = false }
             if window.model.settings.dailyNotes.openOnStartup && window.model.settings.isEnabled(.dailyNotes) { window.openDailyNote() }
             else if window.pane.current == nil, let last = window.model.recentFiles.first(where: window.model.vault.exists) {
                 window.open(path: last)
             }
+            if let link = window.pendingLink { window.pendingLink = nil; handleDeepLink(link) }
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: SystemIntegration.path(fromIdentifier: path).path) }
+            if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+               let url = SystemIntegration.openLink(forIdentifier: id) { handleDeepLink(url) }
         }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
@@ -114,10 +121,23 @@ struct VaultWindow: View {
     }
 
     /// netherite://open?path=Folder/Note.md · netherite://new?name=…&content=… · netherite://daily · netherite://search?query=…
+    /// `vault=<folder path>` (widgets, Shortcuts) switches this window to that vault first.
     private func handleDeepLink(_ url: URL) {
         let q = Dictionary((URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") }) { a, _ in a }
+        if let v = q["vault"], AppModel.rebased(AppModel.key(URL(filePath: v))) != AppModel.key(window.model.vault.root), let switchVault = window.switchVault {
+            // A link for another vault never lands in this one, and only switches to a vault the user already opened.
+            guard AppModel.shared.isKnownVault(v) else { return }
+            window.model.flushAll()
+            switchVault(v, url)
+            return
+        }
         switch url.host() {
-        case "open": if let p = q["path"] ?? q["file"] { window.open(path: p.hasSuffix(".md") || p.contains(".") ? p : p + ".md") }
+        case "open":
+            // Open the file's own spelling: another case or a leading "/" would be indexed as a second note, and its edits lost.
+            if let raw = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }),
+               let p = window.model.vault.canonicalPath(raw) {
+                window.open(path: p)
+            }
         case "new":
             if let p = window.model.newNote(named: q["name"], content: q["content"] ?? "") { window.open(path: p) }
         case "daily": window.openDailyNote()

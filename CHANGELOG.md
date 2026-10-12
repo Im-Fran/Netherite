@@ -10,6 +10,90 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+### Changed
+- Properties keep their YAML 1.2 meaning: `yes`/`no` stay text and `01234` is a decimal number.
+- Following a link to another note from Reading view opens it for editing.
+- Notes render only safe link schemes (http, https, mailto, obsidian, netherite) and an allowlist of HTML; links with other schemes show as plain text.
+- `netherite publish` deploys from a temporary folder; `--out` is now only for `netherite export`.
+- The Share extension and widgets explain when a vault stored only on this device can't be reached.
+- File Recovery only takes snapshots while its plugin is on.
+
+### Fixed
+- Typing right after naming a new note goes into its body instead of being lost.
+- Tips no longer appear while you type, so they can't swallow keystrokes.
+- Fast typing no longer moves the cursor back a character, and Undo stays in step after properties or tasks change the note.
+- The `[[` link suggestions appear at the cursor.
+- Titles stay on one line, so a pasted line break can't end up in a file name.
+- Jumping to a heading works in Reading view.
+- A new canvas card takes your typing; empty cards are discarded, a canvas that fails to load is never overwritten, and its Undo steps don't leak into other notes.
+- Window titles show canvases and bases without their extension, and mention previews show link text instead of `[[…]]`.
+- Editing a property keeps every other property exactly as written.
+- Renaming a note updates links in properties, escaped aliases in tables and links to itself; a stray backtick no longer hides links and tags; `# C#` headings and links to headings no longer create false tags.
+- A note renamed, moved or deleted elsewhere updates in every window instead of reappearing under its old name.
+- Recent edits are saved when you quit, and changes from iCloud keep arriving while another window is in the background.
+- List properties accept commas; the file list rejects dropping a folder into itself; new vault names are validated and never reopen an existing vault.
+- Recent notes follow moves and deletions; File Recovery snapshots follow the vault when it moves.
+- Vault access is released when a vault closes, and Export Vault works for vaults opened from other folders.
+- A vault moved to Recently Deleted is no longer used by the Share extension and widgets; widgets refresh after Shortcuts and shares, and their links open the right vault.
+- Audio recordings continue through interruptions and in the background, and are kept when their sheet closes.
+- The Workspaces sheet fits on iPhone, "Create Theme from Current…" never overwrites a theme, and Publish cleans up its temporary files.
+- Embedding a block or heading, and some unusual characters, no longer crash rendering; notes with thousands of links render quickly.
+- Bases: `toFixed` no longer crashes and saving keeps property settings and formulas; published sites keep notes named `index`, `404` or `graph`.
+- Typing in a note created by a widget, Shortcut or share, or while a vault is still loading, is no longer reverted.
+- Canvas cards keep every keystroke, and tips also wait while you name a note.
+- Renaming a note to a name with quotes keeps the properties of notes that link to it valid.
+- `[text](#heading)` links and images with formulas in their alt text render correctly.
+- Notes with many links and tags, or broken HTML, no longer slow down editing.
+- The Inspector keeps an unfinished list property with its own note, and full-screen presentations on iPhone and iPad no longer stop iCloud updates.
+- A failed move to Recently Deleted keeps your latest edits, and a recording that can't be saved shows an error.
+- Copies of a vault keep separate File Recovery history, and opening a vault no longer rewrites its settings files.
+- The iPhone welcome tour responds to the first tap.
+- Opening a note from a link or Spotlight with different capitals keeps your typing, Spotlight results work from the vault picker and for names with `|`, and a capitals-only rename outside the app warns before edits are lost.
+- Moving a vault opened in place to Recently Deleted or iCloud Drive works again, and notes save their latest edits before going to the trash.
+- A recording that can't be saved in the vault is kept in Application Support, and the error says where.
+- Highlights and formulas that contain a link render again; link titles and reference definitions no longer create tags.
+- Notes opened from recents, bookmarks or workspaces with different capitals keep your typing; bookmarks and workspaces follow renames and drop deleted notes.
+- Move to iCloud Drive keeps the window on the moved vault and updates the widgets and Share extension.
+- Search waits for you to stop typing and never shows results for an older query; regex search honours Match Case.
+- The graph no longer restarts its layout on every keystroke.
+- Notion and Evernote imports link to the right page or image when names repeat, and HTML imports keep literal text such as `<b>` or `# ` as text.
+- Date templates and daily notes always use the Gregorian calendar and Western digits, matching Obsidian.
+- Renaming a note keeps the titles of Markdown links to it.
+- Editing a property no longer erases a note's other properties when its frontmatter isn't valid YAML; Netherite asks you to fix it first.
+- Note names can't start with a dot, so new, renamed, imported and daily notes never end up hidden.
+- Vault settings, bookmarks and themes changed on another device appear without reopening the vault, and saving them keeps those changes.
+- Moving a vault to iCloud Drive no longer leaves a copy of new edits at the old location, and Settings keeps showing the moved vault.
+- Reading view keeps your scroll position when a note changes, and outline, block and footnote jumps work there.
+- Imports keep links working when folder names contain `#` or brackets, and HTML imports keep `---`, `~~~`, `%%` and `$` as text.
+- Task search operators match the task state and tasks in numbered lists; highlights after link titles render, and tags inside link text stay plain text.
+- Counts such as "1 day" and "1 attendee" use the singular in English and Spanish.
+- Long property values and names keep the frontmatter valid, so the Inspector can always edit them.
+- Evernote and HTML imports that start with a horizontal rule keep their text and metadata, and text split across HTML elements can't turn into comments or highlights.
+- Moving a note keeps edits other devices made to notes that link to it, and saving keeps a file's creation date.
+- Vault settings and bookmarks are kept when iCloud evicts their files, and a shared clip starting with `---` is saved as is.
+- Ticking a task in a hover preview changes the right line, reading view hands heading jumps back to the editor, and a failed save while moving a vault to iCloud Drive is reported.
+- Notes that are symbolic links save again, and moving a note no longer brings back notes deleted elsewhere.
+- Highlights that wrap a wikilink or a formula render; imported `%` and `=` stay plain text unless they would form `%%` or `==`.
+- The "Open Notes in Reading View" setting now works (new notes still open for editing), slide tasks are read-only, and merging notes keeps edits made on other devices.
+- Edits that can't be saved after moving a vault to iCloud Drive are kept in File Recovery.
+- Notes that are symbolic links pick up outside edits, and moving another note no longer overwrites them.
+- With "Open Notes in Reading View", search results and backlinks still jump to the matching line; notes made without opening them (extracted selections, base entries) follow the setting.
+- Merging notes moves the source's properties into the target's frontmatter instead of leaving a second block in the text.
+- Imported HTML keeps a lone `=` line as text inside quotes and lists, and a tag right after inline math renders as a tag.
+- Merging notes keeps every tag and alias and preserves nested, date and number properties as written; symlinked canvases pick up outside edits.
+- Following a link that includes `.md` to a note that doesn't exist yet creates `Note.md`, not `Note.md.md`; merging a list into a number, date or checkbox property keeps the existing value.
+- Links to a missing canvas or base create it; links to a missing attachment say it isn't in the vault.
+- Editing or merging properties that use YAML anchors (`&name`, `*name`) keeps the frontmatter valid, along with the nested values and comments of the other properties.
+- Property values and bases with accents or emoji are saved as written instead of as `\U0001F389`-style escapes, and long base filters stay on one line.
+
+### Security
+- Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
+- Rendered notes and published sites are protected against script injection with an HTML allowlist and a Content Security Policy.
+- Web pages opened in the web viewer can no longer read vault files.
+- `netherite://` links only open vaults you have already opened.
+- Published sites pin their scripts by hash, and notes can't load scripts from the vault.
+- Published sites no longer include `%%comments%%` in their search index.
+
 ## [0.1.1+13] - 2026-10-11
 
 ### Added

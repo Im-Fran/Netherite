@@ -34,7 +34,8 @@ enum Destination: Hashable, Codable {
         case .graph: String(localized: "Graph View")
         case .localGraph(let p): String(localized: "Local Graph: \(p.noteName)")
         case .web(let url): url.host() ?? url.absoluteString
-        default: path.map { $0.isMarkdown ? $0.noteName : ($0 as NSString).lastPathComponent } ?? ""
+        case .note(let p), .canvas(let p), .base(let p): p.noteName   // as the file explorer shows them
+        case .file(let p): (p as NSString).lastPathComponent
         }
     }
 
@@ -61,18 +62,22 @@ final class Pane: Identifiable {
     private(set) var history: [Destination] = []
     private(set) var position = -1
     var reading = false
-    /// Line to scroll to / select after opening (heading or block links, search results).
-    var pendingLine: Int?
+    /// Line to scroll to / select after opening (heading or block links, search results), kept until the editor shows.
+    var pendingLine: Int? { didSet { readerLine = pendingLine } }
+    /// The same line for the reading view, which consumes it once scrolled without taking it from the editor.
+    var readerLine: Int?
 
     var current: Destination? { history.indices.contains(position) ? history[position] : nil }
     var canGoBack: Bool { position > 0 }
     var canGoForward: Bool { position < history.count - 1 }
 
-    func open(_ d: Destination, line: Int? = nil) {
+    func open(_ d: Destination, line: Int? = nil, reading: Bool = false) {
         pendingLine = line
         if current == d { return }
         history = Array(history.prefix(position + 1)) + [d]
         position = history.count - 1
+        // Opening another note starts in the editor unless asked otherwise; Back/Forward keep the mode.
+        self.reading = reading
     }
 
     func back() { if canGoBack { position -= 1; pendingLine = nil } }
@@ -86,6 +91,11 @@ final class Pane: Identifiable {
         let before = current
         history.removeAll { $0.path == path || ($0.path?.hasPrefix(path + "/") ?? false) }
         position = min(max(0, history.firstIndex { $0 == before } ?? history.count - 1), history.count - 1)
+    }
+
+    /// Drops destinations whose file no longer exists (moved or deleted outside Netherite).
+    func removeMissing(_ files: Set<String>) {
+        for p in Set(history.compactMap(\.path)) where !files.contains(p) { removePath(p) }
     }
 }
 
@@ -143,6 +153,10 @@ final class WindowState {
     var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     /// Returns this window to the vault picker (set by RootView; iOS has no File › Open Vault… on iPhone).
     @ObservationIgnored var closeVault: (() -> Void)?
+    /// Shows another vault in this window and follows the deep link there (set by RootView).
+    @ObservationIgnored var switchVault: ((_ path: String, _ link: URL) -> Void)?
+    /// A deep link to follow once the window shows its vault.
+    @ObservationIgnored var pendingLink: URL?
     /// File awaiting the "Move to Trash" confirmation shown by the vault window.
     var pendingTrash: String?
     var sheet: ActiveSheet? {
@@ -162,6 +176,8 @@ final class WindowState {
     var explorerSelection: String?
     /// A note created by "New Note" that should open with its title selected for renaming.
     @ObservationIgnored var freshNote: String?
+    /// A note whose body should take focus when its editor appears (after naming a note: renaming recreates the editor).
+    @ObservationIgnored var focusBody: String?
     var presentingSlides = false
     /// Toolbar tips shown one at a time, in this order.
     @ObservationIgnored let toolbarTips = TipGroup(.ordered) {
@@ -171,9 +187,10 @@ final class WindowState {
         GraphTip()
         CommandPaletteTip()
     }
-    /// Current toolbar tip, or nil while the welcome tour is on screen.
+    /// Current toolbar tip, or nil while the welcome tour is on screen or the user is typing in a note
+    /// (a tip's popover takes keyboard focus, so the keystrokes would be lost).
     func toolbarTip<T: Tip>(_ type: T.Type, onboarded: Bool) -> T? {
-        onboarded ? toolbarTips.currentTip as? T : nil
+        onboarded && !editors.values.contains(where: { $0.isEditing || $0.isEditingTitle }) ? toolbarTips.currentTip as? T : nil
     }
 
     /// Editor tips shown one at a time.
@@ -191,6 +208,7 @@ final class WindowState {
         let first = Pane()
         panes = [first]
         focusedPaneID = first.id
+        model.register(self)
     }
 
     var pane: Pane { panes.first { $0.id == focusedPaneID } ?? panes[0] }
@@ -198,8 +216,22 @@ final class WindowState {
     var currentNote: String? { if case .note(let p) = pane.current { p } else { nil } }
 
     func open(_ d: Destination, line: Int? = nil, newPane: Bool = false) {
+        guard let d = canonical(d) else { return }
         if newPane { split() }
-        pane.open(d, line: line)
+        // "Open Notes in Reading View", except for a note just created (typing into it would seem to do nothing)
+        // and a jump to a line the reader can't scroll to: only headings, blocks and footnotes are anchors there.
+        var reading = false, anchored = true
+        if case .note(let p) = d {
+            let parsed = model.index.notes[p]?.parsed
+            anchored = line.map { line in
+                parsed?.headings.contains { $0.line == line } == true || parsed?.blockIDs.values.contains(line) == true
+                    || parsed?.footnotes.contains { $0.line == line } == true
+            } ?? true
+            reading = model.createdNotes.remove(p) == nil && model.settings.defaultToReadingMode && anchored
+        }
+        pane.open(d, line: line, reading: reading)
+        // `Pane.open` keeps the mode of a note that's already open, but the reader can't show an unanchored line.
+        if !anchored { pane.reading = false }
         preferredCompactColumn = .detail
         if let p = d.path { model.noteDidOpen(p); explorerSelection = p }
         switch d {
@@ -209,20 +241,41 @@ final class WindowState {
         }
     }
 
+    /// The destination with its path as spelled in the index (recents, bookmarks and links may use other capitals),
+    /// or nil when the file no longer exists: editing a misspelled path would discard what is typed.
+    func canonical(_ d: Destination) -> Destination? {
+        guard let p = d.path else { return d }
+        let files = model.index.files
+        // Not indexed yet (the index is loading, or a widget or extension just made the file): ask the disk.
+        guard let found = files.contains(p) ? p : files.first(where: { $0.caseInsensitiveCompare(p) == .orderedSame }) ?? model.vault.canonicalPath(p)
+        else { return nil }
+        return found == p ? d : d.renamed(from: p, to: found)
+    }
+
     func open(path: String, line: Int? = nil, newPane: Bool = false) {
         open(Destination(path: path), line: line, newPane: newPane)
     }
 
-    /// Follows a link (with optional #heading / #^block) from `source`, creating the note if it doesn't exist.
+    /// Follows a link (with optional #heading / #^block) from `source`, creating the note, canvas or base
+    /// if it doesn't exist. A missing attachment can't be made up, so it's reported instead.
     func follow(_ link: NoteLink, from source: String?, newPane: Bool = false) {
         let src = source ?? ""
         if let target = model.index.resolver.resolve(link.target, from: src) {
             open(path: target, line: line(for: link.subpath, in: target), newPane: newPane)
         } else if !link.target.isEmpty {
             let folder = link.target.contains("/") ? link.target.parentFolder : model.settings.newNoteFolder
-            if let p = model.newNote(in: folder, named: (link.target as NSString).lastPathComponent) {
-                open(path: p, newPane: newPane)
+            let created: String?
+            switch link.target.fileExtension {
+            case "canvas": created = model.newCanvas(in: folder, named: link.target.noteName)
+            case "base": created = model.newBase(in: folder, named: link.target.noteName)
+            default:
+                guard let name = LinkResolver.newNoteName(for: link.target) else {
+                    model.lastError = String(localized: "“\(link.target)” isn't in this vault.")
+                    return
+                }
+                created = model.newNote(in: folder, named: name)
             }
+            if let created { open(path: created, newPane: newPane) }
         }
     }
 
@@ -254,19 +307,14 @@ final class WindowState {
         if let p = model.newNote(in: folder ?? model.settings.newNoteFolder) { freshNote = p; open(path: p) }
     }
 
-    func rename(_ path: String, to name: String) {
-        if let new = model.rename(path, to: name) { panes.forEach { $0.replacePaths(from: path, to: new) } }
-    }
+    // The model updates the panes of every window showing the vault.
+    func rename(_ path: String, to name: String) { model.rename(path, to: name) }
 
     func move(_ path: String, toFolder folder: String) {
-        let target = folder.isEmpty ? (path as NSString).lastPathComponent : "\(folder)/\((path as NSString).lastPathComponent)"
-        if let new = model.move(path, to: target) { panes.forEach { $0.replacePaths(from: path, to: new) } }
+        model.move(path, to: folder.isEmpty ? (path as NSString).lastPathComponent : "\(folder)/\((path as NSString).lastPathComponent)")
     }
 
-    func trash(_ path: String) {
-        model.trash(path)
-        panes.forEach { $0.removePath(path) }
-    }
+    func trash(_ path: String) { model.trash(path) }
 
     func export(_ path: String) {
         model.flushAll()

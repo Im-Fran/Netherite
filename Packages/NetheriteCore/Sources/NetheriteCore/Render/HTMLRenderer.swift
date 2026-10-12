@@ -33,10 +33,13 @@ public enum HTMLRenderer {
 
     /// Renders a note's Markdown to an HTML fragment.
     public static func render(_ text: String, context ctx: RenderContext) -> String {
-        var tokens: [String] = []
-        func token(_ html: String) -> String { tokens.append(html); return "\u{E000}\(tokens.count - 1)\u{E001}" }
+        var tokens: [String] = [], sources: [String?] = []   // the text each token replaced, for link destinations
+        func token(_ html: String, source: String? = nil) -> String {
+            tokens.append(html); sources.append(source); return "\u{E000}\(tokens.count - 1)\u{E001}"
+        }
 
-        var src = text
+        // The placeholder markers are private-use characters; a note can't smuggle in its own (N-21).
+        var src = text.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
         var props = ""
         if let fm = Frontmatter.locate(in: src) {
             let parsed = Frontmatter.parse(fm.yaml)
@@ -59,12 +62,26 @@ public enum HTMLRenderer {
 
         // Replace OFM syntax outside code with placeholder tokens, back to front so ranges stay valid.
         var reps: [(NSRange, String)] = []
+        var taken = IndexSet(), linkTargets = IndexSet(), links: [Range<Int>] = []
         let codeMasked = maskCode(src)
         let ns = src as NSString
-        func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
-            for m in re.matches(in: text, range: full(text)) where !reps.contains(where: { NSIntersectionRange($0.0, m.range).length > 0 }) {
-                if let r = make(m) { reps.append((m.range, r)) }
+        /// Replaces the capture `groups` of each match (the whole match by default) with `make`'s strings. Only those
+        /// ranges must be free: a highlight replaces just its `==`, so it can wrap a wikilink or math token.
+        func add(_ re: NSRegularExpression, in text: String, groups: [Int] = [0], _ make: (NSTextCheckingResult) -> [String]?) {
+            for m in re.matches(in: text, range: full(text)) {
+                let first = sources.count
+                let parts = groups.map { m.range(at: $0) }
+                guard let range = Range(m.range), !parts.contains(where: { taken.intersects(integersIn: Range($0)!) }),
+                      !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1),
+                      // ponytail: linear scan per token; index the links if notes with thousands of both get slow.
+                      !links.contains(where: { $0.overlaps(range) && $0.clamped(to: range) != $0 && range.clamped(to: $0) != range }),
+                      let r = make(m) else { continue }
+                for i in first..<sources.count where sources[i] == nil { sources[i] = ns.substring(with: m.range) }
+                for (part, r) in zip(parts, r) { reps.append((part, r)); taken.insert(integersIn: Range(part)!) }
             }
+        }
+        func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
+            add(re, in: text) { make($0).map { [$0] } }
         }
         add(NoteParser.Regex.comment, in: codeMasked) { m in String(repeating: "\n", count: ns.substring(with: m.range).filter { $0 == "\n" }.count) }
         add(NoteParser.Regex.mathBlock, in: codeMasked) { m in
@@ -72,20 +89,38 @@ public enum HTMLRenderer {
             let lines = ns.substring(with: m.range).filter { $0 == "\n" }.count
             return token("<div class=\"math math-display\" data-tex=\"\(escape(String(tex)))\"></div>") + String(repeating: "\n", count: lines)
         }
+        // A Markdown link's destination is a URL and an image's alt is plain text: no token starts or ends inside them
+        // (`[Jump](#Intro)` isn't a tag, `![a $x$](…)` keeps its text), but one can wrap them (`==see [a](b)==`).
+        // A token must wrap a whole link or sit inside it: `[a ==b](c) d==` would nest the HTML wrongly.
+        for m in NoteParser.Regex.mdLink.matches(in: codeMasked, range: full(codeMasked)) {
+            links.append(Range(m.range)!)
+            linkTargets.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
+        }
+        var inlineMath: [NSRange] = []
         add(NoteParser.Regex.inlineMath, in: codeMasked) { m in
-            token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
+            inlineMath.append(m.range)
+            return token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
         }
         let masked = NoteParser.maskedText(src)
         add(NoteParser.Regex.wiki, in: masked) { m in
             let link = NoteParser.splitWiki(ns.substring(with: m.range(at: 2)).replacingOccurrences(of: "\\|", with: "|"), isEmbed: m.range(at: 1).length > 0)
             return token(link.isEmbed ? embed(link, ctx) : anchor(link, ctx))
         }
-        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: masked) { m in
-            token("<mark>") + ns.substring(with: m.range(at: 2)) + token("</mark>")
+        // `==` and tags are matched with link destinations and titles blanked, so an `==` inside `[a](b "x==y")` can't
+        // pair with (and swallow) a highlight after the link. They're filled with U+FFFC, not spaces, so the link still
+        // counts as text: `==see [a](b)==` closes after it and `[x](y)#t` isn't a tag. Inline math, blanked in `masked`,
+        // counts as text for highlights (`==$x$==` is one) but stays blank for tags, as in the index: `$x$#t` is a tag.
+        var unlinkedUnits = Array(masked.utf16)
+        for r in linkTargets.rangeView.map(NSRange.init) { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
+        let unlinked = String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count)
+        for r in inlineMath { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
+        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count), groups: [1, 3]) { _ in
+            [token("<mark>", source: "=="), token("</mark>", source: "==")]
         }
-        add(NoteParser.Regex.tag, in: masked) { m in
+        add(NoteParser.Regex.tag, in: unlinked) { m in
             let tag = ns.substring(with: m.range(at: 1))
-            guard tag.contains(where: { !$0.isNumber }) else { return nil }
+            // A tag inside a link's text would nest an <a> in the link's <a>.
+            guard tag.contains(where: { !$0.isNumber }), !links.contains(where: { $0.contains(m.range.location) }) else { return nil }
             return token("<a class=\"tag\" href=\"\(escape(ctx.tagHref(tag)))\">#\(escape(tag))</a>")
         }
         add(try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\](?!:)"#), in: masked) { m in
@@ -95,11 +130,8 @@ public enum HTMLRenderer {
         add(try! NSRegularExpression(pattern: #"[ \t]\^([A-Za-z0-9\-]+)[ \t]*$"#, options: .anchorsMatchLines), in: masked) { m in
             token("<a class=\"block-id\" id=\"^\(escape(ns.substring(with: m.range(at: 1))))\"></a>")
         }
-        let out = NSMutableString(string: src)
-        for (r, s) in reps.sorted(by: { $0.0.location > $1.0.location }) { out.replaceCharacters(in: r, with: s) }
-
-        var walker = HTMLWalker(ctx: ctx)
-        walker.visit(Document(parsing: out as String, options: [.disableSmartOpts]))
+        var walker = HTMLWalker(ctx: ctx, sources: sources.map { $0 ?? "" })
+        walker.visit(Document(parsing: splice(ns, reps), options: [.disableSmartOpts]))
         var html = props + walker.result
 
         if !footnotes.isEmpty {
@@ -119,13 +151,24 @@ public enum HTMLRenderer {
         // Tokens can nest (highlight around a link), so repeat until stable.
         for _ in 0..<3 {
             let ns = s as NSString
-            let matches = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
-            if matches.isEmpty { break }
-            let m = NSMutableString(string: s)
-            for r in matches.reversed() { m.replaceCharacters(in: r.range, with: tokens[Int(ns.substring(with: r.range(at: 1)))!]) }
-            s = m as String
+            let reps = re.matches(in: s, range: NSRange(location: 0, length: ns.length)).compactMap { r -> (NSRange, String)? in
+                guard let i = Int(ns.substring(with: r.range(at: 1))), tokens.indices.contains(i) else { return nil }
+                return (r.range, tokens[i])
+            }
+            if reps.isEmpty { break }
+            s = splice(ns, reps)
         }
         return s
+    }
+
+    /// Replaces non-overlapping ranges in one pass (linear, unlike repeated in-place replacement).
+    static func splice(_ ns: NSString, _ reps: [(NSRange, String)]) -> String {
+        var out = "", pos = 0
+        for (r, s) in reps.sorted(by: { $0.0.location < $1.0.location }) {
+            out += ns.substring(with: NSRange(location: pos, length: r.location - pos)) + s
+            pos = NSMaxRange(r)
+        }
+        return out + ns.substring(from: pos)
     }
 
     // MARK: Links and embeds
@@ -166,18 +209,21 @@ public enum HTMLRenderer {
     /// Extracts the part of a note a `#Heading` or `#^block` subpath points at.
     public static func section(of text: String, subpath: String?) -> String {
         guard let sub = subpath, !sub.isEmpty else { return text }
-        let lines = text.components(separatedBy: "\n")
+        // Split like the parser does (`enumerateLines` also breaks on \r and U+2028), so its line numbers index here.
+        var lines: [String] = []
+        text.enumerateLines { l, _ in lines.append(l) }
         let parsed = NoteParser.parse(text)
         if sub.hasPrefix("^") {
-            guard let line = parsed.blockIDs[String(sub.dropFirst())] else { return "" }
+            guard let line = parsed.blockIDs[String(sub.dropFirst())], lines.indices.contains(line) else { return "" }
             // A block is its paragraph/list item: walk back to the previous blank line.
             var start = line
             while start > 0, !lines[start - 1].trimmingCharacters(in: .whitespaces).isEmpty, !lines[line].hasPrefix("-") { start -= 1 }
             return lines[start...line].joined(separator: "\n")
         }
         let wanted = sub.split(separator: "#").last.map(String.init) ?? sub
-        guard let h = parsed.headings.first(where: { $0.text.caseInsensitiveCompare(wanted) == .orderedSame }) else { return "" }
-        let end = parsed.headings.first { $0.line > h.line && $0.level <= h.level }?.line ?? lines.count
+        guard let h = parsed.headings.first(where: { $0.text.caseInsensitiveCompare(wanted) == .orderedSame }),
+              lines.indices.contains(h.line) else { return "" }
+        let end = min(parsed.headings.first { $0.line > h.line && $0.level <= h.level }?.line ?? lines.count, lines.count)
         return lines[h.line..<end].joined(separator: "\n")
     }
 
@@ -198,12 +244,138 @@ public enum HTMLRenderer {
         return o
     }
 
-    /// Raw HTML in notes is allowed (like Obsidian) but scripts, event handlers and `javascript:` URLs are stripped.
+    // MARK: Sanitizing
+
+    static let linkSchemes: Set<String> = ["http", "https", "mailto", "obsidian", "netherite"]
+    static let mediaSchemes: Set<String> = ["http", "https", "data"]
+
+    /// `url` when it's relative or uses one of `schemes`. Browsers drop tabs/newlines and leading
+    /// control characters before reading the scheme, so the check does too.
+    static func safeURL(_ url: String, schemes: Set<String>) -> String? {
+        let probe = String(url.unicodeScalars.filter { $0.value > 0x20 })
+        guard let m = probe.firstMatch(of: /^([A-Za-z][A-Za-z0-9+.\-]*):/) else { return url }
+        return schemes.contains(m.1.lowercased()) ? url : nil
+    }
+
+    static let allowedTags: Set<String> = [
+        "a", "abbr", "article", "aside", "audio", "b", "bdi", "bdo", "blockquote", "br", "caption", "center", "cite", "code",
+        "col", "colgroup", "dd", "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "font", "footer",
+        "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "i", "img", "ins", "kbd", "li", "mark", "ol", "p", "pre", "q",
+        "rp", "rt", "ruby", "s", "samp", "section", "small", "source", "span", "strike", "strong", "sub", "summary", "sup",
+        "table", "tbody", "td", "tfoot", "th", "thead", "tr", "track", "u", "ul", "var", "video", "wbr",
+    ]
+    static let allowedAttributes: Set<String> = [
+        "align", "alt", "cite", "class", "color", "colspan", "controls", "dir", "height", "href", "id", "lang", "loop",
+        "muted", "name", "open", "poster", "rel", "reversed", "rowspan", "span", "src", "start", "style", "title", "type",
+        "valign", "width",
+    ]
+    /// Elements whose content is code or raw text, dropped together with it.
+    static let droppedWithContent: Set<String> = ["script", "style", "textarea", "title", "template", "noscript", "xmp", "noembed", "noframes", "iframe", "object"]
+
+    /// Raw HTML in notes is allowed (like Obsidian) through an allowlist: the fragment is tokenized the way a browser
+    /// reads tags and rebuilt from allowed tags and attributes only, with URLs limited to safe schemes (N-05).
     static func sanitize(_ html: String) -> String {
-        html.replacingOccurrences(of: #"(?is)<(script|iframe|object|embed|style)\b.*?(</\1\s*>|$)"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)</?(script|iframe|object|embed|style)\b[^>]*>"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)(href|src)\s*=\s*(["']?)\s*javascript:"#, with: "$1=$2#", options: .regularExpression)
+        let c = Array(html.unicodeScalars)
+        var out = String.UnicodeScalarView(), i = 0
+        var skipping: String?   // inside a dropped element
+        // A tag needs a `>` after it: past the last one every `<` is text, without scanning to the end each time.
+        let lastClose = c.lastIndex(of: ">") ?? -1
+        func isSpace(_ u: Unicode.Scalar) -> Bool { u == " " || u == "\t" || u == "\n" || u == "\r" || u == "\u{0C}" }
+        func emit(_ s: String) { if skipping == nil { out.append(contentsOf: s.unicodeScalars) } }
+        while i < c.count {
+            guard c[i] == "<" else { if skipping == nil { out.append(c[i]) }; i += 1; continue }
+            // Comments, doctypes and processing instructions go entirely.
+            if i + 1 < c.count, c[i + 1] == "!" || c[i + 1] == "?" {
+                let close: [Unicode.Scalar] = c[i...].starts(with: "<!--".unicodeScalars) ? Array("-->".unicodeScalars) : [">"]
+                var j = i + 2
+                while j < c.count, !c[j...].starts(with: close) { j += 1 }
+                i = min(c.count, j + close.count)
+                continue
+            }
+            guard i < lastClose else { emit("&lt;"); i += 1; continue }
+            var j = i + 1
+            let closing = j < c.count && c[j] == "/"
+            if closing { j += 1 }
+            var name = ""
+            while j < c.count, c[j].properties.isAlphabetic || (!name.isEmpty && (c[j].properties.numericType != nil || c[j] == "-")) {
+                name.unicodeScalars.append(c[j]); j += 1
+            }
+            guard !name.isEmpty else { emit("&lt;"); i += 1; continue }
+            name = name.lowercased()
+            // Attributes, read like the HTML tokenizer: unquoted values run to whitespace or `>`.
+            var attrs: [(String, String)] = []
+            while j < c.count, c[j] != ">" {
+                if isSpace(c[j]) || c[j] == "/" { j += 1; continue }
+                var key = ""
+                repeat { key.unicodeScalars.append(c[j]); j += 1 } while j < c.count && !isSpace(c[j]) && c[j] != "/" && c[j] != ">" && c[j] != "="
+                while j < c.count, isSpace(c[j]) { j += 1 }
+                var value = ""
+                if j < c.count, c[j] == "=" {
+                    j += 1
+                    while j < c.count, isSpace(c[j]) { j += 1 }
+                    if j < c.count, c[j] == "\"" || c[j] == "'" {
+                        let q = c[j]; j += 1
+                        while j < c.count, c[j] != q { value.unicodeScalars.append(c[j]); j += 1 }
+                        j += 1
+                    } else {
+                        while j < c.count, !isSpace(c[j]), c[j] != ">" { value.unicodeScalars.append(c[j]); j += 1 }
+                    }
+                }
+                attrs.append((key.lowercased(), value))
+            }
+            // No `>` outside a quote up to the end: the HTML tokenizer would read all of it as this tag, so every
+            // later `<` would scan to the end too. The rest is text, in one go.
+            guard j < c.count else {
+                emit(String(String.UnicodeScalarView(c[i...])).replacingOccurrences(of: "<", with: "&lt;"))
+                break
+            }
+            i = j + 1
+            if let s = skipping {
+                if closing, name == s { skipping = nil }
+                continue
+            }
+            if droppedWithContent.contains(name) {
+                if !closing, c[j - 1] != "/" { skipping = name }
+                continue
+            }
+            guard allowedTags.contains(name) else { continue }
+            if closing { emit("</\(name)>"); continue }
+            var tag = "<" + name
+            for (key, raw) in attrs where allowedAttributes.contains(key) || key.hasPrefix("data-") {
+                // Decode entities before checking (`jav&#x61;script:`) and re-escape what was checked.
+                // Render markers are dropped so no generated HTML can land inside an attribute.
+                var value = decodeEntities(raw).replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "", options: .regularExpression)
+                if key == "href" || key == "cite" {
+                    guard let v = safeURL(value, schemes: linkSchemes) else { continue }
+                    value = v
+                } else if key == "src" || key == "poster" {
+                    guard let v = safeURL(value, schemes: mediaSchemes) else { continue }
+                    value = v
+                } else if key.hasPrefix("data-"), key.unicodeScalars.contains(where: { !($0.properties.isAlphabetic || $0.properties.numericType != nil || $0 == "-") }) {
+                    continue
+                }
+                tag += " \(key)=\"\(escape(value))\""
+            }
+            emit(tag + ">")
+        }
+        return String(out)
+    }
+
+    /// Numeric references (with or without `;`) and the basic named ones; anything else stays literal and gets
+    /// re-escaped, so the browser sees exactly what was checked.
+    static func decodeEntities(_ s: String) -> String {
+        guard s.contains("&") else { return s }
+        let named = ["amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": "\u{A0}"]
+        return s.replacing(/&(#[xX][0-9A-Fa-f]+|#[0-9]+|[A-Za-z]+);?/) { m -> String in
+            let body = String(m.1)
+            if body.hasPrefix("#") {
+                let hex = body.dropFirst().first.map { $0 == "x" || $0 == "X" } ?? false
+                let digits = body.dropFirst(hex ? 2 : 1)
+                guard let n = UInt32(digits, radix: hex ? 16 : 10), n != 0, let u = Unicode.Scalar(n) else { return "\u{FFFD}" }
+                return String(Character(u))
+            }
+            return named[body] ?? String(m.0)
+        }
     }
 
     static func full(_ s: String) -> NSRange { NSRange(location: 0, length: (s as NSString).length) }
@@ -234,13 +406,16 @@ public enum HTMLRenderer {
 /// CommonMark/GFM → HTML with escaping, heading anchors, callouts, interactive tasks and code/mermaid blocks.
 struct HTMLWalker: MarkupWalker {
     var ctx: RenderContext
+    /// The original text of each placeholder token: a destination gets it back, so no tag or link lands in an `href`
+    /// (a reference definition or a title the link pattern doesn't cover).
+    let sources: [String]
     var result = ""
     private let esc = HTMLRenderer.escape
 
-    init(ctx: RenderContext) { self.ctx = ctx }
+    init(ctx: RenderContext, sources: [String] = []) { self.ctx = ctx; self.sources = sources }
 
     mutating func inner(_ m: Markup) -> String {
-        var w = HTMLWalker(ctx: ctx)
+        var w = HTMLWalker(ctx: ctx, sources: sources)
         for c in m.children { w.visit(c) }
         return w.result
     }
@@ -277,10 +452,11 @@ struct HTMLWalker: MarkupWalker {
     }
 
     mutating func visitLink(_ l: Markdown.Link) {
-        let dest = l.destination ?? ""
+        let dest = HTMLRenderer.restoreTokens(l.destination ?? "", sources)
         let isExternal = dest.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
         if isExternal {
-            result += "<a class=\"external-link\" href=\"\(esc(dest))\">\(inner(l))</a>"
+            let href = HTMLRenderer.safeURL(dest, schemes: HTMLRenderer.linkSchemes).map { " href=\"\(esc($0))\"" } ?? ""
+            result += "<a class=\"external-link\"\(href)>\(inner(l))</a>"
         } else {
             let decoded = dest.removingPercentEncoding ?? dest
             let parts = decoded.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
@@ -290,10 +466,11 @@ struct HTMLWalker: MarkupWalker {
     }
 
     mutating func visitImage(_ i: Markdown.Image) {
-        let src = i.source ?? ""
+        let src = HTMLRenderer.restoreTokens(i.source ?? "", sources)
         let isExternal = src.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
-        let url = isExternal ? src : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? src)
-        result += "<img src=\"\(esc(url))\" alt=\"\(esc(i.plainText))\" loading=\"lazy\">"
+        let url = isExternal ? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? ""
+            : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? "")
+        result += "<img src=\"\(esc(url))\" alt=\"\(esc(i.plainText.replacingOccurrences(of: "\u{E000}\\d+\u{E001}", with: "", options: .regularExpression)))\" loading=\"lazy\">"
     }
 
     mutating func visitUnorderedList(_ l: UnorderedList) { result += "<ul>\n\(inner(l))</ul>\n" }

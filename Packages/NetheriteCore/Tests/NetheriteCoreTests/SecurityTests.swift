@@ -1,0 +1,230 @@
+import Foundation
+import CryptoKit
+import Testing
+@testable import NetheriteCore
+
+private func renderPlain(_ md: String) -> String {
+    HTMLRenderer.render(md, context: RenderContext(
+        source: "A.md", resolve: { _, _ in nil }, readNote: { _ in nil },
+        linkHref: { _, t, _ in "new:\(t)" }, assetURL: { "asset:\($0)" }, tagHref: { "tag:\($0)" }))
+}
+
+// MARK: N-04 · paths stay inside the vault
+
+@Test func vaultPathsAreConfined() throws {
+    let vault = tempVault()
+    let root = vault.root.path(percentEncoded: false)
+    for p in ["../../escaped/pwn.md", "/etc/passwd", "a/../../../b.md", "./x/./../..", "..%2F.."] {
+        #expect(vault.url(for: p).standardizedFileURL.path(percentEncoded: false).hasPrefix(root), "\(p)")
+    }
+    #expect(vault.url(for: "a/../b.md") == vault.url(for: "b.md"))
+    #expect(Vault.normalize("a//./b/../c.md") == "a/c.md")
+    // Deep links / intents end up in createNote with untrusted folder and name.
+    let path = try vault.createNote(in: "../..", named: "../x")
+    #expect(path == "x.md" && vault.exists("x.md"))
+    try? FileManager.default.removeItem(at: vault.root)
+}
+
+@Test func zipImportCannotEscape() throws {
+    let vault = tempVault()
+    let zip = vault.root.appending(path: "evil.zip")
+    try FileManager.default.createDirectory(at: vault.root, withIntermediateDirectories: true)
+    try makeZip([("../../escaped/pwn.md", Data("x".utf8)), ("../../LaunchAgents/a.plist", Data("p".utf8))]).write(to: zip)
+    let report = try Importer(vault: vault, destination: "In").run(.markdown, from: zip)
+    #expect(report.notes == ["In/escaped/pwn.md"])
+    #expect(report.attachments == ["In/LaunchAgents/a.plist"])
+    #expect(vault.exists("In/escaped/pwn.md"))
+    #expect(!FileManager.default.fileExists(atPath: vault.root.deletingLastPathComponent().appending(path: "escaped").path(percentEncoded: false)))
+    try? FileManager.default.removeItem(at: vault.root)
+}
+
+// MARK: N-38 · hostile ZIPs fail instead of crashing
+
+@Test func zipRejectsBogusSizes() throws {
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader.inflate(Data(), expected: 10) }
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader.inflate(Data([1, 2]), expected: 1 << 40) }
+    let zip = try ZipReader(data: makeZip([("a.txt", Data("a".utf8)), ("b.txt", Data(repeating: 65, count: 5000))]))
+    #expect(throws: ZipReader.ZipError.self) { try zip.files(maxTotalSize: 1000) }
+    #expect(try zip.files().count == 2)
+
+    // A stored entry that declares `size: 0` still costs the bytes it copies.
+    var lying = makeZip([("big.bin", Data(repeating: 1, count: 5000))])
+    let cd = lying.count - 22 - (46 + 7)          // central directory entry of the only file
+    lying.replaceSubrange((cd + 24)..<(cd + 28), with: [0, 0, 0, 0])
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader(data: lying).files(maxTotalSize: 1000) }
+
+    // Nested archives draw from the same budget.
+    let inner = makeZip([("a.txt", Data("a".utf8)), ("b.txt", Data(repeating: 66, count: 800))])
+    let outer = try ZipReader(data: makeZip([("x.txt", Data(repeating: 67, count: 400)), ("in.zip", inner)]))
+    #expect(throws: ZipReader.ZipError.self) { try outer.files(maxTotalSize: 1300) }
+    #expect(try outer.files(maxTotalSize: 1 << 20).map(\.path) == ["x.txt", "a.txt", "b.txt"])
+}
+
+// R2-20: the ZIPs of one import share a single budget.
+@Test func zipBudgetIsPerImport() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    for n in 0..<3 { try makeZip([("f\(n).txt", Data(repeating: 65, count: 600))]).write(to: dir.appending(path: "\(n).zip")) }
+    #expect(throws: ZipReader.ZipError.self) { try Importer.files(at: dir, maxTotalSize: 1000) }
+    #expect(try Importer.files(at: dir, maxTotalSize: 2000).count == 3)
+}
+
+// MARK: N-20 / N-21 / N-40 · renderer robustness
+
+@Test func embedSectionWithOtherLineBreaks() {
+    let text = "intro\rmore\u{2028}x\n# Head\nbody ^blk\n# Next"
+    #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
+    #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
+    // R2-19: the same breaks inside code, frontmatter or math don't shift the heading lines.
+    // R3-09: NEL (U+0085) too.
+    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`", "```\na\u{85}b\n```"] {
+        #expect(HTMLRenderer.section(of: "# A\n\(hidden)\nalpha\n# B\nbeta\n", subpath: "B") == "# B\nbeta", "\(hidden.debugDescription)")
+    }
+    #expect(HTMLRenderer.section(of: "---\nk: \"a\u{2028}b\"\n---\n# B\nbeta", subpath: "B") == "# B\nbeta")
+}
+
+@Test func forgedPlaceholderMarkers() {
+    let html = renderPlain("a \u{E000}7\u{E001} [[x]] \u{E000}0\u{E001}")
+    #expect(!html.contains("\u{E000}") && html.contains("new:x"))
+    #expect(HTMLRenderer.restoreTokens("\u{E000}9\u{E001}", ["a"]) == "\u{E000}9\u{E001}")
+}
+
+// R2-09: no token lands inside a link destination or an image alt.
+@Test func noTokensInsideLinkAttributes() {
+    let html = renderPlain("[Jump](#Intro) [see #tag](x.md) ![alt $x$](https://e.com/a.png)")
+    #expect(!html.contains(">#Intro<") && html.contains(">Jump</a>"))
+    #expect(html.contains("alt=\"alt $x$\""))
+    #expect(!html.contains("class=\"tag\""))   // a tag in link text stays text: no <a> nested in the link (R5-06)
+}
+
+// R3-05: no tag in an `href` with other title styles or a reference definition, and the parser makes no tag of them.
+@Test func noTagsInLinkTitlesOrReferenceDefinitions() {
+    for md in ["[Jump](#Intro 'T')", "[Jump](#Intro (T))", "[Jump](<#Intro>)", "[Jump][r]\n\n[r]: #Intro", "[Jump][r]\n\n[r]: <#Intro> 'T'"] {
+        let html = renderPlain(md)
+        #expect(!html.contains("class=\"tag\"") && !html.contains("\u{E000}") && html.contains(">Jump</a>"), "\(md.debugDescription) → \(html)")
+        #expect(!NoteParser.parse(md).tags.contains("Intro"), "\(md.debugDescription)")
+    }
+    #expect(NoteParser.parse("[^1]: note #real").tags == ["real"])   // a footnote isn't a reference definition
+}
+
+// R3-04: a highlight or formula that wraps a whole link still renders.
+@Test func tokensCanWrapALink() {
+    let html = renderPlain("==see [docs](https://example.com) now==")
+    #expect(html.contains("<mark>see <a") && html.contains(">docs</a> now</mark>"))
+    #expect(renderPlain("$a [b](c) d$").contains("math-inline"))
+    #expect(!renderPlain("[a](b==c) d==").contains("<mark>"))   // one that only ends there doesn't
+}
+
+// R2-12: unclosed `<tag` runs don't make sanitizing quadratic.
+@Test func sanitizeIsLinearWithUnclosedTags() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<div>\n" + String(repeating: "<a ", count: 20_000))
+    #expect(out == "<div>\n" + String(repeating: "&lt;a ", count: 20_000))
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
+// R3-06: also when the only `>` sits inside a quote that never closes.
+@Test func sanitizeIsLinearWithAnUnclosedQuote() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<b>x</b>" + String(repeating: "<a ", count: 20_000) + "x=\">")
+    #expect(out == "<b>x</b>" + String(repeating: "&lt;a ", count: 20_000) + "x=\">")
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
+@Test func renderIsLinearInLinks() {
+    let md = (0..<8000).map { "[[Note \($0)]]" }.joined(separator: " ")
+    let start = Date()
+    let html = renderPlain(md)
+    #expect(html.contains("new:Note 7999"))
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
+// MARK: N-05 · XSS
+
+@Test func renderBlocksScriptURLs() {
+    let html = renderPlain("[x](javascript:alert(1)) [y](JaVaScript:alert(1)) ![i](javascript:alert(1)) [ok](https://a.com) [m](mailto:a@b.c)")
+    #expect(!html.lowercased().contains("javascript:"))
+    #expect(html.contains("href=\"https://a.com\"") && html.contains("href=\"mailto:a@b.c\""))
+}
+
+@Test func sanitizeUsesAllowlist() {
+    let cases = [
+        "<img src=x/onerror=alert(1)>",
+        "<img src=x onerror=alert(1)>",
+        "<img/onerror=alert(1) src=x>",
+        "<a href=\"jav&#x61;script:alert(1)\">a</a>",
+        "<a href=\"jav&#97script:alert(1)\">a</a>",
+        "<a href=\"java\tscript:alert(1)\">a</a>",
+        "<a href=\"javascript&colon;alert(1)\">a</a>",
+        "<form action=\"javascript:alert(1)\"><button>go</button></form>",
+        "<svg onload=alert(1)><script>alert(1)</script></svg>",
+        "<iframe src=\"javascript:alert(1)\"></iframe>",
+        "<scr<script>ipt>alert(1)</script>",
+        "<div style=\"x\" onclick=\"alert(1)\" data-ok=\"1\">t</div>",
+        "<a href='https://ok.com' onmouseover='x'>ok</a>",
+        "<object data=\"x\"></object><embed src=\"x\"><meta http-equiv=\"refresh\" content=\"0;url=javascript:alert(1)\">",
+    ]
+    for c in cases {
+        let out = HTMLRenderer.sanitize(c).lowercased()
+        // An inert `src="x/onerror=…"` value is fine; an event-handler attribute is not.
+        #expect(!out.contains("javascript:") && !out.contains(/\son[a-z]+=/) && !out.contains("<script") && !out.contains("<form") && !out.contains("<svg")
+                && !out.contains("<iframe") && !out.contains("<meta") && !out.contains("<object"), "\(c) → \(out)")
+    }
+    #expect(HTMLRenderer.sanitize("<div style=\"x\" onclick=\"y\" data-ok=\"1\">t</div>") == "<div style=\"x\" data-ok=\"1\">t</div>")
+    #expect(HTMLRenderer.sanitize("<b>bold</b> a < b <br/>") == "<b>bold</b> a &lt; b <br>")
+    #expect(HTMLRenderer.sanitize("<a href=\"x\" title=\"\u{E000}0\u{E001}\">") == "<a href=\"x\" title=\"0\">")
+}
+
+@Test func pagesCarryCSP() {
+    let page = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "nth://web/", initialSubpath: "a", extraBody: "<script>1</script>")
+    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth://web/ file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
+    #expect(!page.contains("<script>"))   // every script of ours carries the nonce
+    // R2-22: a published page names its inline scripts by hash and never exposes the nonce.
+    let site = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "assets/", extraHead: "<script>a()</script>", pinScriptsByHash: true)
+    #expect(!site.contains(HTMLRenderer.scriptNonce) && !site.contains("nonce"))
+    #expect(site.contains("'sha256-\(Data(SHA256.hash(data: Data("a()".utf8))).base64EncodedString())'"))
+}
+
+// MARK: N-48 · Bases and site export
+
+@Test func toFixedClampsDigits() {
+    let row = BaseRow(path: "a.md", properties: [Property(key: "x", value: .number(1.256)), Property(key: "big", value: .number(1e20)),
+                                                  Property(key: "nan", value: .number(.nan))])
+    let ctx = BaseEvalContext(row: row, formulas: [:])
+    func e(_ s: String) -> BaseValue { ctx.eval(BaseExpr.parse(s)!) }
+    #expect(e("x.toFixed(big)") == e("x.toFixed(20)"))
+    #expect(e("x.toFixed(nan)") == .string("1"))
+    #expect(e("x.toFixed(2)") == .string("1.26"))
+    #expect(e("big.toFixed(2)") == .string("100000000000000000000.00"))
+}
+
+@Test func baseFileKeepsPropertySettingsAndScalarFormulas() {
+    let f = BaseFile.parse("""
+    formulas:
+      n: 5
+      s: price * 2
+    properties:
+      note.price:
+        displayName: Price
+        width: 120
+      note.other:
+        width: 80
+    views:
+      - type: table
+        name: T
+    """)
+    #expect(f.formulas.map(\.name) == ["n", "s"])
+    let again = BaseFile.parse(f.yaml)
+    #expect(again.displayNames == ["note.price": "Price"])
+    #expect(f.yaml.contains("width: 120") && f.yaml.contains("width: 80"))
+    #expect(again.formulas.map(\.expr) == ["5", "price * 2"])
+}
+
+@Test func notesDontOverwriteSitePages() {
+    #expect(SiteExporter.pagePath("index.md") == "index-note.html")
+    #expect(SiteExporter.pagePath("404.md") == "404-note.html")
+    #expect(SiteExporter.pagePath("Graph.md") == "graph-note.html")
+    #expect(SiteExporter.pagePath("Tags/x.md") == "tags-note/x.html")
+    #expect(SiteExporter.pagePath("Notes/index.md") == "notes/index.html")
+}

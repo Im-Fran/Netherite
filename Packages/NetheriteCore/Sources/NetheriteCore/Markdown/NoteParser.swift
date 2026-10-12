@@ -76,7 +76,11 @@ public enum NoteParser {
         maskRegions(&units)
         let masked = String(utf16CodeUnits: units, count: units.count)
         let lineStarts = lineStartOffsets(units)
-        func line(at loc: Int) -> Int { max(0, lineStarts.lastIndex { $0 <= loc } ?? 0) }
+        func line(at loc: Int) -> Int {   // binary search: a scan per link is quadratic in long notes
+            var lo = 0, hi = lineStarts.count
+            while lo < hi { let mid = (lo + hi) / 2; if lineStarts[mid] <= loc { lo = mid + 1 } else { hi = mid } }
+            return max(0, lo - 1)
+        }
 
         // Links
         for m in Regex.wiki.matches(in: masked, range: NSRange(location: 0, length: units.count)) {
@@ -115,7 +119,13 @@ public enum NoteParser {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
         }
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
-        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count)) {
+        var linked = IndexSet()
+        for l in note.links { if let r = Range(l.range) { linked.insert(integersIn: r) } }
+        for re in [Regex.refDef, Regex.mdLink] {   // every Markdown link, external ones included: `[see #x](https://…)`
+            for m in re.matches(in: masked, range: NSRange(location: 0, length: units.count)) { linked.insert(integersIn: Range(m.range)!) }
+        }
+        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
+        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h), [r]: #h, [#x](url)
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }
@@ -164,8 +174,10 @@ public enum NoteParser {
 
     // MARK: Masking
 
-    static func blank(_ u: inout [UInt16], _ r: NSRange) {
-        for i in r.location..<min(NSMaxRange(r), u.count) where u[i] != 10 { u[i] = 32 }
+    /// Spaces out a range but keeps its line breaks (`enumerateLines` also breaks on \r, U+0085, U+2028 and U+2029),
+    /// so line numbers on the masked text match the original's.
+    static func blank(_ u: inout [UInt16], _ r: NSRange, with fill: UInt16 = 32) {
+        for i in r.location..<min(NSMaxRange(r), u.count) where ![10, 13, 0x85, 0x2028, 0x2029].contains(u[i]) { u[i] = fill }
     }
 
     /// Blanks fenced code, `$$` math blocks, inline code, inline math and `%%comments%%`.
@@ -193,16 +205,22 @@ public enum NoteParser {
 
     enum Regex {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
-        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?(?:\s+"[^"]*")?\)"#)
+        /// Groups: 1 `!`, 2 text, 3 destination, 4 title with its leading space. A title may wrap onto the next line but, like any inline, never crosses a blank line;
+        /// its loops are possessive so an unclosed title can't backtrack.
+        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?([ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*+"|'(?:[^'\n]|\n(?![ \t]*\n))*+'|\((?:[^)\n]|\n(?![ \t]*\n))*+\)))?\)"#)
+        /// A link reference definition (`[r]: #Intro 'T'`): a destination, an optional title and nothing else on the line.
+        /// Not a footnote (`[^1]: …`).
+        static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(?:<[^<>\n]*>|[^\s<]\S*)(?:[ \t]+(?:"[^"\n]*"|'[^'\n]*'|\([^()\n]*\)))?[ \t]*$"#, options: .anchorsMatchLines)
         static let tag = try! NSRegularExpression(pattern: #"(?:^|(?<=[\s(\[{,]))#([\p{L}\p{N}_\-/]+)"#, options: .anchorsMatchLines)
-        static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)\s*#*\s*$"#)
+        static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$"#)
         static let blockID = try! NSRegularExpression(pattern: #"(?:^|\s)\^([A-Za-z0-9\-]+)\s*$"#)
         static let footnoteDef = try! NSRegularExpression(pattern: #"^\[\^([^\]]+)\]:\s*(.*)$"#)
         static let task = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]|\d+[.)])\s+\[(.)\]"#)
         static let fenced = try! NSRegularExpression(pattern: #"^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^\1\2[`~]*[ \t]*$|\z)"#, options: .anchorsMatchLines)
         static let mathBlock = try! NSRegularExpression(pattern: #"\$\$[\s\S]*?\$\$"#)
         static let comment = try! NSRegularExpression(pattern: #"%%[\s\S]*?%%"#)
-        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n][\s\S]*?\1"#)
+        // A code span never crosses a blank line, so a stray backtick can't swallow the next paragraphs.
+        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n](?:[^\n]|\n(?![ \t\r]*(?:\n|\z)))*?\1"#)
         static let inlineMath = try! NSRegularExpression(pattern: #"(?<![\\$])\$(?=\S)[^$\n]+?(?<=\S)\$(?!\d)"#)
     }
 }

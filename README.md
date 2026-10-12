@@ -217,7 +217,7 @@ swift run netherite tags <vault>
 swift run netherite export <vault> --out ./site [--folder Notes] [--only-published] [--home Welcome.md]
 
 # Export and deploy to Cloudflare Pages
-CLOUDFLARE_API_TOKEN=... swift run netherite publish <vault> --out ./site \
+CLOUDFLARE_API_TOKEN=... swift run netherite publish <vault> [--folder Notes] [--only-published] \
   --account <cloudflare-account-id> --project <pages-project-name>
 ```
 

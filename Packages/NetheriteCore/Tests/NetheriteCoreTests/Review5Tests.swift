@@ -1,0 +1,92 @@
+import Foundation
+import Testing
+@testable import NetheriteCore
+
+private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNote: { _ in nil },
+                                linkHref: { _, t, _ in t }, assetURL: { $0 }, tagHref: { "tag:" + $0 })
+
+// R5-07: invalid YAML is never rewritten (it would wipe every key), and keys with `: ` are quoted.
+@Test func invalidFrontmatterIsNotRewritten() throws {
+    let text = "---\ntitle: Meeting: Q3\ntags: [work]\n---\nBody"
+    #expect(throws: Frontmatter.InvalidYAML.self) { try Frontmatter.replacing(in: text, with: [Property(key: "due", value: .text(""))]) }
+    let out = try Frontmatter.replacing(in: "---\na: 1\n---\nB", with: [Property(key: "a", value: .number(1)), Property(key: "x: y", value: .text("z"))])
+    #expect(NoteParser.parse(out).properties == [Property(key: "a", value: .number(1)), Property(key: "x: y", value: .text("z"))])
+}
+
+// R5-01: a `#` or `[` in an imported folder name doesn't cut the full-path links to its files.
+@Test func importFolderWithLinkSyntaxKeepsLinks() throws {
+    let a = "0123456789abcdef0123456789abcdef"
+    let zip = makeZip([
+        ("C# [x] \(a).md", Data("![](C%23%20%5Bx%5D%20\(a)/pic.png)\n".utf8)),
+        ("C# [x] \(a)/pic.png", Data([7])),
+    ])
+    let vault = tempVault()
+    try FileManager.default.createDirectory(at: vault.root, withIntermediateDirectories: true)
+    let url = vault.root.appending(path: "export.zip")
+    try zip.write(to: url)
+    let report = try Importer(vault: vault, destination: "N").run(.notion, from: url)
+    let page = try #require(report.notes.first)
+    let links = NoteParser.parse(try vault.read(page)).links
+    let target = try #require(links.first.flatMap { LinkResolver(files: vault.allFiles()).resolve($0.target, from: page) })
+    #expect(try Data(contentsOf: vault.url(for: target)) == Data([7]))
+    try? FileManager.default.removeItem(at: vault.root)
+}
+
+// R5-02: imported text can't turn into a setext heading, a fence, strikethrough, math or a hidden comment.
+@Test func htmlTextEscapesObsidianSyntax() {
+    let md = HTMLToMarkdown().convert("<p>Title<br>---</p><p>~~~</p><p>~~gone~~ costs $5 and $6, %%hidden%%</p>")
+    let parsed = NoteParser.parse(md)
+    #expect(parsed.headings.isEmpty)
+    #expect(md.contains("\\---") && md.contains("\\~\\~\\~") && !md.contains("%%"))
+    let html = HTMLRenderer.render(md, context: ctx)
+    #expect(html.contains("hidden") && html.contains("$5 and $6") && html.contains("~~gone~~") && !html.contains("<del>") && !html.contains("math"))
+}
+
+// R5-03: `%%comments%%` (and frontmatter, code, math) never reach the published search index.
+@MainActor @Test func publishedSearchSkipsComments() async throws {
+    let vault = tempVault()
+    try vault.write("---\nsecret: fm\n---\nHello %%private note%% world `code` $x^2$\n", to: "A.md")
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    let out = vault.root.appending(path: "site")
+    defer { try? FileManager.default.removeItem(at: vault.root) }
+    _ = try await SiteExporter.export(index, to: out)
+    let search = try String(contentsOf: out.appending(path: "search.json"), encoding: .utf8)
+    #expect(search.contains("Hello world"))
+    #expect(!search.contains("private") && !search.contains("secret") && !search.contains("code") && !search.contains("x^2"))
+}
+
+// R5-04: `task-todo:`/`task-done:` honour the task's state, and numbered-list tasks match.
+@Test func taskSearchHonoursState() {
+    let text = "- [ ] buy milk\n1. [x] buy bread"
+    let notes = ["a.md": NoteRecord(path: "a.md", text: text, parsed: NoteParser.parse(text), modified: .now, created: .now)]
+    func count(_ q: String) -> Int { Search.run(SearchQuery(q), in: notes).count }
+    #expect(count("task-todo:milk") == 1 && count("task-done:milk") == 0)
+    #expect(count("task-done:bread") == 1 && count("task-todo:bread") == 0 && count("task:bread") == 1)
+}
+
+// R5-05: an `==` in a link title doesn't swallow a highlight after the link.
+@Test func highlightAfterLinkWithEqualsTitle() {
+    let html = HTMLRenderer.render("[a](b \"x==y\") then ==hl==", context: ctx)
+    #expect(html.contains("<mark>hl</mark>"))
+}
+
+// R5-06: a tag in a Markdown link's text is neither rendered as a nested link nor indexed.
+@Test func tagInsideLinkTextIsText() {
+    let text = "[see #inside](https://example.com) and #outside"
+    #expect(NoteParser.parse(text).tags == ["outside"])
+    let html = HTMLRenderer.render(text, context: ctx)
+    #expect(!html.contains("tag:inside") && html.contains("tag:outside"))
+}
+
+// R5-08: a new note never gets a hidden name, and an empty daily-note format falls back to yyyy-MM-dd.
+@Test func newNotesNeverHidden() throws {
+    #expect(Vault.noteName(for: ". .plan") == "plan")
+    #expect(!Vault.noteName(for: " .. ").isEmpty)
+    let vault = tempVault()
+    defer { try? FileManager.default.removeItem(at: vault.root) }
+    #expect(try vault.createNote(named: ".secret") == "secret.md")
+    var s = VaultSettings(); s.dailyNotes.format = ""; s.dailyNotes.folder = ""
+    let date = Templates.formatter("yyyy-MM-dd").date(from: "2026-10-12")!
+    #expect(Templates.dailyNotePath(for: date, settings: s) == "2026-10-12.md")
+}

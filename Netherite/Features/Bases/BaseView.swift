@@ -411,7 +411,8 @@ struct BaseView: View {
         var props = model.index.notes[note]?.parsed.properties ?? []
         if let i = props.firstIndex(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame }) { props[i].value = value }
         else { props.append(Property(key: key, value: value)) }
-        model.edit(note, text: Frontmatter.replacing(in: text, with: props))
+        do { model.edit(note, text: try Frontmatter.replacing(in: text, with: props)) }
+        catch { model.lastError = error.localizedDescription }
     }
 
     // MARK: Entries
@@ -435,7 +436,7 @@ struct BaseView: View {
         let clean = Templates.fileName(entryName)
         let folder = base.entryFolder ?? path.parentFolder
         guard let p = model.newNote(in: folder, named: clean.isEmpty ? String(localized: "Untitled") : clean,
-                                    content: Frontmatter.replacing(in: "", with: props)) else { return }
+                                    content: try! Frontmatter.replacing(in: "", with: props), opens: r.opens) else { return }  // no frontmatter to reject
         if r.opens { window.open(path: p) }
     }
 

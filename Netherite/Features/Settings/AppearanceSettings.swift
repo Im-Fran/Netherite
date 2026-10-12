@@ -70,7 +70,8 @@ struct AppearanceSettingsView: View {
 
     private func createThemeFile() {
         var t = model.vaultTheme
-        t.name = String(localized: "\(t.displayName) Custom")
+        // Never overwrite an earlier custom theme: "Ocean Custom", "Ocean Custom 1", …
+        t.name = model.vault.availablePath(folder: "\(Vault.configFolder)/themes", base: String(localized: "\(t.displayName) Custom"), ext: "json").noteName
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {

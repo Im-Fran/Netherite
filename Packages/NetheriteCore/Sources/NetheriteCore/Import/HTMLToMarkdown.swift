@@ -15,6 +15,12 @@ public struct HTMLToMarkdown {
         var md = block(body, depth: 0)
         md = md.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         md = md.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        // Text `%` and `=` (see `escape`) are escaped only where they'd pair with a neighbour in the joined Markdown,
+        // or, for `=`, fill a line (a `=` line under text is a heading underline, also inside a quote or a list item).
+        md = md.replacingOccurrences(of: #"(?<=[%\x{E000}])\x{E000}|\x{E000}(?=%)"#, with: "&#37;", options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)^([ \t>]*)\x{E001}(?=[ \t]*$)"#, with: #"$1\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])"#, with: #"\\="#, options: .regularExpression)
+            .replacingOccurrences(of: "\u{E000}", with: "%").replacingOccurrences(of: "\u{E001}", with: "=")
         return md.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
     }
 
@@ -38,7 +44,7 @@ public struct HTMLToMarkdown {
             inline = ""
         }
         for c in n.children {
-            guard let tag = c.tag else { inline += collapse(c.text); continue }
+            guard let tag = c.tag else { inline += Self.escape(collapse(c.text)); continue }
             if Self.skip.contains(tag) { continue }
             switch tag {
             case "h1", "h2", "h3", "h4", "h5", "h6":
@@ -54,7 +60,7 @@ public struct HTMLToMarkdown {
                     out += (t.isEmpty ? "" : t) + "\n"
                 }
             case "br": inline += "\n"
-            case "hr": flush(); out += "---\n\n"
+            case "hr": flush(); out += "***\n\n" // `---` on the first line would open a frontmatter block.
             case "pre":
                 flush()
                 let lang = (c.first("code")?.attrs["class"] ?? "").components(separatedBy: " ").first { $0.hasPrefix("language-") }.map { String($0.dropFirst(9)) } ?? ""
@@ -117,7 +123,7 @@ public struct HTMLToMarkdown {
     }
 
     private func inline(_ n: HTMLNode) -> String {
-        guard let tag = n.tag else { return collapse(n.text) }
+        guard let tag = n.tag else { return Self.escape(collapse(n.text)) }
         if Self.skip.contains(tag) { return "" }
         let inner = { n.children.map(inline).joined() }
         func wrap(_ m: String) -> String {
@@ -154,6 +160,25 @@ public struct HTMLToMarkdown {
     private func collapse(_ s: String) -> String {
         s.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
     }
+
+    /// Escapes a text node so literal `<b>`, `2 * 3`, `[[x]]`, `==`, `~~`, `$x$` or `%%` stay text. A node may start a line,
+    /// so a leading `#`, `-`/`+` (list marker or `---` rule) or `1.` is escaped too (harmless mid-line). Nodes are
+    /// collapsed, so they hold no newlines. `%` and `=` become placeholders that `convert` escapes once the nodes are joined:
+    /// the next or previous node may hold the other half of `%%` or `==`.
+    static func escape(_ s: String) -> String {
+        var out = ""
+        for c in s {
+            switch c {
+            case "\\", "*", "_", "[", "]", ">", "`", "~", "$": out += "\\" + String(c)
+            case "<": out += "&lt;"
+            case "%": out += "\u{E000}"   // `%%` opens a comment
+            case "=": out += "\u{E001}"   // `==` opens a highlight
+            default: out.append(c)
+            }
+        }
+        return out.replacingOccurrences(of: #"^(\s*)([#+-])"#, with: #"$1\\$2"#, options: .regularExpression)
+            .replacingOccurrences(of: #"^(\s*\d+)([.)])(?=\s|$)"#, with: #"$1\\$2"#, options: .regularExpression)
+    }
 }
 
 /// Tiny tolerant HTML tree (text nodes have `tag == nil`).
@@ -181,10 +206,12 @@ final class HTMLNode {
     func all(_ t: String) -> [HTMLNode] { children.flatMap { ($0.tag == t ? [$0] : []) + $0.all(t) } }
 
     static func parse(_ html: String) -> HTMLNode {
+        let html = neutralizeMarkers(html)
         let root = HTMLNode(tag: "#root")
         var stack = [root]
         let s = html as NSString
-        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(/?)>"#)
+        // Attribute names and unquoted values stop at "<": an unclosed "<y z" can't scan ahead through every later tag.
+        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s<>]+))?)*)\s*(/?)>"#)
         let attrRE = try! NSRegularExpression(pattern: #"([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?"#)
         var last = 0
         func addText(_ t: String) {
@@ -244,6 +271,12 @@ final class HTMLNode {
             else { out += named[e] ?? ns.substring(with: m.range) }
             last = NSMaxRange(m.range)
         }
-        return out + ns.substring(from: last)
+        return neutralizeMarkers(out + ns.substring(from: last))
+    }
+
+    /// U+E000/U+E001 are `HTMLToMarkdown`'s `%`/`=` placeholders: literal ones (also from `&#xE000;`) become U+FFFD,
+    /// so text that skips `escape` (code, links, images) can't be turned into `%`/`=`.
+    static func neutralizeMarkers(_ s: String) -> String {
+        s.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
     }
 }

@@ -9,18 +9,19 @@ final class NetheriteSchemeHandler: NSObject, WKURLSchemeHandler {
     init(vault: Vault) { self.vault = vault }
 
     func webView(_ webView: WKWebView, start task: any WKURLSchemeTask) {
-        guard let url = task.request.url, let host = url.host() else { return fail(task) }
+        // Only our own rendered pages (loaded as nth://web/) may read vault files.
+        guard let url = task.request.url, let host = url.host(), task.request.mainDocumentURL?.scheme == "nth" else { return fail(task) }
         let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let file: URL?
         switch host {
-        case "web": file = HTMLRenderer.webResources?.appending(path: rel)
+        case "web": file = HTMLRenderer.webResources.map { Vault(root: $0).url(for: rel) }   // confined like vault paths
         case "vault": file = vault.url(for: rel)
         default: file = nil
         }
         guard let file, let data = try? Data(contentsOf: file) else { return fail(task) }
         let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         task.didReceive(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-                                        headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)", "Access-Control-Allow-Origin": "*"])!)
+                                        headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)"])!)
         task.didReceive(data)
         task.didFinish()
     }
@@ -76,11 +77,18 @@ struct HTMLWebView {
     /// For the web viewer: reports loading start/finish and failures (`nil` error while loading or on success).
     var onLoad: ((_ loading: Bool, _ error: Error?) -> Void)?
     var webViewRef: ((WKWebView) -> Void)?
+    /// For the reading view: a heading (`#…`-less text), `^block` or `fn-label` to scroll to once; set to nil when handled.
+    var scrollTarget: Binding<String?>?
+    /// For the reading view: reloading a changed page keeps the scroll position.
+    var keepsScrollPosition = false
 
     @MainActor final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLWebView
         var lastHTML: String?
         var lastURL: URL?
+        /// Applied once the page being loaded finishes: a scroll target, else the previous page's scroll position.
+        var pendingTarget: String?
+        var restoreY: Double?
         init(_ p: HTMLWebView) { parent = p }
 
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
@@ -91,6 +99,10 @@ struct HTMLWebView {
             #else
             newPane = false
             #endif
+            // The web viewer shows remote pages: only http(s) there, and never the app's own actions.
+            if parent.onNavigate != nil {
+                return ["http", "https", "about", "blob", "data"].contains(url.scheme?.lowercased() ?? "") ? .allow : .cancel
+            }
             if url.scheme == "nth" {
                 let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 switch url.host() {
@@ -115,6 +127,9 @@ struct HTMLWebView {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if let t = pendingTarget { scroll(webView, to: t) }
+            else if let y = restoreY { webView.evaluateJavaScript("window.scrollTo(0, \(y))") }
+            pendingTarget = nil; restoreY = nil
             parent.onNavigate?(webView.title, webView.url)
             parent.onLoad?(false, nil)
         }
@@ -123,6 +138,11 @@ struct HTMLWebView {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(error) }
 
+        func scroll(_ webView: WKWebView, to target: String) {
+            let json = (try? String(data: JSONEncoder().encode(target), encoding: .utf8)) ?? "\"\""
+            webView.evaluateJavaScript("window.netheriteScrollTo && netheriteScrollTo(\(json))")
+        }
+
         private func failed(_ error: Error) {
             // A cancelled load (new navigation, or one our policy cancelled) isn't a failure.
             let cancelled = (error as NSError).domain == NSURLErrorDomain && (error as NSError).code == NSURLErrorCancelled
@@ -130,7 +150,7 @@ struct HTMLWebView {
         }
 
         func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+            guard message.frameInfo.securityOrigin.protocol == "nth", let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
             if type == "task", let line = body["line"] as? Int { parent.onAction(.task(line: line)) }
             if type == "hover", let href = body["href"] as? String, let url = URL(string: href), url.host() == "open" {
                 let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -145,8 +165,11 @@ struct HTMLWebView {
 
     func makeWebView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(NetheriteSchemeHandler(vault: vault), forURLScheme: "nth")
-        config.userContentController.add(WeakHandler(context.coordinator), name: "netherite")
+        // The web viewer (`url`) gets neither vault access nor the message bridge.
+        if url == nil {
+            config.setURLSchemeHandler(NetheriteSchemeHandler(vault: vault), forURLScheme: "nth")
+            config.userContentController.add(WeakHandler(context.coordinator), name: "netherite")
+        }
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
         #if os(macOS)
@@ -161,10 +184,28 @@ struct HTMLWebView {
     }
 
     func update(_ wv: WKWebView, context: Context) {
-        context.coordinator.parent = self
-        if let html, html != context.coordinator.lastHTML {
-            context.coordinator.lastHTML = html
-            wv.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+        let c = context.coordinator
+        c.parent = self
+        let target = scrollTarget?.wrappedValue
+        if target != nil {
+            // Consumed once: later updates (a toggled task, an edit) must not jump back to it.
+            DispatchQueue.main.async { scrollTarget?.wrappedValue = nil }
+        }
+        if let html, html != c.lastHTML {
+            let reloading = c.lastHTML != nil
+            c.lastHTML = html
+            if let target { c.pendingTarget = target; c.restoreY = nil }
+            if target == nil, reloading, keepsScrollPosition {
+                wv.evaluateJavaScript("window.scrollY") { [weak wv] y, _ in
+                    guard c.lastHTML == html else { return }   // a newer page already replaced this one
+                    c.restoreY = (y as? NSNumber)?.doubleValue
+                    wv?.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+                }
+            } else {
+                wv.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+            }
+        } else if let target {
+            if wv.isLoading { c.pendingTarget = target } else { c.scroll(wv, to: target) }
         } else if let url, url != context.coordinator.lastURL {
             context.coordinator.lastURL = url
             wv.load(URLRequest(url: url))

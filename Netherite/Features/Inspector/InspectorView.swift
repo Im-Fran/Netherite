@@ -43,7 +43,8 @@ struct InspectorView: View {
                 case .backlinks: BacklinksView(path: path)
                 case .outgoing: OutgoingLinksView(path: path)
                 case .outline: OutlineView(path: path)
-                case .properties: PropertiesEditor(path: path)
+                // A fresh editor per note, so a half-typed list draft never lands in the next one.
+                case .properties: PropertiesEditor(path: path).id(path)
                 case .footnotes: FootnotesView(path: path)
                 }
             } else {
@@ -93,7 +94,7 @@ struct BacklinksView: View {
             }
             ForEach(b.contexts, id: \.line) { ctx in
                 Button { window.open(path: b.source, line: ctx.line) } label: {
-                    Text(ctx.text.trimmingCharacters(in: .whitespaces)).font(.callout).foregroundStyle(.secondary).lineLimit(3)
+                    Text(NoteParser.readableLine(ctx.text).trimmingCharacters(in: .whitespaces)).font(.callout).foregroundStyle(.secondary).lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
@@ -266,8 +267,7 @@ struct PropertiesEditor: View {
             TextField(p.key, value: Binding(get: { n }, set: { set(p.key, .number($0), in: all) }), format: .number)
                 .labelsHidden().multilineTextAlignment(.trailing)
         case .list(let l):
-            TextField(p.key, text: Binding(get: { l.joined(separator: ", ") },
-                                        set: { set(p.key, .list($0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }), in: all) }))
+            ListPropertyField(key: p.key, values: l) { set(p.key, .list($0), in: all) }
                 .labelsHidden()
                 .multilineTextAlignment(.trailing)
         default:
@@ -313,7 +313,32 @@ struct PropertiesEditor: View {
 
     private func save(_ props: [Property]) {
         let text = window.model.text(of: path)
-        window.model.edit(path, text: Frontmatter.replacing(in: text, with: props))
+        do { window.model.edit(path, text: try Frontmatter.replacing(in: text, with: props)) }
+        catch { window.model.lastError = error.localizedDescription }
+    }
+}
+
+/// Edits a list property as comma-separated text, committing on Return or when focus leaves
+/// (splitting on every keystroke would swallow the comma being typed).
+private struct ListPropertyField: View {
+    let key: String
+    let values: [String]
+    let commit: ([String]) -> Void
+    @State private var draft: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(key, text: Binding(get: { draft ?? values.joined(separator: ", ") }, set: { draft = $0 }))
+            .focused($focused)
+            .onSubmit(save)
+            .onChange(of: focused) { if !$1 { save() } }
+            .onDisappear(perform: save)
+    }
+
+    private func save() {
+        guard let d = draft else { return }
+        draft = nil
+        commit(d.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
     }
 }
 

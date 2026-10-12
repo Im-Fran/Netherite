@@ -10,7 +10,8 @@ public struct SearchQuery: Sendable {
         case path(String)
         case file(String)
         case line(String)
-        case task(String)
+        /// `done` nil matches any task (`task:`), else only open (`task-todo:`) or completed (`task-done:`) ones.
+        case task(String, done: Bool?)
         case property(key: String, value: String?)
         indirect case not(Term)
         indirect case or(Term, Term)
@@ -28,7 +29,7 @@ public struct SearchQuery: Sendable {
         let straight = String(raw.map { "“”„«»".contains($0) ? "\"" : $0 })
         for tok in Self.tokenize(straight) {
             if tok == "OR" { pendingOr = true; continue }
-            guard let term = Self.term(tok) else { continue }
+            guard let term = Self.term(tok, caseSensitive: caseSensitive) else { continue }
             if pendingOr, let last = out.popLast() { out.append(.or(last, term)) } else { out.append(term) }
             pendingOr = false
         }
@@ -44,7 +45,7 @@ public struct SearchQuery: Sendable {
             case "\"" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"),
                  "/" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"): quote = c; cur.append(c)
             case "[": depth += 1; cur.append(c)
-            case "]": depth -= 1; cur.append(c)
+            case "]": depth = max(0, depth - 1); cur.append(c)   // a stray "]" must not swallow the spaces after it
             case " " where depth == 0: if !cur.isEmpty { toks.append(cur); cur = "" }
             default: cur.append(c)
             }
@@ -57,15 +58,15 @@ public struct SearchQuery: Sendable {
         s.count >= 2 && s.hasPrefix("\"") && s.hasSuffix("\"") ? String(s.dropFirst().dropLast()) : s
     }
 
-    static func term(_ tok: String) -> Term? {
-        if tok.hasPrefix("-"), tok.count > 1 { return term(String(tok.dropFirst())).map { .not($0) } }
+    static func term(_ tok: String, caseSensitive: Bool = false) -> Term? {
+        if tok.hasPrefix("-"), tok.count > 1 { return term(String(tok.dropFirst()), caseSensitive: caseSensitive).map { .not($0) } }
         if tok.hasPrefix("["), tok.hasSuffix("]") {
             let inner = tok.dropFirst().dropLast()
             let parts = inner.split(separator: ":", maxSplits: 1).map { unquote(String($0).trimmingCharacters(in: .whitespaces)) }
             return parts.first.map { .property(key: $0, value: parts.count > 1 ? parts[1] : nil) }
         }
         if tok.count > 2, tok.hasPrefix("/"), tok.hasSuffix("/") {
-            return (try? NSRegularExpression(pattern: String(tok.dropFirst().dropLast()), options: .caseInsensitive)).map { .regex($0) }
+            return (try? NSRegularExpression(pattern: String(tok.dropFirst().dropLast()), options: caseSensitive ? [] : .caseInsensitive)).map { .regex($0) }
         }
         if let colon = tok.firstIndex(of: ":") {
             let op = tok[..<colon].lowercased(), val = unquote(String(tok[tok.index(after: colon)...]))
@@ -74,7 +75,9 @@ public struct SearchQuery: Sendable {
             case "path": return .path(val)
             case "file": return .file(val)
             case "line", "section", "block", "content": return .line(val)
-            case "task", "task-todo", "task-done": return .task(val)
+            case "task": return .task(val, done: nil)
+            case "task-todo": return .task(val, done: false)
+            case "task-done": return .task(val, done: true)
             default: break
             }
         }
@@ -112,7 +115,11 @@ public enum Search {
         case .path(let p): rec.path.range(of: p, options: opts) != nil
         case .file(let f): rec.path.noteName.range(of: f, options: opts) != nil
         case .line(let l): rec.text.components(separatedBy: "\n").contains { $0.range(of: l, options: opts) != nil }
-        case .task(let t): rec.text.components(separatedBy: "\n").contains { $0.range(of: #"^\s*[-*+] \[.\]"#, options: .regularExpression) != nil && $0.range(of: t, options: opts) != nil }
+        case .task(let t, let done): rec.text.components(separatedBy: "\n").contains { line in
+            let ns = line as NSString
+            guard let m = NoteParser.Regex.task.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return false }
+            return (done.map { $0 == (ns.substring(with: m.range(at: 1)) != " ") } ?? true) && line.range(of: t, options: opts) != nil
+        }
         case .property(let key, let value):
             if let p = rec.parsed.property(key) { value.map { v in p.displayString.range(of: v, options: opts) != nil } ?? true } else { false }
         case .not(let t): !matches(t, rec, opts)
@@ -125,7 +132,7 @@ public enum Search {
         var needles: [String] = [], regexes: [NSRegularExpression] = []
         func collect(_ t: SearchQuery.Term) {
             switch t {
-            case .text(let s), .line(let s), .task(let s): needles.append(s)
+            case .text(let s), .line(let s), .task(let s, _): needles.append(s)
             case .regex(let r): regexes.append(r)
             case .or(let a, let b): collect(a); collect(b)
             default: break

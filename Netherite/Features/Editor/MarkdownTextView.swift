@@ -200,11 +200,17 @@ struct MarkdownTextView {
 
         func caretRect(_ tv: PlatformTextView) -> CGRect {
             #if os(macOS)
-            guard let window = tv.window, let scroll = tv.enclosingScrollView else { return .zero }
-            let screen = tv.firstRect(forCharacterRange: tv.selectedRange(), actualRange: nil)
-            let inWindow = window.convertFromScreen(screen)
-            let local = scroll.convert(inWindow, from: nil)
-            return CGRect(x: local.minX, y: scroll.bounds.height - local.maxY, width: max(1, local.width), height: local.height)
+            // Ask TextKit 2 for the insertion point: firstRect(forCharacterRange:) can return .zero (empty range at the end
+            // of the text, layout invalidated by a restyle), which put the completion list at the bottom of the window.
+            guard let scroll = tv.enclosingScrollView, let tlm = tv.textLayoutManager, let tcm = tlm.textContentManager,
+                  let loc = tcm.location(tcm.documentRange.location, offsetBy: tv.selectedRange().location) else { return .zero }
+            let caret = NSTextRange(location: loc)
+            tlm.ensureLayout(for: caret)
+            var frame = CGRect.zero
+            tlm.enumerateTextSegments(in: caret, type: .selection, options: [.rangeNotRequired]) { _, f, _, _ in frame = f; return false }
+            let origin = tv.textContainerOrigin
+            let local = scroll.overlayRect(frame.offsetBy(dx: origin.x, dy: origin.y), from: tv)
+            return CGRect(x: local.minX, y: local.minY, width: max(1, local.width), height: local.height)
             #else
             guard let pos = tv.selectedTextRange?.end else { return .zero }
             return tv.caretRect(for: pos).offsetBy(dx: -tv.contentOffset.x, dy: -tv.contentOffset.y)
@@ -213,9 +219,46 @@ struct MarkdownTextView {
 
         func textChanged(_ tv: PlatformTextView) {
             guard !updating else { return }
+            let text = tv.string
+            echoes.append(text)
+            if echoes.count > 32 { echoes.removeFirst() }
+            // Report first, so the model already matches if restyling triggers a SwiftUI update.
+            parent.onChange(text)
             restyle(tv, force: true)
-            parent.onChange(tv.string)
             parent.controller.updateCompletion(caret: caretRect(tv))
+        }
+
+        /// Texts sent through `onChange` that SwiftUI may still hand back before it catches up with the latest keystrokes.
+        var echoes: [String] = []
+
+        /// Brings the view up to the model's `text`. Stale echoes of our own typing are ignored (assigning them moved the
+        /// caret back and dropped characters); real outside changes are applied as one minimal edit that joins the undo stack.
+        func sync(_ tv: PlatformTextView, to text: String) -> Bool {
+            let current = tv.string
+            if current == text { echoes.removeAll(); return false }
+            if echoes.contains(text) { return false }
+            echoes.removeAll()
+            guard let d = TextDiff.replacement(from: current, to: text) else { return false }
+            updating = true
+            #if os(macOS)
+            let sel = tv.selectedRange()
+            if tv.shouldChangeText(in: d.range, replacementString: d.text) {
+                tv.textStorage?.replaceCharacters(in: d.range, with: d.text)
+                tv.didChangeText()
+            }
+            tv.setSelectedRange(TextDiff.adjust(sel, replacing: d.range, newLength: (d.text as NSString).length))
+            #else
+            let sel = tv.selectedRange
+            if let start = tv.position(from: tv.beginningOfDocument, offset: d.range.location),
+               let end = tv.position(from: start, offset: d.range.length),
+               let r = tv.textRange(from: start, to: end) {
+                tv.replace(r, withText: d.text)
+            }
+            tv.selectedRange = TextDiff.adjust(sel, replacing: d.range, newLength: (d.text as NSString).length)
+            #endif
+            updating = false
+            restyle(tv, force: true)
+            return true
         }
 
         func selectionChanged(_ tv: PlatformTextView) {
@@ -325,12 +368,14 @@ final class NetheriteNSTextView: NSTextView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
+        if ok { coordinator?.parent.controller.isEditing = true }
         if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
         return ok
     }
 
     override func resignFirstResponder() -> Bool {
         let ok = super.resignFirstResponder()
+        if ok { coordinator?.parent.controller.isEditing = false }
         if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
         return ok
     }
@@ -357,9 +402,7 @@ final class NetheriteNSTextView: NSTextView {
         for idx in [i, i - 1] where idx >= 0 && idx < storage.length {
             if let target = storage.attribute(.netheriteLink, at: idx, effectiveRange: nil) as? String,
                let rect = firstRectForCharacter(idx), rect.contains(point) {
-                let inScroll = scroll.convert(convert(rect, to: nil), from: nil)
-                let flipped = CGRect(x: inScroll.minX, y: scroll.bounds.height - inScroll.maxY, width: inScroll.width, height: inScroll.height)
-                if c.hover?.target != target { c.hover = .init(target: target, rect: flipped) }
+                if c.hover?.target != target { c.hover = .init(target: target, rect: scroll.overlayRect(rect, from: self)) }
                 return
             }
         }
@@ -383,6 +426,16 @@ final class NetheriteNSTextView: NSTextView {
         let screen = firstRect(forCharacterRange: NSRange(location: i, length: 1), actualRange: nil)
         let r = convert(window.convertFromScreen(screen), from: nil)
         return r.insetBy(dx: -1, dy: -2)
+    }
+}
+
+extension NSScrollView {
+    /// `rect` (in `view`) in this scroll view's top-left space, which is where the SwiftUI overlays draw.
+    /// NSScrollView is flipped on current macOS, so flipping the converted rect again put the completion list
+    /// at the bottom of the window; only flip when the scroll view isn't.
+    func overlayRect(_ rect: CGRect, from view: NSView) -> CGRect {
+        let r = convert(rect, from: view)
+        return isFlipped ? r : CGRect(x: r.minX, y: bounds.height - r.maxY, width: r.width, height: r.height)
     }
 }
 
@@ -427,12 +480,7 @@ extension MarkdownTextView: NSViewRepresentable {
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv, context: context)
-        if tv.string != text {
-            let sel = tv.selectedRange()
-            tv.string = text
-            tv.setSelectedRange(NSRange(location: min(sel.location, (text as NSString).length), length: 0))
-            context.coordinator.restyle(tv, force: true)
-        } else if themeChanged {
+        if !context.coordinator.sync(tv, to: text), themeChanged {
             context.coordinator.restyle(tv, force: true)
         }
     }
@@ -596,12 +644,7 @@ extension MarkdownTextView: UIViewRepresentable {
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv)
-        if tv.text != text {
-            let sel = tv.selectedRange
-            tv.text = text
-            tv.selectedRange = NSRange(location: min(sel.location, (text as NSString).length), length: 0)
-            context.coordinator.restyle(tv, force: true)
-        } else if themeChanged {
+        if !context.coordinator.sync(tv, to: text), themeChanged {
             context.coordinator.restyle(tv, force: true)
         }
     }
@@ -620,9 +663,11 @@ extension MarkdownTextView: UIViewRepresentable {
 extension MarkdownTextView.Coordinator: UITextViewDelegate, UIGestureRecognizerDelegate {
     func textViewDidChange(_ tv: UITextView) { textChanged(tv) }
     func textViewDidChangeSelection(_ tv: UITextView) { selectionChanged(tv) }
+    func textViewDidBeginEditing(_ tv: UITextView) { parent.controller.isEditing = true }
+    func textViewDidEndEditing(_ tv: UITextView) { parent.controller.isEditing = false }
 
     func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        guard text == "\n", range.length == 0 else { return true }
+        guard !updating, text == "\n", range.length == 0 else { return true }
         let ns = tv.text as NSString
         let line = ns.lineRange(for: NSRange(location: range.location, length: 0))
         let current = ns.substring(with: NSRange(location: line.location, length: range.location - line.location))

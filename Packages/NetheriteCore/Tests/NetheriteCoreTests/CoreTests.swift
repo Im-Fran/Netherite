@@ -45,11 +45,45 @@ Footnote here[^1].
     if case .date = p.property("date") {} else { Issue.record("date not parsed") }
 }
 
-@Test func frontmatterRoundTrip() {
+@Test func readableLineShowsLinkText() {
+    #expect(NoteParser.readableLine("Links to [[Welcome]] and [[Folder/Missing note]]") == "Links to Welcome and Missing note")
+    #expect(NoteParser.readableLine("See [[Flights#Outbound|flights]], ![[map.png]] and [md](Notes/Hotels.md).") == "See flights, map and md.")
+    #expect(NoteParser.readableLine("Volver a [[Empieza aquí]] `[[code]]`") == "Volver a Empieza aquí `[[code]]`")
+}
+
+@Test func frontmatterRoundTrip() throws {
     let props = [Property(key: "tags", value: .list(["a", "b c"])), Property(key: "title", value: .text("Hi: there"))]
-    let text = Frontmatter.replacing(in: "body", with: props)
+    let text = try Frontmatter.replacing(in: "body", with: props)
     #expect(NoteParser.parse(text).properties == props)
-    #expect(Frontmatter.replacing(in: text, with: []) == "body")
+    #expect(try Frontmatter.replacing(in: text, with: []) == "body")
+}
+
+// N-07: editing one property keeps the rest of the frontmatter byte for byte.
+@Test func frontmatterEditKeepsOtherKeys() throws {
+    let text = "---\n# keep me\nauthors: [{name: Ana}]\nmeta: {rating: 5}\nversion: 1.10\nzip: 01234\nanswer: no\nstatus: draft\n---\nbody"
+    var props = NoteParser.parse(text).properties
+    #expect(props.first { $0.key == "answer" }?.value == .text("no"))
+    props[props.firstIndex { $0.key == "status" }!].value = .text("done")
+    let out = try Frontmatter.replacing(in: text, with: props)
+    #expect(out == text.replacingOccurrences(of: "status: draft", with: "status: done"))
+    #expect(try Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
+}
+
+// N-19: a stray backtick doesn't hide the links and tags of the following paragraphs.
+@Test func strayBacktickStaysInParagraph() {
+    let p = NoteParser.parse("Use ` here.\n\nSee [[A]] #tag\n\nand `code\nspan` [[B]] `x`")
+    #expect(p.links.map(\.target) == ["A", "B"])
+    #expect(p.tags == ["tag"])
+}
+
+// N-36: links to headings aren't tags.
+@Test func headingLinksAreNotTags() {
+    #expect(NoteParser.parse("See [[#Intro]], [x](#Other) and (#real)").tags == ["real"])
+}
+
+// N-37: a trailing `#` is only a closing sequence after a space.
+@Test func headingKeepsTrailingHash() {
+    #expect(NoteParser.parse("# C#\n## Budget ##").headings.map(\.text) == ["C#", "Budget"])
 }
 
 @Test func resolvesLinks() {
@@ -80,6 +114,55 @@ Footnote here[^1].
     #expect(try vault.read("sub/C.md") == "[b](folder/Renamed.md)")
     #expect(index.backlinks(for: "folder/Renamed.md").count == 2)
     try? FileManager.default.removeItem(at: dir)
+}
+
+/// Renames `Old.md` to `New.md` in a vault holding `files` and returns the new text of `read`.
+@MainActor func renamed(_ files: [String: String], read: String) async throws -> String {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let vault = Vault(root: dir)
+    for (path, text) in files { try vault.write(text, to: path) }
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    try index.move("Old.md", to: "New.md")
+    return try vault.read(read)
+}
+
+// N-16: renaming rewrites links in frontmatter values.
+@MainActor @Test func renameRewritesFrontmatterLinks() async throws {
+    let a = "---\nrelated: \"[[Old]]\"\nlist:\n  - \"[[Old#H|x]]\"\n---\nbody"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == a.replacingOccurrences(of: "[[Old", with: "[[New"))
+}
+
+// R2-03: a new name with quotes is escaped for the YAML scalar the link sits in, so the frontmatter stays valid.
+@Test func renameEscapesQuotedFrontmatter() {
+    let t = "---\nrelated: '[[Old]]'\nlist:\n  - \"[[Old|x]]\"\n  - [[Old]]\nstatus: draft\n---\n[[Old]]"
+    let out = VaultIndex.rewriteLinks(in: t, parsed: NoteParser.parse(t), newTarget: { _ in "Mom's \"x\".md" },
+                                      linkText: { ($0 as NSString).deletingPathExtension })
+    #expect(out == "---\nrelated: '[[Mom''s \"x\"]]'\nlist:\n  - \"[[Mom's \\\"x\\\"|x]]\"\n  - [[Mom's \"x\"]]\nstatus: draft\n---\n[[Mom's \"x\"]]")
+    #expect(NoteParser.parse(out).property("related") == .text("[[Mom's \"x\"]]"))
+    #expect(NoteParser.parse(out).property("status") == .text("draft"))
+}
+
+// R3-08: the scalar is found with libyaml's line breaks (CRLF, lone CR, NEL, U+2028) and past an alias.
+@Test func renameEscapesQuotedFrontmatterAfterOddBreaksAndAliases() {
+    for t in ["---\r\nrelated: '[[Old]]'\r\n---\r\nx", "---\ntitle: \"a\u{2028}b\"\nrelated: '[[Old]]'\n---\nx",
+              "---\ntitle: \"a\u{85}b\rc\"\nrelated: '[[Old]]'\n---\nx", "---\na: &x 'foo'\nrelated: \"[[Old]]\"\nb: *x\n---\nx"] {
+        let out = VaultIndex.rewriteLinks(in: t, parsed: NoteParser.parse(t), newTarget: { _ in "Mom's.md" },
+                                          linkText: { ($0 as NSString).deletingPathExtension })
+        #expect(NoteParser.parse(out).property("related") == .text("[[Mom's]]"), "\(t.debugDescription)")
+    }
+}
+
+// N-17: renaming keeps the escaped alias pipe of a link inside a table.
+@MainActor @Test func renameKeepsTablePipe() async throws {
+    let a = "| a | b |\n|---|---|\n| [[Old\\|alias]] | 1 |"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == "| a | b |\n|---|---|\n| [[New\\|alias]] | 1 |")
+}
+
+// N-18: renaming rewrites a note's links to itself.
+@MainActor @Test func renameRewritesSelfLinks() async throws {
+    #expect(try await renamed(["Old.md": "# Old\nSee [[Old#Old]] and [[#Old]]."], read: "New.md") == "# Old\nSee [[New#Old]] and [[#Old]].")
 }
 
 @Test func searchOperators() {
@@ -203,4 +286,14 @@ Footnote here[^1].
     #expect(missing == [spanish ? "Mi primera idea" : "My first idea"])
     #expect(try JSONCanvas.parse(vault.read(spanish ? "Tablero guía.canvas" : "Guide board.canvas")).nodes.count == 3)
     try? FileManager.default.removeItem(at: dir)
+}
+
+// R2-11: parsing stays linear with many tags and links, on one line or many.
+@Test func parseIsLinearInTagsAndLinks() {
+    for sep in [" ", "\n"] {
+        let start = Date()
+        let parsed = NoteParser.parse(String(repeating: "[[x]] #t\(sep)", count: 20_000))
+        #expect(parsed.tags.count == 20_000 && parsed.links.count == 20_000)
+        #expect(Date().timeIntervalSince(start) < 2)
+    }
 }

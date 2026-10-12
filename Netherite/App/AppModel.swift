@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 import NetheriteCore
 
 struct RecentVault: Codable, Hashable, Identifiable {
@@ -18,6 +19,8 @@ final class AppModel {
 
     private(set) var recents: [RecentVault] = []
     private(set) var open: [String: VaultModel] = [:]
+    /// Open vaults whose security-scoped access was started, with the exact URL that carries the scope, to stop it when they close.
+    @ObservationIgnored private var scoped: [String: URL] = [:]
     /// Size and sync state of known vaults, keyed by path (refreshed by `refreshStorage`).
     private(set) var storage: [String: VaultStorage] = [:]
     /// Progress and time left of each vault's current iCloud transfers, measured across `refreshStorage` calls.
@@ -67,7 +70,9 @@ final class AppModel {
     // MARK: Opening
 
     func createVault(named name: String, in parent: URL) throws -> VaultModel {
-        let url = parent.appending(path: name, directoryHint: .isDirectory)
+        // One new folder: never a nested path, the parent itself (`..`) or an existing vault ("Notes 1" instead).
+        guard let base = Vault.folderName(for: name) else { throw CocoaError(.fileWriteInvalidFileName) }
+        let url = parent.appending(path: Vault(root: parent).availablePath(folder: "", base: base, ext: ""), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         let vault = Vault(root: url)
         if vault.allFiles().isEmpty {
@@ -120,19 +125,26 @@ final class AppModel {
     @discardableResult
     func openVault(at url: URL, bookmark: Data? = nil) -> VaultModel {
         let key = Self.key(url)
-        if let m = open[key] { publishShared(url); touch(url, bookmark: bookmark); return m }
+        if let m = open[key] { publishShared(url, m); touch(url, bookmark: bookmark); return m }
         // Returns false for folders that need no security scope (app container, iCloud); only unreadable ones are an error.
-        if !url.startAccessingSecurityScopedResource() && !FileManager.default.isReadableFile(atPath: key) {
+        if url.startAccessingSecurityScopedResource() { scoped[key] = url }
+        else if !FileManager.default.isReadableFile(atPath: key) {
             lastError = String(localized: "Netherite can’t access “\(url.lastPathComponent)”. Open the folder again to grant access.")
         }
-        publishShared(url)
         let model = VaultModel(vault: Vault(root: url))
+        publishShared(url, model)
         open[key] = model
         touch(url, bookmark: bookmark ?? makeBookmark(url))
         return model
     }
 
     /// Reopens a vault by path, resolving its security-scoped bookmark when needed.
+    /// Whether a deep link may switch to this vault: only vaults the user already opened, so a link can't turn any folder into a vault.
+    func isKnownVault(_ raw: String) -> Bool {
+        let path = Self.rebased(Self.key(URL(filePath: raw)))
+        return open[path] != nil || recents.contains { $0.path == path }
+    }
+
     func model(forPath raw: String) -> VaultModel? {
         let path = Self.rebased(Self.key(URL(filePath: raw)))
         if let m = open[path] { return m }
@@ -150,9 +162,20 @@ final class AppModel {
         return FileManager.default.fileExists(atPath: path) ? openVault(at: URL(filePath: path)) : nil
     }
 
+    /// A vault's folder, through its security-scoped bookmark when it has one, so it can be read without opening it.
+    /// Balance a successful `startAccessingSecurityScopedResource()` on it with a stop.
+    func resolvedURL(_ recent: RecentVault) -> URL {
+        var stale = false
+        return recent.bookmark.flatMap { try? URL(resolvingBookmarkData: $0, options: bookmarkResolveOptions, relativeTo: nil, bookmarkDataIsStale: &stale) }
+            ?? URL(filePath: recent.path, directoryHint: .isDirectory)
+    }
+
     func forget(_ recent: RecentVault) {
         recents.removeAll { $0.id == recent.id }
         persist()
+        // Clips, widgets and Shortcuts must not keep writing into a vault that was removed or trashed.
+        SharedVault.withdraw(recent.path, replacingWith: recents.first.map { SharedVault(name: $0.name, path: $0.path, bookmark: $0.bookmark) })
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: Managing vaults
@@ -164,13 +187,17 @@ final class AppModel {
 
     private func close(_ path: String) {
         open[path]?.flushAll()
+        scoped.removeValue(forKey: path)?.stopAccessingSecurityScopedResource()
         open[path] = nil
     }
 
     /// Moves a vault to Recently Deleted (permanently deleted after 90 days). Vaults in folders Netherite didn't
     /// create go to the system Trash on the Mac; on iOS those can only be removed from the list.
     func trashVault(_ recent: RecentVault) async throws {
-        let url = URL(filePath: recent.path, directoryHint: .isDirectory)
+        // `close` ends the open vault's security scope: hold one of our own for the move.
+        let url = resolvedURL(recent)
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
         let parents = await Self.vaultParents().map(Self.key)
         if parents.contains(Self.key(url.deletingLastPathComponent())) {
             close(recent.path)
@@ -211,17 +238,63 @@ final class AppModel {
     /// Moves a vault stored on this device into iCloud Drive; the system uploads it from there.
     func moveToICloud(_ recent: RecentVault) async throws {
         guard let docs = await Self.iCloudDocuments() else { throw Self.iCloudUnavailable }
-        let source = URL(filePath: recent.path, directoryHint: .isDirectory)
+        // `close` ends the open vault's security scope: hold one of our own for the move.
+        let source = resolvedURL(recent)
+        let access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
         let target = docs.appending(path: Vault(root: docs).availablePath(folder: "", base: recent.name, ext: ""), directoryHint: .isDirectory)
-        close(recent.path)
-        try await Task.detached {
-            try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-            try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
-        }.value
+        let model = open[recent.path]
+        model?.flushAll()
+        // What's typed during the move is saved at the new place, never at the old path (that would recreate the vault there).
+        model?.savesPaused = true
+        // File Recovery's snapshots follow the vault's ID: make sure `id.json` exists so it moves with the folder.
+        let snapshots = model.map { SnapshotStore(vault: $0.vault) }
+        do {
+            try await Task.detached {
+                try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+                try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
+            }.value
+        } catch {
+            model?.savesPaused = false
+            model?.flushAll()
+            throw error
+        }
+        var unsaved: [String] = [], lost: [String] = []
+        if let model, let snapshots {
+            for p in model.dirty {
+                guard let text = model.index.notes[p]?.text else { continue }
+                do { try Vault(root: target).write(text, to: p) } catch {
+                    // Keep the text where it can be restored from.
+                    if snapshots.save(text, for: p) { unsaved.append(p.noteName) } else { lost.append(p.noteName) }
+                }
+            }
+        }
+        // Close only once the vault is at its new place and listed there: windows showing it follow `relocated`
+        // as soon as it closes, and reopen it from `recents` (a failed move leaves it open where it was).
         recents.removeAll { $0.path == recent.path }
         relocated[recent.path] = Self.key(target)
         touch(target, bookmark: makeBookmark(target))
+        // Clips, widgets and Shortcuts follow it too, even when no window reopens it.
+        SharedVault.withdraw(recent.path, replacingWith: SharedVault(name: target.lastPathComponent, path: Self.key(target),
+            bookmark: try? target.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
+        WidgetCenter.shared.reloadAllTimelines()
+        close(recent.path)
         await refreshStorage([Self.key(target)])
+        // The vault did move; say which edits made during the move didn't make it instead of dropping them silently.
+        var messages: [String] = []
+        if !unsaved.isEmpty {
+            let names = unsaved.map { "“\($0)”" }.formatted()
+            messages.append(model?.settings.isEnabled(.fileRecovery) ?? false
+                ? String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery.")
+                : String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery, which is off: turn it on in Settings › Core Plugins to restore them."))
+        }
+        if !lost.isEmpty {
+            let names = lost.map { "“\($0)”" }.formatted()
+            messages.append(String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there or kept as snapshots."))
+        }
+        if !messages.isEmpty {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: messages.joined(separator: "\n\n")])
+        }
     }
 
     /// Copies a folder picked in Files/Finder into iCloud Drive as a new vault, and opens it.
@@ -298,11 +371,13 @@ final class AppModel {
         persist()
     }
 
-    /// Extensions, widgets and intents read the most recently opened vault from the App Group.
+    /// Extensions, widgets and intents read the most recently opened vault (and its recent notes) from the App Group.
     /// The bookmark is made after security-scoped access starts, or it comes back nil on iOS.
-    private func publishShared(_ url: URL) {
+    private func publishShared(_ url: URL, _ model: VaultModel) {
         SharedVault.publish(SharedVault(name: url.lastPathComponent, path: Self.key(url),
                                         bookmark: try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
+        SharedVault.publishRecents(model.recentFiles, vault: Self.key(url))
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func persist() {

@@ -8,6 +8,10 @@ struct CanvasNodeView: View {
     let additive: Bool
     @Environment(WindowState.self) private var window
     @State private var hovered = false
+    @FocusState private var focused: Bool
+    /// Text being typed into the card. The editor binds to this, not to `node`: `node` is a value handed down by the
+    /// canvas, so it lags a keystroke behind the model and a binding reading it fed stale text back and dropped characters.
+    @State private var draft = ""
     @Environment(\.colorSchemeContrast) private var contrast
 
     private var selected: Bool { model.selection.contains(node.id) }
@@ -46,10 +50,13 @@ struct CanvasNodeView: View {
 
     @ViewBuilder private var textCard: some View {
         if editing {
-            TextEditor(text: Binding(get: { node.text ?? "" }, set: { model.setText(node.id, $0) }))
+            TextEditor(text: $draft)
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(8)
+                .focused($focused)
+                .onAppear { draft = node.text ?? ""; focused = true }
+                .onChange(of: draft) { model.setText(node.id, draft) }
                 .onDisappear { if model.editing == node.id { model.endEditing() } }
         } else {
             ScrollView {
@@ -76,8 +83,11 @@ struct CanvasNodeView: View {
     private var groupLabel: some View {
         Group {
             if editing {
-                TextField("Group", text: Binding(get: { node.label ?? "" }, set: { model.setText(node.id, $0) }))
+                TextField("Group", text: $draft)
                     .textFieldStyle(.plain)
+                    .focused($focused)
+                    .onAppear { draft = node.label ?? ""; focused = true }
+                    .onChange(of: draft) { model.setText(node.id, draft) }
                     .onSubmit { model.endEditing() }
                     .frame(width: 200)
             } else {
