@@ -11,6 +11,8 @@ struct PublishView: View {
     @State private var token = ""
     @State private var exporting = false
     @State private var exportDocument: SiteFolder?
+    /// The temporary site folder behind `exportDocument`, removed once the export ends.
+    @State private var exportDir: URL?
     @State private var busy = false
     @State private var deploying = false
     @State private var confirmDeploy = false
@@ -100,8 +102,10 @@ struct PublishView: View {
             options = model.vault.loadConfig("publish.json", fallback: PublishOptions())
             token = Keychain.cloudflareToken ?? ""
         }
+        .onDisappear(perform: removeExportDir)
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .folder,
                       defaultFilename: options.siteName.isEmpty ? String(localized: "\(model.name) Site") : options.siteName) { result in
+            removeExportDir()
             if case .failure(let e) = result { error = e.localizedDescription }
             else { status = String(localized: "Site exported.") }
         }
@@ -122,18 +126,26 @@ struct PublishView: View {
 
     private func save() { model.vault.saveConfig("publish.json", options) }
 
+    private func removeExportDir() {
+        if let exportDir { try? FileManager.default.removeItem(at: exportDir) }
+        exportDir = nil
+    }
+
     /// Exports into a temporary folder, then hands it to the system save panel.
     private func exportToFolder() {
         save()
+        removeExportDir()
         busy = true
         task = Task {
             defer { busy = false }
             do {
                 let dir = try await buildSite()
+                exportDir = dir
                 try Task.checkCancellation()
                 exportDocument = SiteFolder(wrapper: try FileWrapper(url: dir))
                 exporting = true
             } catch {
+                removeExportDir()
                 if Task.isCancelled { status = String(localized: "Cancelled.") } else { self.error = error.localizedDescription }
             }
         }
@@ -145,7 +157,14 @@ struct PublishView: View {
         let dir = URL.temporaryDirectory.appending(path: "netherite-site-\(UUID().uuidString)", directoryHint: .isDirectory)
         buildProgress = 0
         defer { buildProgress = nil }
-        let report = try await SiteExporter.export(model.index, to: dir, options: options, theme: model.vaultTheme) { buildProgress = $0 }
+        let report: SiteExporter.Report
+        do {
+            report = try await SiteExporter.export(model.index, to: dir, options: options, theme: model.vaultTheme) { buildProgress = $0 }
+        } catch {
+            // A cancelled or failed build leaves half a site behind.
+            try? FileManager.default.removeItem(at: dir)
+            throw error
+        }
         status = String(localized: "Built \(report.pages) pages.")
         return dir
     }
@@ -160,10 +179,10 @@ struct PublishView: View {
             defer { busy = false; deploying = false }
             do {
                 let dir = try await buildSite()
+                defer { try? FileManager.default.removeItem(at: dir) }
                 let deployer = CloudflarePagesDeployer(accountID: options.accountID, projectName: options.projectName, apiToken: token)
                 deployedURL = try await deployer.deploy(dir) { msg in Task { @MainActor in status = msg } }
                 status = String(localized: "Deployed.")
-                try? FileManager.default.removeItem(at: dir)
             } catch {
                 if Task.isCancelled { status = String(localized: "Cancelled.") } else {
                     self.error = error.localizedDescription
