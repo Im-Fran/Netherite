@@ -110,3 +110,46 @@ private func renderPlain(_ md: String) -> String {
     #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth: file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
     #expect(!page.contains("<script>"))   // every script of ours carries the nonce
 }
+
+// MARK: N-48 · Bases and site export
+
+@Test func toFixedClampsDigits() {
+    let row = BaseRow(path: "a.md", properties: [Property(key: "x", value: .number(1.256)), Property(key: "big", value: .number(1e20)),
+                                                  Property(key: "nan", value: .number(.nan))])
+    let ctx = BaseEvalContext(row: row, formulas: [:])
+    func e(_ s: String) -> BaseValue { ctx.eval(BaseExpr.parse(s)!) }
+    #expect(e("x.toFixed(big)") == e("x.toFixed(20)"))
+    #expect(e("x.toFixed(nan)") == .string("1"))
+    #expect(e("x.toFixed(2)") == .string("1.26"))
+    #expect(e("big.toFixed(2)") == .string("100000000000000000000.00"))
+}
+
+@Test func baseFileKeepsPropertySettingsAndScalarFormulas() {
+    let f = BaseFile.parse("""
+    formulas:
+      n: 5
+      s: price * 2
+    properties:
+      note.price:
+        displayName: Price
+        width: 120
+      note.other:
+        width: 80
+    views:
+      - type: table
+        name: T
+    """)
+    #expect(f.formulas.map(\.name) == ["n", "s"])
+    let again = BaseFile.parse(f.yaml)
+    #expect(again.displayNames == ["note.price": "Price"])
+    #expect(f.yaml.contains("width: 120") && f.yaml.contains("width: 80"))
+    #expect(again.formulas.map(\.expr) == ["5", "price * 2"])
+}
+
+@Test func notesDontOverwriteSitePages() {
+    #expect(SiteExporter.pagePath("index.md") == "index-note.html")
+    #expect(SiteExporter.pagePath("404.md") == "404-note.html")
+    #expect(SiteExporter.pagePath("Graph.md") == "graph-note.html")
+    #expect(SiteExporter.pagePath("Tags/x.md") == "tags-note/x.html")
+    #expect(SiteExporter.pagePath("Notes/index.md") == "notes/index.html")
+}
