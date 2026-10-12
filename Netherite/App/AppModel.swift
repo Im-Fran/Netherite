@@ -154,6 +154,9 @@ final class AppModel {
     func forget(_ recent: RecentVault) {
         recents.removeAll { $0.id == recent.id }
         persist()
+        // Clips, widgets and Shortcuts must not keep writing into a vault that was removed or trashed.
+        SharedVault.withdraw(recent.path, replacingWith: recents.first.map { SharedVault(name: $0.name, path: $0.path, bookmark: $0.bookmark) })
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: Managing vaults

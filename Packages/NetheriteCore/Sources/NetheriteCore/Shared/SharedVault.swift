@@ -24,6 +24,12 @@ public struct SharedVault: Codable, Hashable, Sendable {
         d?.data(forKey: "sharedVault").flatMap { try? JSONDecoder().decode(SharedVault.self, from: $0) }
     }
 
+    /// Stops sharing the vault at `path` (trashed or removed from the list), sharing `next` instead, or nothing.
+    public static func withdraw(_ path: String, replacingWith next: SharedVault?, in d: UserDefaults? = defaults) {
+        guard current(d)?.path == path else { return }
+        if let next { publish(next, to: d) } else { d?.removeObject(forKey: "sharedVault") }
+    }
+
     /// Recent notes of the vault at `vault`; ignored unless it is the shared vault, so another open vault can't mix in its notes.
     public static func publishRecents(_ paths: [String], vault: String, to d: UserDefaults? = defaults) {
         guard current(d)?.path == vault else { return }

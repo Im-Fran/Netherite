@@ -38,3 +38,14 @@ import Testing
     #expect(SharedVault.recents(d).isEmpty)
 }
 
+@Test func withdrawingTheSharedVault() {
+    let d = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+    SharedVault.publish(SharedVault(name: "A", path: "/a"), to: d)
+    SharedVault.withdraw("/other", replacingWith: nil, in: d)
+    #expect(SharedVault.current(d)?.path == "/a")
+    SharedVault.withdraw("/a", replacingWith: SharedVault(name: "B", path: "/b"), in: d)
+    #expect(SharedVault.current(d)?.path == "/b")
+    SharedVault.withdraw("/b", replacingWith: nil, in: d)
+    #expect(SharedVault.current(d) == nil)
+}
+
