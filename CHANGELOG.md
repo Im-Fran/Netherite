@@ -10,6 +10,41 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+### Changed
+- Properties keep their YAML 1.2 meaning: `yes`/`no` stay text and `01234` is a decimal number.
+- Following a link to another note from Reading view opens it for editing.
+- Notes render only safe link schemes (http, https, mailto, obsidian, netherite) and an allowlist of HTML; links with other schemes show as plain text.
+- `netherite publish` deploys from a temporary folder; `--out` is now only for `netherite export`.
+- The Share extension and widgets explain when a vault stored only on this device can't be reached.
+
+### Fixed
+- Typing right after naming a new note goes into its body instead of being lost.
+- Tips no longer appear while you type, so they can't swallow keystrokes.
+- Fast typing no longer moves the cursor back a character, and Undo stays in step after properties or tasks change the note.
+- The `[[` link suggestions appear at the cursor.
+- Titles stay on one line, so a pasted line break can't end up in a file name.
+- Jumping to a heading works in Reading view.
+- A new canvas card takes your typing; empty cards are discarded, a canvas that fails to load is never overwritten, and its Undo steps don't leak into other notes.
+- Window titles show canvases and bases without their extension, and mention previews show link text instead of `[[…]]`.
+- Editing a property keeps every other property exactly as written.
+- Renaming a note updates links in properties, escaped aliases in tables and links to itself; a stray backtick no longer hides links and tags; `# C#` headings and links to headings no longer create false tags.
+- A note renamed, moved or deleted elsewhere updates in every window instead of reappearing under its old name.
+- Recent edits are saved when you quit, and changes from iCloud keep arriving while another window is in the background.
+- List properties accept commas; the file list rejects dropping a folder into itself; new vault names are validated and never reopen an existing vault.
+- Recent notes follow moves and deletions; File Recovery snapshots follow the vault when it moves.
+- Vault access is released when a vault closes, and Export Vault works for vaults opened from other folders.
+- A vault moved to Recently Deleted is no longer used by the Share extension and widgets; widgets refresh after Shortcuts and shares, and their links open the right vault.
+- Audio recordings continue through interruptions and in the background, and are kept when their sheet closes.
+- The Workspaces sheet fits on iPhone, "Create Theme from Current…" never overwrites a theme, and Publish cleans up its temporary files.
+- Embedding a block or heading, and some unusual characters, no longer crash rendering; notes with thousands of links render quickly.
+- Bases: `toFixed` no longer crashes and saving keeps property settings and formulas; published sites keep notes named `index`, `404` or `graph`.
+
+### Security
+- Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
+- Rendered notes and published sites are protected against script injection with an HTML allowlist and a Content Security Policy.
+- Web pages opened in the web viewer can no longer read vault files.
+- `netherite://` links only open vaults you have already opened.
+
 ## [0.1.1+13] - 2026-10-11
 
 ### Added
