@@ -16,3 +16,14 @@ import Testing
     #expect(NoteParser.parse(out).property("updated") == .date(Frontmatter.parseDate("2024-01-01")!))
     #expect(NoteParser.parse(out).property("base") == .date(Frontmatter.parseDate("2023-01-01")!))
 }
+
+// R10-03: following an unresolved link names the new note without its `.md`, and creates none for other file types.
+@Test func newNoteNameForUnresolvedLinks() {
+    #expect(LinkResolver.newNoteName(for: "Plan.md") == "Plan")
+    #expect(LinkResolver.newNoteName(for: "Sub/My Note.MD") == "My Note")
+    #expect(LinkResolver.newNoteName(for: "Plan") == "Plan")
+    #expect(LinkResolver.newNoteName(for: "Release v1.2") == "Release v1.2")
+    #expect(LinkResolver.newNoteName(for: "Diagram.canvas") == nil)
+    #expect(LinkResolver.newNoteName(for: "Tasks.base") == nil)
+    #expect(LinkResolver.newNoteName(for: "img/photo.png") == nil)
+}

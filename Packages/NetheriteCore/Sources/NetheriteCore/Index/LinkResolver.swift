@@ -46,6 +46,19 @@ public struct LinkResolver: Sendable {
         return paths.first { $0.parentFolder == folder } ?? paths.min { ($0.count, $0) < ($1.count, $1) }!
     }
 
+    /// The name of the note to create for an unresolved link: "Plan.md" → "Plan", "Plan v1.2" stays as is,
+    /// and nil for a canvas, base or attachment, which a new Markdown note can't stand in for.
+    public static func newNoteName(for target: String) -> String? {
+        let name = (target as NSString).lastPathComponent
+        switch name.fileExtension {
+        case "md": return name.noteName
+        case "canvas", "base", "pdf": return nil
+        case let ext where HTMLRenderer.imageExts.contains(ext) || HTMLRenderer.audioExts.contains(ext)
+            || HTMLRenderer.videoExts.contains(ext): return nil
+        default: return name
+        }
+    }
+
     /// The shortest link text that resolves unambiguously to `path` (Obsidian's "shortest path when possible").
     public func linkText(for path: String) -> String {
         let base = path.isMarkdown ? (path as NSString).deletingPathExtension : path
