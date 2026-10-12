@@ -92,7 +92,7 @@ public extension Vault {
     /// A vault name as one folder name: separators become dashes and leading dots go (`..`, hidden folders); nil when empty.
     static func folderName(for name: String) -> String? {
         let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
-            .trimmingCharacters(in: .whitespacesAndNewlines).drop { $0 == "." }.trimmingCharacters(in: .whitespaces)
+            .drop { $0 == "." || $0.isWhitespace }.trimmingCharacters(in: .whitespacesAndNewlines)   // `. ..` too
         return clean.isEmpty ? nil : clean
     }
 }

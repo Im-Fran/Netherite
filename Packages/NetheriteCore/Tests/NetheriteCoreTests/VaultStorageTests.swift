@@ -118,4 +118,7 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(Vault.folderName(for: "../x") == "-x")
     #expect(Vault.folderName(for: ".hidden") == "hidden")
     #expect(Vault.folderName(for: "  ") == nil)
+    // R2-18: dots and spaces mixed at the start go too.
+    for name in [". .", ". ..", " . . ", ". .. "] { #expect(Vault.folderName(for: name) == nil, "\(name)") }
+    #expect(Vault.folderName(for: " . .x") == "x")
 }
