@@ -1,9 +1,9 @@
 import Foundation
 
-/// The online template gallery: `templates/index.json` on the Netherite site (gh-pages),
+/// The online template gallery: `templates/index.json` on netheriteapp.com,
 /// generated from one `.md` per template and language.
 public struct TemplateCatalog: Codable, Sendable {
-    public static let url = URL(string: "https://im-fran.github.io/Netherite/templates/index.json")!
+    public static let url = URL(string: "https://netheriteapp.com/templates/index.json")!
 
     public struct Entry: Codable, Identifiable, Hashable, Sendable {
         public var id: String
