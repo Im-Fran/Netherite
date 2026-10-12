@@ -17,7 +17,8 @@ public extension HTMLRenderer {
         let needsMermaid = body.contains("class=\"mermaid\"")
         let needsCode = body.contains("<pre><code class=\"language-")
         var head = """
-        <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="\(contentSecurityPolicy)">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="color-scheme" content="\(theme?.appearance?.rawValue ?? "light dark")">
         <link rel="stylesheet" href="\(a)reader.css">
         """
@@ -41,11 +42,25 @@ public extension HTMLRenderer {
             head += "\n<script>window.netheriteInitialSubpath = \(json);</script>"
         }
         head += "\n<script src=\"\(a)reader.js\"></script>" + extraHead
+        // Only the page's own scripts carry the nonce; the note body never does.
+        let nonced = { (s: String) in s.replacingOccurrences(of: "<script", with: "<script nonce=\"\(scriptNonce)\"") }
+        head = nonced(head)
+        let extraBody = nonced(extraBody)
         let titleHTML = title.map { "<div class=\"inline-title\">\(escape($0))</div>" } ?? ""
         return """
         <!doctype html><html><head>\(head)<title>\(escape(title ?? ""))</title></head>
         <body class="\(fullWidth ? "full-width" : "")">\(titleHTML)\(body)\(extraBody)</body></html>
         """
+    }
+
+    /// Per launch (not per page, so re-rendering the same note yields the same HTML); a note can't know it in advance.
+    static let scriptNonce = UUID().uuidString
+
+    /// Defense in depth behind `sanitize` (N-05): scripts run only from the bundle/site or with the nonce,
+    /// and plugins, `<base>` and form posts are off.
+    static var contentSecurityPolicy: String {
+        "default-src 'self' nth: file: data: blob: https: http:; script-src 'self' nth: file: 'nonce-\(scriptNonce)'; "
+            + "style-src 'self' nth: file: https: 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'"
     }
 
     /// Darker secondary text and borders for Increase Contrast, mixed from the text and background so they

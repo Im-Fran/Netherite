@@ -213,12 +213,130 @@ public enum HTMLRenderer {
         return o
     }
 
-    /// Raw HTML in notes is allowed (like Obsidian) but scripts, event handlers and `javascript:` URLs are stripped.
+    // MARK: Sanitizing
+
+    static let linkSchemes: Set<String> = ["http", "https", "mailto", "obsidian", "netherite"]
+    static let mediaSchemes: Set<String> = ["http", "https", "data"]
+
+    /// `url` when it's relative or uses one of `schemes`. Browsers drop tabs/newlines and leading
+    /// control characters before reading the scheme, so the check does too.
+    static func safeURL(_ url: String, schemes: Set<String>) -> String? {
+        let probe = String(url.unicodeScalars.filter { $0.value > 0x20 })
+        guard let m = probe.firstMatch(of: /^([A-Za-z][A-Za-z0-9+.\-]*):/) else { return url }
+        return schemes.contains(m.1.lowercased()) ? url : nil
+    }
+
+    static let allowedTags: Set<String> = [
+        "a", "abbr", "article", "aside", "audio", "b", "bdi", "bdo", "blockquote", "br", "caption", "center", "cite", "code",
+        "col", "colgroup", "dd", "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "font", "footer",
+        "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "i", "img", "ins", "kbd", "li", "mark", "ol", "p", "pre", "q",
+        "rp", "rt", "ruby", "s", "samp", "section", "small", "source", "span", "strike", "strong", "sub", "summary", "sup",
+        "table", "tbody", "td", "tfoot", "th", "thead", "tr", "track", "u", "ul", "var", "video", "wbr",
+    ]
+    static let allowedAttributes: Set<String> = [
+        "align", "alt", "cite", "class", "color", "colspan", "controls", "dir", "height", "href", "id", "lang", "loop",
+        "muted", "name", "open", "poster", "rel", "reversed", "rowspan", "span", "src", "start", "style", "title", "type",
+        "valign", "width",
+    ]
+    /// Elements whose content is code or raw text, dropped together with it.
+    static let droppedWithContent: Set<String> = ["script", "style", "textarea", "title", "template", "noscript", "xmp", "noembed", "noframes", "iframe", "object"]
+
+    /// Raw HTML in notes is allowed (like Obsidian) through an allowlist: the fragment is tokenized the way a browser
+    /// reads tags and rebuilt from allowed tags and attributes only, with URLs limited to safe schemes (N-05).
     static func sanitize(_ html: String) -> String {
-        html.replacingOccurrences(of: #"(?is)<(script|iframe|object|embed|style)\b.*?(</\1\s*>|$)"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)</?(script|iframe|object|embed|style)\b[^>]*>"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)(href|src)\s*=\s*(["']?)\s*javascript:"#, with: "$1=$2#", options: .regularExpression)
+        let c = Array(html.unicodeScalars)
+        var out = String.UnicodeScalarView(), i = 0
+        var skipping: String?   // inside a dropped element
+        func isSpace(_ u: Unicode.Scalar) -> Bool { u == " " || u == "\t" || u == "\n" || u == "\r" || u == "\u{0C}" }
+        func emit(_ s: String) { if skipping == nil { out.append(contentsOf: s.unicodeScalars) } }
+        while i < c.count {
+            guard c[i] == "<" else { if skipping == nil { out.append(c[i]) }; i += 1; continue }
+            // Comments, doctypes and processing instructions go entirely.
+            if i + 1 < c.count, c[i + 1] == "!" || c[i + 1] == "?" {
+                let close: [Unicode.Scalar] = c[i...].starts(with: "<!--".unicodeScalars) ? Array("-->".unicodeScalars) : [">"]
+                var j = i + 2
+                while j < c.count, !c[j...].starts(with: close) { j += 1 }
+                i = min(c.count, j + close.count)
+                continue
+            }
+            var j = i + 1
+            let closing = j < c.count && c[j] == "/"
+            if closing { j += 1 }
+            var name = ""
+            while j < c.count, c[j].properties.isAlphabetic || (!name.isEmpty && (c[j].properties.numericType != nil || c[j] == "-")) {
+                name.unicodeScalars.append(c[j]); j += 1
+            }
+            guard !name.isEmpty else { emit("&lt;"); i += 1; continue }
+            name = name.lowercased()
+            // Attributes, read like the HTML tokenizer: unquoted values run to whitespace or `>`.
+            var attrs: [(String, String)] = []
+            while j < c.count, c[j] != ">" {
+                if isSpace(c[j]) || c[j] == "/" { j += 1; continue }
+                var key = ""
+                repeat { key.unicodeScalars.append(c[j]); j += 1 } while j < c.count && !isSpace(c[j]) && c[j] != "/" && c[j] != ">" && c[j] != "="
+                while j < c.count, isSpace(c[j]) { j += 1 }
+                var value = ""
+                if j < c.count, c[j] == "=" {
+                    j += 1
+                    while j < c.count, isSpace(c[j]) { j += 1 }
+                    if j < c.count, c[j] == "\"" || c[j] == "'" {
+                        let q = c[j]; j += 1
+                        while j < c.count, c[j] != q { value.unicodeScalars.append(c[j]); j += 1 }
+                        j += 1
+                    } else {
+                        while j < c.count, !isSpace(c[j]), c[j] != ">" { value.unicodeScalars.append(c[j]); j += 1 }
+                    }
+                }
+                attrs.append((key.lowercased(), value))
+            }
+            guard j < c.count else { emit("&lt;"); i += 1; continue }   // no `>`: it's text
+            i = j + 1
+            if let s = skipping {
+                if closing, name == s { skipping = nil }
+                continue
+            }
+            if droppedWithContent.contains(name) {
+                if !closing, c[j - 1] != "/" { skipping = name }
+                continue
+            }
+            guard allowedTags.contains(name) else { continue }
+            if closing { emit("</\(name)>"); continue }
+            var tag = "<" + name
+            for (key, raw) in attrs where allowedAttributes.contains(key) || key.hasPrefix("data-") {
+                // Decode entities before checking (`jav&#x61;script:`) and re-escape what was checked.
+                // Render markers are dropped so no generated HTML can land inside an attribute.
+                var value = decodeEntities(raw).replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "", options: .regularExpression)
+                if key == "href" || key == "cite" {
+                    guard let v = safeURL(value, schemes: linkSchemes) else { continue }
+                    value = v
+                } else if key == "src" || key == "poster" {
+                    guard let v = safeURL(value, schemes: mediaSchemes) else { continue }
+                    value = v
+                } else if key.hasPrefix("data-"), key.unicodeScalars.contains(where: { !($0.properties.isAlphabetic || $0.properties.numericType != nil || $0 == "-") }) {
+                    continue
+                }
+                tag += " \(key)=\"\(escape(value))\""
+            }
+            emit(tag + ">")
+        }
+        return String(out)
+    }
+
+    /// Numeric references (with or without `;`) and the basic named ones; anything else stays literal and gets
+    /// re-escaped, so the browser sees exactly what was checked.
+    static func decodeEntities(_ s: String) -> String {
+        guard s.contains("&") else { return s }
+        let named = ["amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": "\u{A0}"]
+        return s.replacing(/&(#[xX][0-9A-Fa-f]+|#[0-9]+|[A-Za-z]+);?/) { m -> String in
+            let body = String(m.1)
+            if body.hasPrefix("#") {
+                let hex = body.dropFirst().first.map { $0 == "x" || $0 == "X" } ?? false
+                let digits = body.dropFirst(hex ? 2 : 1)
+                guard let n = UInt32(digits, radix: hex ? 16 : 10), n != 0, let u = Unicode.Scalar(n) else { return "\u{FFFD}" }
+                return String(Character(u))
+            }
+            return named[body] ?? String(m.0)
+        }
     }
 
     static func full(_ s: String) -> NSRange { NSRange(location: 0, length: (s as NSString).length) }
@@ -295,7 +413,8 @@ struct HTMLWalker: MarkupWalker {
         let dest = l.destination ?? ""
         let isExternal = dest.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
         if isExternal {
-            result += "<a class=\"external-link\" href=\"\(esc(dest))\">\(inner(l))</a>"
+            let href = HTMLRenderer.safeURL(dest, schemes: HTMLRenderer.linkSchemes).map { " href=\"\(esc($0))\"" } ?? ""
+            result += "<a class=\"external-link\"\(href)>\(inner(l))</a>"
         } else {
             let decoded = dest.removingPercentEncoding ?? dest
             let parts = decoded.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
@@ -307,7 +426,8 @@ struct HTMLWalker: MarkupWalker {
     mutating func visitImage(_ i: Markdown.Image) {
         let src = i.source ?? ""
         let isExternal = src.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
-        let url = isExternal ? src : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? src)
+        let url = isExternal ? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? ""
+            : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? "")
         result += "<img src=\"\(esc(url))\" alt=\"\(esc(i.plainText))\" loading=\"lazy\">"
     }
 

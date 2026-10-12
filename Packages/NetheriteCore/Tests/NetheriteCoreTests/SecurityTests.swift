@@ -68,3 +68,45 @@ private func renderPlain(_ md: String) -> String {
     #expect(html.contains("new:Note 7999"))
     #expect(Date().timeIntervalSince(start) < 2)
 }
+
+// MARK: N-05 · XSS
+
+@Test func renderBlocksScriptURLs() {
+    let html = renderPlain("[x](javascript:alert(1)) [y](JaVaScript:alert(1)) ![i](javascript:alert(1)) [ok](https://a.com) [m](mailto:a@b.c)")
+    #expect(!html.lowercased().contains("javascript:"))
+    #expect(html.contains("href=\"https://a.com\"") && html.contains("href=\"mailto:a@b.c\""))
+}
+
+@Test func sanitizeUsesAllowlist() {
+    let cases = [
+        "<img src=x/onerror=alert(1)>",
+        "<img src=x onerror=alert(1)>",
+        "<img/onerror=alert(1) src=x>",
+        "<a href=\"jav&#x61;script:alert(1)\">a</a>",
+        "<a href=\"jav&#97script:alert(1)\">a</a>",
+        "<a href=\"java\tscript:alert(1)\">a</a>",
+        "<a href=\"javascript&colon;alert(1)\">a</a>",
+        "<form action=\"javascript:alert(1)\"><button>go</button></form>",
+        "<svg onload=alert(1)><script>alert(1)</script></svg>",
+        "<iframe src=\"javascript:alert(1)\"></iframe>",
+        "<scr<script>ipt>alert(1)</script>",
+        "<div style=\"x\" onclick=\"alert(1)\" data-ok=\"1\">t</div>",
+        "<a href='https://ok.com' onmouseover='x'>ok</a>",
+        "<object data=\"x\"></object><embed src=\"x\"><meta http-equiv=\"refresh\" content=\"0;url=javascript:alert(1)\">",
+    ]
+    for c in cases {
+        let out = HTMLRenderer.sanitize(c).lowercased()
+        // An inert `src="x/onerror=…"` value is fine; an event-handler attribute is not.
+        #expect(!out.contains("javascript:") && !out.contains(/\son[a-z]+=/) && !out.contains("<script") && !out.contains("<form") && !out.contains("<svg")
+                && !out.contains("<iframe") && !out.contains("<meta") && !out.contains("<object"), "\(c) → \(out)")
+    }
+    #expect(HTMLRenderer.sanitize("<div style=\"x\" onclick=\"y\" data-ok=\"1\">t</div>") == "<div style=\"x\" data-ok=\"1\">t</div>")
+    #expect(HTMLRenderer.sanitize("<b>bold</b> a < b <br/>") == "<b>bold</b> a &lt; b <br>")
+    #expect(HTMLRenderer.sanitize("<a href=\"x\" title=\"\u{E000}0\u{E001}\">") == "<a href=\"x\" title=\"0\">")
+}
+
+@Test func pagesCarryCSP() {
+    let page = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "nth://web/", initialSubpath: "a", extraBody: "<script>1</script>")
+    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth: file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
+    #expect(!page.contains("<script>"))   // every script of ours carries the nonce
+}
