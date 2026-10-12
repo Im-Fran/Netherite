@@ -100,9 +100,10 @@ public enum HTMLRenderer {
             return token(link.isEmbed ? embed(link, ctx) : anchor(link, ctx))
         }
         // `==` and tags are matched with link destinations and titles blanked, so an `==` inside `[a](b "x==y")` can't
-        // pair with (and swallow) a highlight after the link.
+        // pair with (and swallow) a highlight after the link. They're filled with U+FFFC, not spaces, so the link still
+        // counts as text: `==see [a](b)==` closes after it and `[x](y)#t` isn't a tag.
         var unlinkedUnits = Array(masked.utf16)
-        for r in linkTargets.rangeView { NoteParser.blank(&unlinkedUnits, NSRange(r)) }
+        for r in linkTargets.rangeView { NoteParser.blank(&unlinkedUnits, NSRange(r), with: 0xFFFC) }
         let unlinked = String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count)
         add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: unlinked) { m in
             token("<mark>", source: "==") + ns.substring(with: m.range(at: 2)) + token("</mark>", source: "==")

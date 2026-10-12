@@ -133,7 +133,7 @@ public enum Frontmatter {
 
     /// Quotes a scalar only when YAML would otherwise change its meaning.
     static func scalar(_ s: String) -> String {
-        let out = (try? Yams.dump(object: s, allowUnicode: true))?.trimmingCharacters(in: .newlines) ?? s
+        let out = (try? Yams.dump(object: s, width: -1, allowUnicode: true))?.trimmingCharacters(in: .newlines) ?? s
         return out.hasSuffix("\n...") ? String(out.dropLast(4)) : out
     }
 
