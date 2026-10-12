@@ -9,18 +9,19 @@ final class NetheriteSchemeHandler: NSObject, WKURLSchemeHandler {
     init(vault: Vault) { self.vault = vault }
 
     func webView(_ webView: WKWebView, start task: any WKURLSchemeTask) {
-        guard let url = task.request.url, let host = url.host() else { return fail(task) }
+        // Only our own rendered pages (loaded as nth://web/) may read vault files.
+        guard let url = task.request.url, let host = url.host(), task.request.mainDocumentURL?.scheme == "nth" else { return fail(task) }
         let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let file: URL?
         switch host {
-        case "web": file = HTMLRenderer.webResources?.appending(path: rel)
+        case "web": file = HTMLRenderer.webResources.map { Vault(root: $0).url(for: rel) }   // confined like vault paths
         case "vault": file = vault.url(for: rel)
         default: file = nil
         }
         guard let file, let data = try? Data(contentsOf: file) else { return fail(task) }
         let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         task.didReceive(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-                                        headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)", "Access-Control-Allow-Origin": "*"])!)
+                                        headerFields: ["Content-Type": mime, "Content-Length": "\(data.count)"])!)
         task.didReceive(data)
         task.didFinish()
     }
@@ -91,6 +92,10 @@ struct HTMLWebView {
             #else
             newPane = false
             #endif
+            // The web viewer shows remote pages: only http(s) there, and never the app's own actions.
+            if parent.onNavigate != nil {
+                return ["http", "https", "about", "blob", "data"].contains(url.scheme?.lowercased() ?? "") ? .allow : .cancel
+            }
             if url.scheme == "nth" {
                 let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 switch url.host() {
@@ -130,7 +135,7 @@ struct HTMLWebView {
         }
 
         func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+            guard message.frameInfo.securityOrigin.protocol == "nth", let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
             if type == "task", let line = body["line"] as? Int { parent.onAction(.task(line: line)) }
             if type == "hover", let href = body["href"] as? String, let url = URL(string: href), url.host() == "open" {
                 let rel = url.path(percentEncoded: false).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -145,8 +150,11 @@ struct HTMLWebView {
 
     func makeWebView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(NetheriteSchemeHandler(vault: vault), forURLScheme: "nth")
-        config.userContentController.add(WeakHandler(context.coordinator), name: "netherite")
+        // The web viewer (`url`) gets neither vault access nor the message bridge.
+        if url == nil {
+            config.setURLSchemeHandler(NetheriteSchemeHandler(vault: vault), forURLScheme: "nth")
+            config.userContentController.add(WeakHandler(context.coordinator), name: "netherite")
+        }
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
         #if os(macOS)
