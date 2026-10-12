@@ -66,3 +66,11 @@ import Yams
     #expect(out.contains("Año 2026"))
     #expect(!out.contains(#"\x"#))
 }
+
+// R15-01: one stray quote elsewhere doesn't keep every emoji escaped.
+@Test func strayQuoteDoesNotBlockLiteralEmoji() throws {
+    let yaml = "filters: 'width == \"5'\nproperties:\n  note.a:\n    displayName: \"Á 🎉\"\nviews:\n  - type: table\n    name: Próximos 🎉\n    note: a \"b\n"
+    let out = BaseFile.parse(yaml).yaml
+    #expect(!out.contains(#"\U0001F389"#))
+    #expect(BaseFile.parse(out).yaml == out)
+}
