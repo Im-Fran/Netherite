@@ -138,8 +138,8 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Onboarding tour, start page, a guide vault that teaches every feature, and feature tips.
 - English and Spanish localization.
 
-[Unreleased]: https://github.com/Im-Fran/Netherite/compare/0.1.1+13...HEAD
-[0.1.1+13]: https://github.com/Im-Fran/Netherite/compare/0.1.0+10...0.1.1+13
+[Unreleased]: https://github.com/Im-Fran/Netherite/compare/v0.1.1+13...HEAD
+[0.1.1+13]: https://github.com/Im-Fran/Netherite/compare/0.1.0+10...v0.1.1+13
 [0.1.0+10]: https://github.com/Im-Fran/Netherite/compare/0.1.0+9...0.1.0+10
 [0.1.0+9]: https://github.com/Im-Fran/Netherite/compare/0.1.0+8...0.1.0+9
 [0.1.0+8]: https://github.com/Im-Fran/Netherite/compare/0.1.0+7...0.1.0+8
