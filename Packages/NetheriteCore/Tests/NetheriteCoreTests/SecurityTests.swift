@@ -124,6 +124,14 @@ private func renderPlain(_ md: String) -> String {
     #expect(Date().timeIntervalSince(start) < 2)
 }
 
+// R3-06: also when the only `>` sits inside a quote that never closes.
+@Test func sanitizeIsLinearWithAnUnclosedQuote() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<b>x</b>" + String(repeating: "<a ", count: 20_000) + "x=\">")
+    #expect(out == "<b>x</b>" + String(repeating: "&lt;a ", count: 20_000) + "x=\">")
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
 @Test func renderIsLinearInLinks() {
     let md = (0..<8000).map { "[[Note \($0)]]" }.joined(separator: " ")
     let start = Date()

@@ -302,7 +302,12 @@ public enum HTMLRenderer {
                 }
                 attrs.append((key.lowercased(), value))
             }
-            guard j < c.count else { emit("&lt;"); i += 1; continue }   // no `>`: it's text
+            // No `>` outside a quote up to the end: the HTML tokenizer would read all of it as this tag, so every
+            // later `<` would scan to the end too. The rest is text, in one go.
+            guard j < c.count else {
+                emit(String(String.UnicodeScalarView(c[i...])).replacingOccurrences(of: "<", with: "&lt;"))
+                break
+            }
             i = j + 1
             if let s = skipping {
                 if closing, name == s { skipping = nil }
