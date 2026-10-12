@@ -9,3 +9,10 @@ import Testing
     #expect(parsed.tags == ["tag"])
     #expect(NoteParser.parse("[a](b 'x\ny')").links.map(\.target) == ["b"])
 }
+
+// R4-14: rewriting a Markdown link on rename keeps its title.
+@Test func renameKeepsMarkdownLinkTitle() {
+    let text = "See [x](Old.md 'Tip') and [y](Old.md#H \"T2\")\n"
+    let out = VaultIndex.rewriteLinks(in: text, parsed: NoteParser.parse(text), newTarget: { _ in "New.md" }, linkText: { $0 })
+    #expect(out == "See [x](New.md 'Tip') and [y](New.md#H \"T2\")\n")
+}

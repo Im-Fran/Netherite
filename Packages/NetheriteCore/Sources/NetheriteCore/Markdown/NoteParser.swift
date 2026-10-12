@@ -203,8 +203,8 @@ public enum NoteParser {
 
     enum Regex {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
-        /// A title may wrap onto the next line but, like any inline, never crosses a blank line.
-        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?(?:[ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*"|'(?:[^'\n]|\n(?![ \t]*\n))*'|\((?:[^)\n]|\n(?![ \t]*\n))*\)))?\)"#)
+        /// Groups: 1 `!`, 2 text, 3 destination, 4 title with its leading space. A title may wrap onto the next line but, like any inline, never crosses a blank line.
+        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?([ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*"|'(?:[^'\n]|\n(?![ \t]*\n))*'|\((?:[^)\n]|\n(?![ \t]*\n))*\)))?\)"#)
         /// A link reference definition (`[r]: #Intro 'T'`); not a footnote (`[^1]: …`).
         static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$"#, options: .anchorsMatchLines)
         static let tag = try! NSRegularExpression(pattern: #"(?:^|(?<=[\s(\[{,]))#([\p{L}\p{N}_\-/]+)"#, options: .anchorsMatchLines)
