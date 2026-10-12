@@ -243,14 +243,21 @@ final class AppModel {
         let access = source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
         let target = docs.appending(path: Vault(root: docs).availablePath(folder: "", base: recent.name, ext: ""), directoryHint: .isDirectory)
-        close(recent.path)
+        open[recent.path]?.flushAll()
         try await Task.detached {
             try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
             try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
         }.value
+        // Close only once the vault is at its new place and listed there: windows showing it follow `relocated`
+        // as soon as it closes, and reopen it from `recents` (a failed move leaves it open where it was).
         recents.removeAll { $0.path == recent.path }
         relocated[recent.path] = Self.key(target)
         touch(target, bookmark: makeBookmark(target))
+        // Clips, widgets and Shortcuts follow it too, even when no window reopens it.
+        SharedVault.withdraw(recent.path, replacingWith: SharedVault(name: target.lastPathComponent, path: Self.key(target),
+            bookmark: try? target.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
+        WidgetCenter.shared.reloadAllTimelines()
+        close(recent.path)
         await refreshStorage([Self.key(target)])
     }
 
