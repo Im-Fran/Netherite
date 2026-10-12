@@ -126,7 +126,8 @@ extension WindowState {
     func openURL(_ string: String) {
         var s = string.trimmingCharacters(in: .whitespaces)
         if !s.contains("://") { s = "https://" + s }
-        if let url = URL(string: s) { open(.web(url)) }
+        // Web pages only: file:// or nth:// would reach local files and the app's own handlers.
+        if let url = URL(string: s), ["http", "https"].contains(url.scheme?.lowercased()) { open(.web(url)) }
     }
 }
 

@@ -10,8 +10,19 @@ public struct Vault: Sendable, Hashable {
     public var name: String { root.lastPathComponent }
     public var configURL: URL { root.appending(path: Self.configFolder, directoryHint: .isDirectory) }
 
+    /// Every path is confined to `root`: `..` can't climb above it and `.`, empty or leading `/` components are dropped.
     public func url(for path: String) -> URL {
-        path.isEmpty ? root : root.appending(path: path)
+        let clean = Self.normalize(path)
+        return clean.isEmpty ? root : root.appending(path: clean)
+    }
+
+    /// Lexically resolves `.`/`..` and drops empty components, clamping at the vault root.
+    public static func normalize(_ path: String) -> String {
+        var parts: [Substring] = []
+        for c in path.split(separator: "/") where c != "." {
+            if c == ".." { _ = parts.popLast() } else { parts.append(c) }
+        }
+        return parts.joined(separator: "/")
     }
 
     public func relativePath(of url: URL) -> String {
@@ -93,7 +104,7 @@ public struct Vault: Sendable, Hashable {
         func make(_ n: Int) -> String {
             let name = n == 0 ? base : "\(base) \(n)"
             let file = ext.isEmpty ? name : "\(name).\(ext)"
-            return folder.isEmpty ? file : "\(folder)/\(file)"
+            return Self.normalize(folder.isEmpty ? file : "\(folder)/\(file)")
         }
         var n = 0
         while exists(make(n)) { n += 1 }

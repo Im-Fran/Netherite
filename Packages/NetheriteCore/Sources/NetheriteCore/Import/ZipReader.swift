@@ -81,6 +81,8 @@ public struct ZipReader {
     /// Raw DEFLATE (Apple's COMPRESSION_ZLIB is headerless deflate).
     static func inflate(_ input: Data, expected: Int) throws -> Data {
         if expected == 0 { return Data() }
+        // DEFLATE tops out around 1032:1, so a bigger claimed size is a damaged or hostile header.
+        guard !input.isEmpty, expected <= input.count * 1032 + 1024 else { throw ZipError.corrupt }
         var out = Data(count: expected)
         let n = out.withUnsafeMutableBytes { dst in
             input.withUnsafeBytes { src in
@@ -93,12 +95,20 @@ public struct ZipReader {
     }
 
     /// All files as (path, data), expanding ZIPs nested inside (Notion exports wrap parts in inner zips).
-    public func files() throws -> [(path: String, data: Data)] {
+    /// Nesting and the total expanded size are capped so a ZIP bomb can't exhaust memory.
+    public func files(maxTotalSize: Int = 2 << 30) throws -> [(path: String, data: Data)] {
+        var budget = maxTotalSize
+        return try files(depth: 0, budget: &budget)
+    }
+
+    private func files(depth: Int, budget: inout Int) throws -> [(path: String, data: Data)] {
         var out: [(String, Data)] = []
         for e in entries {
+            budget -= e.size
+            guard budget >= 0 else { throw ZipError.corrupt }
             let d = try read(e)
-            if e.path.lowercased().hasSuffix(".zip"), let inner = try? ZipReader(data: d) {
-                out += try inner.files()
+            if depth < 4, e.path.lowercased().hasSuffix(".zip"), let inner = try? ZipReader(data: d) {
+                out += try inner.files(depth: depth + 1, budget: &budget)
             } else {
                 out.append((e.path, d))
             }

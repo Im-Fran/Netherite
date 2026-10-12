@@ -143,7 +143,10 @@ public enum SiteExporter {
     /// "Books/Thinking, Fast and Slow.md" → "books/thinking-fast-and-slow.html"
     // ponytail: two notes that slug to the same name collide; add a numeric suffix map if that shows up.
     public nonisolated static func pagePath(_ path: String) -> String {
-        let parts = (path as NSString).deletingPathExtension.split(separator: "/").map { slug(String($0)) }
+        var parts = (path as NSString).deletingPathExtension.split(separator: "/").map { slug(String($0)) }
+        // Notes can't take the site's own pages (index, 404, graph) or folders (assets, files, tags).
+        let reserved: Set = parts.count == 1 ? ["index", "404", "graph"] : ["assets", "files", "tags"]
+        if let first = parts.first, reserved.contains(first) { parts[0] = first + "-note" }
         return parts.joined(separator: "/") + ".html"
     }
 

@@ -294,7 +294,10 @@ public struct BaseEvalContext {
         case "title": return v == .null ? .null : .string(v.description.capitalized)
         case "trim": return .string(v.description.trimmingCharacters(in: .whitespacesAndNewlines))
         case "toString": return .string(v.description)
-        case "toFixed": return v.number.map { .string(String(format: "%.\(Int(a0?.number ?? 0))f", $0)) } ?? .null
+        case "toFixed":
+            // `Int(_:)` traps on NaN/huge values, so clamp the digits first.
+            let digits = a0?.number.map { $0.isFinite ? Int(min(max($0, 0), 20)) : 0 } ?? 0
+            return v.number.map { .string(String(format: "%.\(digits)f", $0)) } ?? .null
         case "round":
             let p = pow(10, a0?.number ?? 0)
             return v.number.map { .number(($0 * p).rounded() / p) } ?? .null
