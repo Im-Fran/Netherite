@@ -59,6 +59,14 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Notion and Evernote imports link to the right page or image when names repeat, and HTML imports keep literal text such as `<b>` or `# ` as text.
 - Date templates and daily notes always use the Gregorian calendar and Western digits, matching Obsidian.
 - Renaming a note keeps the titles of Markdown links to it.
+- Editing a property no longer erases a note's other properties when its frontmatter isn't valid YAML; Netherite asks you to fix it first.
+- Note names can't start with a dot, so new, renamed, imported and daily notes never end up hidden.
+- Vault settings, bookmarks and themes changed on another device appear without reopening the vault, and saving them keeps those changes.
+- Moving a vault to iCloud Drive no longer leaves a copy of new edits at the old location, and Settings keeps showing the moved vault.
+- Reading view keeps your scroll position when a note changes, and outline, block and footnote jumps work there.
+- Imports keep links working when folder names contain `#` or brackets, and HTML imports keep `---`, `~~~`, `%%` and `$` as text.
+- Task search operators match the task state and tasks in numbered lists; highlights after link titles render, and tags inside link text stay plain text.
+- Counts such as "1 day" and "1 attendee" use the singular in English and Spanish.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
@@ -66,6 +74,7 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Web pages opened in the web viewer can no longer read vault files.
 - `netherite://` links only open vaults you have already opened.
 - Published sites pin their scripts by hash, and notes can't load scripts from the vault.
+- Published sites no longer include `%%comments%%` in their search index.
 
 ## [0.1.1+13] - 2026-10-11
 
