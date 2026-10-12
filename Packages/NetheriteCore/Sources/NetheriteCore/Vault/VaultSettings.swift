@@ -92,10 +92,10 @@ public extension Vault {
     /// `stableID`, telling a copy of a vault from a moved one: `ledger` is a device-local folder that records which
     /// folder holds each ID. When that folder still exists with the same ID, this one is a copy and gets its own.
     func stableID(ledger: URL) -> String {
-        let path = Self.canonicalPath(root)
+        let path = Self.canonicalRoot(root)
         var id = stableID
         if let owner = try? String(contentsOf: ledger.appending(path: id + ".owner"), encoding: .utf8),
-           Self.canonicalPath(URL(filePath: owner)) != path,
+           Self.canonicalRoot(URL(filePath: owner)) != path,
            Vault(root: URL(filePath: owner, directoryHint: .isDirectory)).storedID == id {
             id = newStableID()
         }
@@ -118,7 +118,7 @@ public extension Vault {
         // can't keep one. Either way an ID from the path stays the same on every call.
         let placeholder = configURL.appending(path: ".id.json.icloud").path(percentEncoded: false)
         guard !FileManager.default.fileExists(atPath: placeholder), saveConfig("id.json", id) else {
-            return Data(SHA256.hash(data: Data(Self.canonicalPath(root).utf8))).withUnsafeBytes {
+            return Data(SHA256.hash(data: Data(Self.canonicalRoot(root).utf8))).withUnsafeBytes {
                 UUID(uuid: $0.loadUnaligned(as: uuid_t.self)).uuidString
             }
         }
@@ -126,7 +126,7 @@ public extension Vault {
     }
 
     /// One spelling per folder (symlinks resolved, no trailing `/`), so the ledger and the hash compare paths, not text.
-    private static func canonicalPath(_ url: URL) -> String {
+    private static func canonicalRoot(_ url: URL) -> String {
         let path = url.resolvingSymlinksInPath().path(percentEncoded: false)
         return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
     }
