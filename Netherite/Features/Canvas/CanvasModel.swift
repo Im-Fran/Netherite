@@ -237,6 +237,7 @@ final class CanvasModel {
     @ObservationIgnored private var editSnapshot: JSONCanvas?
 
     func beginEditing(_ id: String) {
+        if editing != nil { endEditing() }
         editSnapshot = canvas
         selection = [id]
         editing = id
@@ -249,6 +250,16 @@ final class CanvasModel {
     }
 
     func endEditing() {
+        // An empty text card is dropped instead of being saved as `"text": ""`.
+        if let id = editing, let i = canvas.nodes.firstIndex(where: { $0.id == id }), canvas.nodes[i].type == "text",
+           (canvas.nodes[i].text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            canvas.nodes.remove(at: i)
+            canvas.edges.removeAll { $0.fromNode == id || $0.toNode == id }
+            selection.remove(id)
+            scheduleSave()
+            // A card that was empty before editing (just added) leaves no "Edit card" step to undo.
+            if (editSnapshot?.node(id)?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { editSnapshot = nil }
+        }
         if let before = editSnapshot, before != canvas { registerUndo("Edit card", restoring: before) }
         editSnapshot = nil
         editing = nil
