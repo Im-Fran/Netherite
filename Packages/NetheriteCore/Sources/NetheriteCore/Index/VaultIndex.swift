@@ -182,7 +182,11 @@ public final class VaultIndex {
         for oldSource in affected {
             let source = movedMap[oldSource] ?? oldSource
             guard var rec = notes[source] else { continue }
-            if !skipping.contains(oldSource), let disk = Self.record(vault, source), disk.modified != rec.modified { rec = disk; notes[source] = disk }
+            if !skipping.contains(oldSource) {
+                // Gone from disk (deleted elsewhere, or evicted to an iCloud placeholder): writing would recreate it.
+                guard let disk = Self.record(vault, source) else { notes[source] = nil; files.removeAll { $0 == source }; continue }
+                if disk.modified != rec.modified { rec = disk; notes[source] = disk }
+            }
             let text = Self.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
                 guard !link.target.isEmpty, let target = oldResolver.resolve(link.target, from: oldSource),
                       let newTarget = movedMap[target] else { return nil }
