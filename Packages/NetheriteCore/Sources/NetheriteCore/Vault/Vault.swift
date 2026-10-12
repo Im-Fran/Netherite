@@ -89,7 +89,16 @@ public struct Vault: Sendable, Hashable {
         var result: Result<Void, Error> = .success(())
         var coordError: NSError?
         NSFileCoordinator().coordinate(writingItemAt: target, options: .forReplacing, error: &coordError) { u in
-            result = Result { try data.write(to: u, options: .atomic) }
+            // Replacing (not `.atomic`, which swaps in a new file) keeps the existing file's creation date.
+            result = Result {
+                let fm = FileManager.default
+                guard fm.fileExists(atPath: u.path(percentEncoded: false)) else { return try data.write(to: u, options: .atomic) }
+                let dir = try fm.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: u, create: true)
+                defer { try? fm.removeItem(at: dir) }
+                let temp = dir.appending(path: u.lastPathComponent)
+                try data.write(to: temp)
+                _ = try fm.replaceItemAt(u, withItemAt: temp)
+            }
         }
         if let coordError { throw coordError }
         try result.get()

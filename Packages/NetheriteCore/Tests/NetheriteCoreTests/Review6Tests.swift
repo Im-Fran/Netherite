@@ -65,3 +65,15 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(html.contains("secret"))
     #expect(!html.contains("<mark>"))
 }
+
+// R6-06: saving a note keeps its creation date.
+@Test func writeKeepsCreationDate() throws {
+    let vault = tempVault()
+    try vault.write("one", to: "A.md")
+    let created = { try vault.url(for: "A.md").resourceValues(forKeys: [.creationDateKey]).creationDate }
+    let before = try created()
+    Thread.sleep(forTimeInterval: 1.1)
+    try vault.write("two", to: "A.md")
+    #expect(try created() == before)
+    #expect(try vault.read("A.md") == "two")
+}
