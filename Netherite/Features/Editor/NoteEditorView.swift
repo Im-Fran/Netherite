@@ -93,7 +93,7 @@ struct NoteEditorView: View {
     /// Rendered math/Mermaid/note-embed previews; re-styles the editor when a render finishes.
     private func blockImage(_ kind: EditorStyler.BlockKind) -> PlatformImage? {
         let renderer = BlockRenderer.shared
-        renderer.vault = model.vault
+        let vault = model.vault
         let width = controller.textWidth
         let fontSize = EditorStyler(theme: theme).baseSize
         let dark = colorScheme == .dark
@@ -102,20 +102,20 @@ struct NoteEditorView: View {
         let css = HTMLRenderer.themeCSS(model.theme) + (A11y.shared.highContrast ? HTMLRenderer.increasedContrastCSS : "")
         switch kind {
         case .math(let tex):
-            return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, vault: vault, onReady: done)
         case .mermaid(let src):
-            return renderer.image(.mermaid, source: src, width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.mermaid, source: src, width: width, dark: dark, fontSize: fontSize, vault: vault, onReady: done)
         case .noteEmbed(let raw):
             let inner = raw.trimmingCharacters(in: CharacterSet(charactersIn: "![]"))
             let link = NoteParser.splitWiki(inner, isEmbed: true)
             guard model.index.resolver.resolve(link.target, from: path) != nil else { return nil }
             let html = HTMLRenderer.embed(link, .app(model.index, source: path))
             // Re-render when the embedded note changes: its text is part of the cache key via the HTML.
-            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
+            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, css: css, vault: vault, onReady: done)
         case .markdown(let md):
             var ctx = RenderContext.app(model.index, source: path)
             ctx.interactiveTasks = false
-            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
+            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, css: css, vault: vault, onReady: done)
         }
     }
 
