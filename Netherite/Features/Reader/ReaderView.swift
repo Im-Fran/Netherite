@@ -103,9 +103,12 @@ struct PagePreview: View {
                                                    baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
                                                    increaseContrast: A11y.shared.highContrast, reduceMotion: A11y.shared.reduceMotion),
                             vault: window.model.vault, onAction: { window.handle($0, from: target) })
-            } else {
+            } else if ["canvas", "base"].contains(link.target.fileExtension) || LinkResolver.newNoteName(for: link.target) != nil {
                 ContentUnavailableView("“\(link.target)” doesn't exist yet", systemImage: "doc.badge.plus",
                                        description: Text("Click the link to create it."))
+            } else {
+                // Missing attachments aren't created on click (see WindowState.follow).
+                ContentUnavailableView("“\(link.target)” isn't in this vault.", systemImage: "questionmark.folder")
             }
         }
         .frame(width: 460, height: 340)
