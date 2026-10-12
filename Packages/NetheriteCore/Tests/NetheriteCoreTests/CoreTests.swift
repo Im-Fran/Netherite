@@ -277,3 +277,13 @@ Footnote here[^1].
     #expect(try JSONCanvas.parse(vault.read(spanish ? "Tablero guía.canvas" : "Guide board.canvas")).nodes.count == 3)
     try? FileManager.default.removeItem(at: dir)
 }
+
+// R2-11: parsing stays linear with many tags and links, on one line or many.
+@Test func parseIsLinearInTagsAndLinks() {
+    for sep in [" ", "\n"] {
+        let start = Date()
+        let parsed = NoteParser.parse(String(repeating: "[[x]] #t\(sep)", count: 20_000))
+        #expect(parsed.tags.count == 20_000 && parsed.links.count == 20_000)
+        #expect(Date().timeIntervalSince(start) < 2)
+    }
+}

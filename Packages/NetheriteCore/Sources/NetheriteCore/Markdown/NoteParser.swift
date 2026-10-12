@@ -76,7 +76,11 @@ public enum NoteParser {
         maskRegions(&units)
         let masked = String(utf16CodeUnits: units, count: units.count)
         let lineStarts = lineStartOffsets(units)
-        func line(at loc: Int) -> Int { max(0, lineStarts.lastIndex { $0 <= loc } ?? 0) }
+        func line(at loc: Int) -> Int {   // binary search: a scan per link is quadratic in long notes
+            var lo = 0, hi = lineStarts.count
+            while lo < hi { let mid = (lo + hi) / 2; if lineStarts[mid] <= loc { lo = mid + 1 } else { hi = mid } }
+            return max(0, lo - 1)
+        }
 
         // Links
         for m in Regex.wiki.matches(in: masked, range: NSRange(location: 0, length: units.count)) {
@@ -115,8 +119,10 @@ public enum NoteParser {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
         }
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
+        var linked = IndexSet()
+        for l in note.links { if let r = Range(l.range) { linked.insert(integersIn: r) } }
         for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
-        where !note.links.contains(where: { NSIntersectionRange($0.range, m.range).length > 0 }) {   // [[#Heading]], [x](#h)
+        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h)
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }
