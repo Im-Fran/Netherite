@@ -69,12 +69,17 @@ public extension Vault {
         return (try? JSONDecoder().decode(T.self, from: data)) ?? fallback
     }
 
-    func saveConfig<T: Encodable>(_ name: String, _ value: T) {
+    /// Writes a JSON config file to `.netherite/`, unless it already holds exactly that (every write is a sync,
+    /// and a possible conflict, in iCloud). Returns whether the file now holds `value`.
+    @discardableResult
+    func saveConfig<T: Encodable>(_ name: String, _ value: T) -> Bool {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? enc.encode(value) else { return }
+        guard let data = try? enc.encode(value) else { return false }
+        let url = configURL.appending(path: name)
+        if (try? Data(contentsOf: url)) == data { return true }
         try? FileManager.default.createDirectory(at: configURL, withIntermediateDirectories: true)
-        try? data.write(to: configURL.appending(path: name), options: .atomic)
+        return (try? data.write(to: url, options: .atomic)) != nil
     }
 
     var settings: VaultSettings { loadConfig("app.json", fallback: VaultSettings()) }

@@ -111,6 +111,17 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(UUID(uuidString: shared.stableID) != nil)
 }
 
+// R2-21: saving an unchanged config doesn't touch the file (no iCloud sync for nothing).
+@Test func saveConfigSkipsUnchangedFiles() throws {
+    let vault = Vault(root: tempDir())
+    #expect(vault.saveConfig("recent.json", ["a.md"]))
+    let url = vault.configURL.appending(path: "recent.json")
+    try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1000)], ofItemAtPath: url.path(percentEncoded: false))
+    #expect(vault.saveConfig("recent.json", ["a.md"]))
+    #expect(try url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate == Date(timeIntervalSince1970: 1000))
+    #expect(vault.saveConfig("recent.json", ["b.md"]) && vault.loadConfig("recent.json", fallback: [String]()) == ["b.md"])
+}
+
 @Test func vaultFolderNameIsOneFolder() {
     #expect(Vault.folderName(for: "  My Notes ") == "My Notes")
     #expect(Vault.folderName(for: "a/b") == "a-b")

@@ -58,7 +58,9 @@ struct SnapshotModifier: ViewModifier {
     @State private var lastPass = Date.distantPast
 
     func body(content: Content) -> some View {
-        content.task(id: model.settings.snapshotIntervalMinutes) {
+        content.task(id: [model.settings.snapshotIntervalMinutes, model.settings.isEnabled(.fileRecovery) ? 1 : 0]) {
+            // With File Recovery off there are no snapshots, so no vault ID gets written for them either.
+            guard model.settings.isEnabled(.fileRecovery) else { return }
             let store = SnapshotStore(vault: model.vault)
             store.prune(olderThan: model.settings.snapshotRetentionDays)
             while !model.index.isLoaded && !Task.isCancelled { try? await Task.sleep(for: .milliseconds(300)) }
