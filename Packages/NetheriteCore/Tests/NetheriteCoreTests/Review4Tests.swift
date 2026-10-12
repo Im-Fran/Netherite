@@ -92,3 +92,22 @@ import Testing
     #expect(Date().timeIntervalSince(start) < 1)
     #expect(md.hasPrefix("x"))
 }
+
+// R4-05: HTML text that looks like Markdown stays literal text.
+@Test func htmlTextIsEscaped() {
+    let md = HTMLToMarkdown().convert("<p>Use the &lt;b&gt; tag and 2 * 3 * 4, a_b, `x`, ==hi==, then [[x]]</p><p># not a heading</p><p>1. not a list</p><p>- nor this</p><p>Keep <b>bold</b> and C# 2.0</p>")
+    #expect(md == ##"""
+    Use the &lt;b\> tag and 2 \* 3 \* 4, a\_b, \`x\`, \=\=hi\=\=, then \[\[x\]\]
+
+    \# not a heading
+
+    1\. not a list
+
+    \- nor this
+
+    Keep **bold** and C# 2.0
+
+    """##)
+    let parsed = NoteParser.parse(md)
+    #expect(parsed.links.isEmpty && parsed.headings.isEmpty && parsed.tags.isEmpty)
+}
