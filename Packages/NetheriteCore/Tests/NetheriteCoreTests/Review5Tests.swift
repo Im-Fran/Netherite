@@ -78,3 +78,15 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     let html = HTMLRenderer.render(text, context: ctx)
     #expect(!html.contains("tag:inside") && html.contains("tag:outside"))
 }
+
+// R5-08: a new note never gets a hidden name, and an empty daily-note format falls back to yyyy-MM-dd.
+@Test func newNotesNeverHidden() throws {
+    #expect(Vault.noteName(for: ". .plan") == "plan")
+    #expect(!Vault.noteName(for: " .. ").isEmpty)
+    let vault = tempVault()
+    defer { try? FileManager.default.removeItem(at: vault.root) }
+    #expect(try vault.createNote(named: ".secret") == "secret.md")
+    var s = VaultSettings(); s.dailyNotes.format = ""; s.dailyNotes.folder = ""
+    let date = Templates.formatter("yyyy-MM-dd").date(from: "2026-10-12")!
+    #expect(Templates.dailyNotePath(for: date, settings: s) == "2026-10-12.md")
+}

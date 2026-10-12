@@ -100,7 +100,15 @@ public struct Vault: Sendable, Hashable {
     }
 
     /// Returns `folder/base.ext`, or `folder/base 1.ext`, `base 2.ext`… when taken.
+    /// A name that stays visible in the vault: leading dots (a hidden file, never listed or indexed) and spaces
+    /// are dropped, and an empty name becomes "Untitled".
+    public static func noteName(for name: String) -> String {
+        let n = name.replacingOccurrences(of: #"^[.\s]+"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? String(localized: "Untitled", bundle: .module) : n
+    }
+
     public func availablePath(folder: String, base: String, ext: String = "md") -> String {
+        let base = Self.noteName(for: base)
         func make(_ n: Int) -> String {
             let name = n == 0 ? base : "\(base) \(n)"
             let file = ext.isEmpty ? name : "\(name).\(ext)"

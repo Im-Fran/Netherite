@@ -62,7 +62,8 @@ public enum Templates {
     }
 
     public static func dailyNotePath(for date: Date, settings: VaultSettings) -> String {
-        let name = format(date, settings.dailyNotes.format)
+        let pattern = settings.dailyNotes.format.trimmingCharacters(in: .whitespaces)
+        let name = format(date, pattern.isEmpty ? "yyyy-MM-dd" : pattern)   // an empty name would be the hidden ".md"
         let folder = settings.dailyNotes.folder
         return (folder.isEmpty ? name : "\(folder)/\(name)") + ".md"
     }
