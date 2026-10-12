@@ -165,7 +165,7 @@ public struct BaseFile: Hashable, Sendable {
             for (k, frag) in v.extra.sorted(by: { $0.key < $1.key }) { if let n = try? Yams.compose(yaml: frag) { p.append((Node(k), n)) } }
             return Node(p)
         })))
-        return (try? Yams.serialize(node: Node(pairs))) ?? ""
+        return Frontmatter.unescapingAstral((try? Yams.serialize(node: Node(pairs), width: -1, allowUnicode: true)) ?? "")
     }
 
     // MARK: Querying

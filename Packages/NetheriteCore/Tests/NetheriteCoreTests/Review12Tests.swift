@@ -44,3 +44,25 @@ import Yams
     #expect(out.contains("🎉"))
     #expect(NoteParser.parse(out).properties.map(\.value) == props.map(\.value))
 }
+
+// R14-01: a literal `\U…` inside a `"` that isn't a double-quoted scalar is never rewritten.
+@Test func literalEscapesOutsideDoubleQuotesSurvive() throws {
+    let props = [Property(key: "k", value: .text(#"a "b \U0001F600 c" d"#)), Property(key: "n", value: .text(#"a "x \U0000000A y" z"#))]
+    let out = try Frontmatter.replacing(in: "B", with: props)
+    #expect(NoteParser.parse(out).properties.map(\.value) == props.map(\.value))
+    let t = "---\nbase: &d printf(\"\\U0001F600\")\nupdated: *d\n---\nT"
+    var p2 = NoteParser.parse(t).properties
+    let before = p2[1].value
+    p2[0].value = .text("hi")
+    #expect(NoteParser.parse(try Frontmatter.replacing(in: t, with: p2)).property("updated") == before)
+}
+
+// R14-02: bases keep accents and emoji literal and long expressions on one line.
+@Test func baseFileWritesUnicodeLiterally() throws {
+    let long = "file.inFolder(\"Proyectos/Año 2026\") && note.autor == \"José\" && note.estado == \"en curso 🎉\" && priority > 2"
+    let yaml = "filters: '\(long.replacingOccurrences(of: "'", with: "''"))'\nviews:\n  - type: table\n    name: Próximos 🎉\n"
+    let out = BaseFile.parse(yaml).yaml
+    #expect(out.contains("Próximos 🎉"))
+    #expect(out.contains("Año 2026"))
+    #expect(!out.contains(#"\x"#))
+}
