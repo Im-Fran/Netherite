@@ -142,7 +142,7 @@ struct AudioRecorderView: View {
         .task { await rec.start() }
         .onDisappear {
             // Closing the window (or another sheet replacing this one) mustn't lose the recording: save it.
-            if rec.recording || unsaved != nil { _ = save() } else { rec.cancel() }
+            if rec.recording || unsaved != nil { _ = save(inSheet: false) } else { rec.cancel() }
         }
     }
 
@@ -151,17 +151,21 @@ struct AudioRecorderView: View {
     }
 
     /// Saves the recording into the attachments folder and embeds it in the current note; false (with an error shown) on failure.
-    private func save() -> Bool {
+    /// Once the sheet has closed (`inSheet` false), errors go to the window's alert.
+    private func save(inSheet: Bool = true) -> Bool {
         guard let data = unsaved ?? rec.stop() else {
-            rec.error = String(localized: "The recording couldn't be read.")
+            let message = String(localized: "The recording couldn't be read.")
+            if inSheet { rec.error = message } else { window.model.lastError = message }
             return false
         }
         let name = String(localized: "Recording") + " " + Templates.format(.now, "yyyyMMddHHmmss")
         guard let path = window.model.saveAttachment(data, name: name, ext: "m4a") else {
             unsaved = data
             // Shown here instead of the window alert, which the sheet would hide.
-            rec.error = window.model.lastError ?? String(localized: "The recording couldn't be saved.")
-            window.model.lastError = nil
+            if inSheet {
+                rec.error = window.model.lastError ?? String(localized: "The recording couldn't be saved.")
+                window.model.lastError = nil
+            }
             return false
         }
         unsaved = nil
