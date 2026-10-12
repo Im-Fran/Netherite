@@ -77,7 +77,7 @@ public enum Frontmatter {
     static func value(of node: Node) -> PropertyValue {
         switch node {
         case .sequence(let seq): return .list(seq.compactMap { $0.string })
-        case .mapping: return .text((try? Yams.serialize(node: node)) ?? "")
+        case .mapping: return .text(unescapingAstral((try? Yams.serialize(node: node, width: -1, allowUnicode: true)) ?? ""))
         case .scalar(let s):
             // YAML 1.2 core schema: `no`/`yes` stay text, `012` is decimal and `1:20` isn't sexagesimal.
             if s.style == .plain {
@@ -133,8 +133,32 @@ public enum Frontmatter {
 
     /// Quotes a scalar only when YAML would otherwise change its meaning.
     static func scalar(_ s: String) -> String {
-        let out = (try? Yams.dump(object: s, width: -1, allowUnicode: true))?.trimmingCharacters(in: .newlines) ?? s
+        let out = unescapingAstral((try? Yams.dump(object: s, width: -1, allowUnicode: true))?.trimmingCharacters(in: .newlines) ?? s)
         return out.hasSuffix("\n...") ? String(out.dropLast(4)) : out
+    }
+
+    /// libyaml escapes characters outside the Basic Multilingual Plane (emoji) as `\\UXXXXXXXX` even with
+    /// `allowUnicode`; they are valid as-is in a double-quoted scalar, so write them literally.
+    /// Only double-quoted spans are touched (elsewhere `\\U` is literal text), and an escaped backslash is kept.
+    static func unescapingAstral(_ yaml: String) -> String {
+        guard yaml.contains("\\U") else { return yaml }
+        let quoted = try! NSRegularExpression(pattern: #""(?:[^"\\]|\\.)*""#)
+        let escape = try! NSRegularExpression(pattern: #"\\(?:(\\)|U([0-9A-Fa-f]{8}))"#)
+        let ns = yaml as NSString
+        var out = "", last = 0
+        for q in quoted.matches(in: yaml, range: NSRange(location: 0, length: ns.length)) {
+            out += ns.substring(with: NSRange(location: last, length: q.range.location - last))
+            var span = "", at = q.range.location
+            for e in escape.matches(in: yaml, range: q.range) {
+                span += ns.substring(with: NSRange(location: at, length: e.range.location - at))
+                if e.range(at: 2).location != NSNotFound, let v = UInt32(ns.substring(with: e.range(at: 2)), radix: 16),
+                   let c = Unicode.Scalar(v) { span += String(c) } else { span += ns.substring(with: e.range) }
+                at = NSMaxRange(e.range)
+            }
+            out += span + ns.substring(with: NSRange(location: at, length: NSMaxRange(q.range) - at))
+            last = NSMaxRange(q.range)
+        }
+        return out + ns.substring(from: last)
     }
 
     public struct InvalidYAML: LocalizedError, Sendable {
@@ -230,8 +254,8 @@ public enum Frontmatter {
             if let b = keys.first(where: { $0.key == p.key }), b.value == p.value {
                 // ponytail: `*` in a quoted string or comment counts as an alias too; that block only loses its comments.
                 if resolvingAliases, b.lines.contains(where: { $0.range(of: #"\*[^\s,\[\]{}]"#, options: .regularExpression) != nil }),
-                   let y = try? Yams.serialize(node: .mapping(Node.Mapping([(Node(b.key), b.node)]))) {
-                    out.append(y.replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression))
+                   let y = try? Yams.serialize(node: .mapping(Node.Mapping([(Node(b.key), b.node)])), width: -1, allowUnicode: true) {
+                    out.append(unescapingAstral(y).replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression))
                 } else {
                     out += b.lines
                 }
