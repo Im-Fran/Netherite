@@ -76,6 +76,10 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Highlights that wrap a wikilink or a formula render; imported `%` and `=` stay plain text unless they would form `%%` or `==`.
 - The "Open Notes in Reading View" setting now works (new notes still open for editing), slide tasks are read-only, and merging notes keeps edits made on other devices.
 - Edits that can't be saved after moving a vault to iCloud Drive are kept in File Recovery.
+- Notes that are symbolic links pick up outside edits, and moving another note no longer overwrites them.
+- With "Open Notes in Reading View", search results and backlinks still jump to the matching line; notes made without opening them (extracted selections, base entries) follow the setting.
+- Merging notes moves the source's properties into the target's frontmatter instead of leaving a second block in the text.
+- Imported HTML keeps a lone `=` line as text inside quotes and lists, and a tag right after inline math renders as a tag.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
