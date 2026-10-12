@@ -177,8 +177,10 @@ public enum Frontmatter {
             guard let i = merged.firstIndex(where: { $0.key.caseInsensitiveCompare(p.key) == .orderedSame }) else {
                 merged.append(p)
                 // A block indented as a whole (`  a: 1`) wouldn't sit at the target's top level.
+                // An alias whose anchor is outside the block could resolve against a same-named anchor in the target.
                 if let b = sourceBlocks.first(where: { $0.key == p.key }), b.lines.first?.first?.isWhitespace == false {
-                    verbatim[p.key] = b.lines.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
+                    let block = b.lines.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
+                    if (try? Yams.compose(yaml: block))?.mapping != nil { verbatim[p.key] = block }
                 }
                 continue
             }
