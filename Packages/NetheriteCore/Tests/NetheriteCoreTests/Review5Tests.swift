@@ -41,3 +41,17 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     let html = HTMLRenderer.render(md, context: ctx)
     #expect(html.contains("hidden") && html.contains("$5 and $6") && html.contains("~~gone~~") && !html.contains("<del>") && !html.contains("math"))
 }
+
+// R5-03: `%%comments%%` (and frontmatter, code, math) never reach the published search index.
+@MainActor @Test func publishedSearchSkipsComments() async throws {
+    let vault = tempVault()
+    try vault.write("---\nsecret: fm\n---\nHello %%private note%% world `code` $x^2$\n", to: "A.md")
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    let out = vault.root.appending(path: "site")
+    defer { try? FileManager.default.removeItem(at: vault.root) }
+    _ = try await SiteExporter.export(index, to: out)
+    let search = try String(contentsOf: out.appending(path: "search.json"), encoding: .utf8)
+    #expect(search.contains("Hello world"))
+    #expect(!search.contains("private") && !search.contains("secret") && !search.contains("code") && !search.contains("x^2"))
+}
