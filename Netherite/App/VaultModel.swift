@@ -58,8 +58,12 @@ final class VaultModel {
 
     /// Updates the index immediately and writes to disk after a short pause in typing.
     func edit(_ path: String, text: String) {
-        // A file moved or deleted outside this window must not be recreated at its old path.
-        guard !isGone(path) else { return }
+        // A file moved or deleted outside this window must not be recreated at its old path: say so and close it.
+        guard !isGone(path) else {
+            lastError = String(localized: "“\(path.noteName)” was moved or deleted outside Netherite, so its latest changes weren’t saved.")
+            for pane in panes { pane.removePath(path) }
+            return
+        }
         // On disk but not indexed yet (made by a widget, the Share Extension or an intent before the next refresh).
         // `isGone` matched the exact spelling, so this can't add a second record for a file the index has in other case.
         if index.isLoaded && !index.files.contains(path) { index.didCreate(path) }

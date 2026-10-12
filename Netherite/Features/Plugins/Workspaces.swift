@@ -22,7 +22,8 @@ extension WindowState {
     }
 
     func loadWorkspace(_ w: Workspace) {
-        let restored: [Pane] = w.panes.enumerated().map { i, d in
+        let restored: [Pane] = w.panes.enumerated().compactMap { i, d in
+            guard let d = canonical(d) else { return nil }
             let p = Pane()
             p.open(d)
             p.reading = w.readingModes.indices.contains(i) ? w.readingModes[i] : false
