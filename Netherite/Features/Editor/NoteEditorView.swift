@@ -33,7 +33,7 @@ struct NoteEditorView: View {
         .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
         .onChange(of: pane.reading) { jumpIfNeeded() }
-        .onDisappear { model.save(path); controller.isEditing = false }
+        .onDisappear { model.save(path); controller.isEditing = false; controller.isEditingTitle = false }
         .focusedSceneValue(\.editor, controller)
     }
 
@@ -137,7 +137,7 @@ struct NoteEditorView: View {
                 .textFieldStyle(.plain)
                 .focused($titleFocused)
                 .onSubmit(submitTitle)
-                .onChange(of: titleFocused) { if !titleFocused { commitTitle() } }
+                .onChange(of: titleFocused) { controller.isEditingTitle = titleFocused; if !titleFocused { commitTitle() } }
                 // A title is one line: Return (iOS inserts it in a vertical field) moves to the body, pasted breaks become spaces.
                 .onChange(of: title) {
                     guard title.contains(where: \.isNewline) else { return }

@@ -30,6 +30,8 @@ final class EditorController {
     var textWidth: CGFloat = 700
     /// True while the text view has keyboard focus (toolbar tips wait, so their popovers don't take the keystrokes).
     var isEditing = false
+    /// True while the note's inline title has keyboard focus (same reason as `isEditing`).
+    var isEditingTitle = false
     var completionIndex = 0
     var completionCount = 0
     @ObservationIgnored var acceptCompletion: (() -> Void)?
