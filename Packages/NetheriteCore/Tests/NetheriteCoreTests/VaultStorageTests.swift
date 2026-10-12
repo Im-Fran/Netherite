@@ -96,3 +96,12 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(try vault.read("In/Note.md") == "old")
     #expect(try vault.read("In/Dir/x.md") == "d")
 }
+
+@Test func vaultFolderNameIsOneFolder() {
+    #expect(Vault.folderName(for: "  My Notes ") == "My Notes")
+    #expect(Vault.folderName(for: "a/b") == "a-b")
+    #expect(Vault.folderName(for: "..") == nil)
+    #expect(Vault.folderName(for: "../x") == "-x")
+    #expect(Vault.folderName(for: ".hidden") == "hidden")
+    #expect(Vault.folderName(for: "  ") == nil)
+}

@@ -78,4 +78,11 @@ public extension Vault {
     }
 
     var settings: VaultSettings { loadConfig("app.json", fallback: VaultSettings()) }
+
+    /// A vault name as one folder name: separators become dashes and leading dots go (`..`, hidden folders); nil when empty.
+    static func folderName(for name: String) -> String? {
+        let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines).drop { $0 == "." }.trimmingCharacters(in: .whitespaces)
+        return clean.isEmpty ? nil : clean
+    }
 }

@@ -69,7 +69,9 @@ final class AppModel {
     // MARK: Opening
 
     func createVault(named name: String, in parent: URL) throws -> VaultModel {
-        let url = parent.appending(path: name, directoryHint: .isDirectory)
+        // One new folder: never a nested path, the parent itself (`..`) or an existing vault ("Notes 1" instead).
+        guard let base = Vault.folderName(for: name) else { throw CocoaError(.fileWriteInvalidFileName) }
+        let url = parent.appending(path: Vault(root: parent).availablePath(folder: "", base: base, ext: ""), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         let vault = Vault(root: url)
         if vault.allFiles().isEmpty {
