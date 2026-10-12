@@ -45,14 +45,15 @@ struct VaultProvider: TimelineProvider {
 
     private func entry() -> VaultEntry {
         let shared = SharedVault.current()
-        guard let vault = shared?.resolve() else {
-            return VaultEntry(date: .now, vaultName: nil, dailyTitle: "", dailyExcerpt: "", recents: [], unreachableVault: shared?.name)
+        // Holds folder access only while reading: the widget process lives on between timelines.
+        let entry = shared?.withVault { vault in
+            let daily = Templates.dailyNotePath(for: .now, settings: vault.settings)
+            let recents = SharedVault.recents().filter(vault.exists)
+            return VaultEntry(date: .now, vaultName: shared?.name, dailyTitle: daily.noteName,
+                              dailyExcerpt: vault.excerpt(daily, length: 400),
+                              recents: recents.isEmpty ? vault.searchTitles("", limit: 8) : recents, vaultPath: shared?.path)
         }
-        let daily = Templates.dailyNotePath(for: .now, settings: vault.settings)
-        let recents = SharedVault.recents().filter(vault.exists)
-        return VaultEntry(date: .now, vaultName: shared?.name, dailyTitle: daily.noteName,
-                          dailyExcerpt: vault.excerpt(daily, length: 400),
-                          recents: recents.isEmpty ? vault.searchTitles("", limit: 8) : recents, vaultPath: shared?.path)
+        return entry ?? VaultEntry(date: .now, vaultName: nil, dailyTitle: "", dailyExcerpt: "", recents: [], unreachableVault: shared?.name)
     }
 }
 
