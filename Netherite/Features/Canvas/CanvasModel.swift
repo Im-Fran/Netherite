@@ -245,7 +245,9 @@ final class CanvasModel {
 
     func setText(_ id: String, _ text: String) {
         guard let i = canvas.nodes.firstIndex(where: { $0.id == id }) else { return }
-        if canvas.nodes[i].type == "group" { canvas.nodes[i].label = text } else { canvas.nodes[i].text = text }
+        let group = canvas.nodes[i].type == "group"
+        guard (group ? canvas.nodes[i].label : canvas.nodes[i].text) ?? "" != text else { return }   // editor loading the text
+        if group { canvas.nodes[i].label = text } else { canvas.nodes[i].text = text }
         scheduleSave()
     }
 
