@@ -36,3 +36,13 @@ private func renderPlain(_ md: String) -> String {
     #expect(!FileManager.default.fileExists(atPath: vault.root.deletingLastPathComponent().appending(path: "escaped").path(percentEncoded: false)))
     try? FileManager.default.removeItem(at: vault.root)
 }
+
+// MARK: N-38 · hostile ZIPs fail instead of crashing
+
+@Test func zipRejectsBogusSizes() throws {
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader.inflate(Data(), expected: 10) }
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader.inflate(Data([1, 2]), expected: 1 << 40) }
+    let zip = try ZipReader(data: makeZip([("a.txt", Data("a".utf8)), ("b.txt", Data(repeating: 65, count: 5000))]))
+    #expect(throws: ZipReader.ZipError.self) { try zip.files(maxTotalSize: 1000) }
+    #expect(try zip.files().count == 2)
+}
