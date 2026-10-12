@@ -179,4 +179,9 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     // R2-18: dots and spaces mixed at the start go too.
     for name in [". .", ". ..", " . . ", ". .. "] { #expect(Vault.folderName(for: name) == nil, "\(name)") }
     #expect(Vault.folderName(for: " . .x") == "x")
+    // R3-10: a dot hidden in a grapheme or behind a zero-width space still goes.
+    for name in [".\u{301}notes", "\u{200B}..", "..\u{2060}x", "\u{200B}.hidden"] {
+        #expect(Vault.folderName(for: name)?.unicodeScalars.first != ".", "\(name.unicodeScalars.map(\.value))")
+    }
+    #expect(Vault.folderName(for: "\u{200B}..") == nil)
 }

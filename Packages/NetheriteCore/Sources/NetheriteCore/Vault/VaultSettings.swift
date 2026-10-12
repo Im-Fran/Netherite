@@ -133,8 +133,10 @@ public extension Vault {
 
     /// A vault name as one folder name: separators become dashes and leading dots go (`..`, hidden folders); nil when empty.
     static func folderName(for name: String) -> String? {
-        let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
-            .drop { $0 == "." || $0.isWhitespace }.trimmingCharacters(in: .whitespacesAndNewlines)   // `. ..` too
+        // By scalar and with the same set as the trim, so neither `.\u{301}` nor `\u{200B}.` can leave a dot in front.
+        let scalars = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+            .unicodeScalars.drop { $0 == "." || CharacterSet.whitespacesAndNewlines.contains($0) }   // `. ..` too
+        let clean = String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespacesAndNewlines)
         return clean.isEmpty ? nil : clean
     }
 }
