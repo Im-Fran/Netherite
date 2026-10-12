@@ -134,9 +134,10 @@ final class VaultModel {
 
     @discardableResult
     func newNote(in folder: String? = nil, named name: String? = nil, content: String = "") -> String? {
-        perform {
+        let base = name.map(Self.visibleName) ?? ""
+        return perform {
             try index.createNote(in: folder ?? settings.newNoteFolder,
-                                 named: name ?? String(localized: "Untitled", comment: "Default new note name"), content: content)
+                                 named: base.isEmpty ? String(localized: "Untitled", comment: "Default new note name") : base, content: content)
         }
     }
 
@@ -149,8 +150,8 @@ final class VaultModel {
     @discardableResult
     func rename(_ path: String, to newName: String) -> String? {
         // Line breaks (pasted into a title or rename field) must never reach the file name.
-        let clean = newName.split(whereSeparator: \.isNewline).joined(separator: " ")
-            .replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
+        let clean = Self.visibleName(newName.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .replacingOccurrences(of: "/", with: "-")).trimmingCharacters(in: .whitespaces)
         guard !clean.isEmpty else { return nil }
         let ext = path.fileExtension
         let isFolder = index.folders.contains(path)
@@ -210,6 +211,10 @@ final class VaultModel {
         let path = vault.availablePath(folder: settings.attachmentFolder, base: name, ext: ext)
         do { try vault.write(data, to: path); index.didCreate(path); return path } catch { lastError = error.localizedDescription; return nil }
     }
+
+    /// A name that starts with `.` makes a hidden file, which the vault never lists: drop the leading dots (and spaces).
+    // ponytail: local until the core's shared helper lands (R5-08).
+    private static func visibleName(_ name: String) -> String { String(name.drop { $0 == "." || $0.isWhitespace }) }
 
     private func perform<T>(_ body: () throws -> T) -> T? {
         do { return try body() } catch { lastError = error.localizedDescription; return nil }
