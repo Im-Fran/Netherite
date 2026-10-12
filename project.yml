@@ -22,7 +22,7 @@ packages:
     path: Packages/NetheriteCore
   OpenUpdater:
     url: https://github.com/Im-Fran/openupdater
-    revision: 2a9b09de2cc6dc0d5987a9f1c8595dc0dd79bbe4 # pinned; bump deliberately
+    revision: 8e6d0cce5c815f5d7592a91ebd805ba83c1de02a # pinned; bump deliberately
 targets:
   Netherite:
     type: application
