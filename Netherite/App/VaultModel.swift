@@ -6,7 +6,7 @@ import NetheriteCore
 final class VaultModel {
     let vault: Vault
     let index: VaultIndex
-    var settings: VaultSettings { didSet { if settings != oldValue { vault.saveConfig("app.json", settings) } } }
+    var settings: VaultSettings { didSet { if settings != oldValue, !reloadingConfig { vault.saveConfig("app.json", settings) } } }
     private(set) var themes: [Theme] = []
     /// The vault's chosen theme, as stored (what publishing and "Create Theme from Current" use).
     var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
@@ -19,7 +19,10 @@ final class VaultModel {
         }
     }
     private(set) var dirty: Set<String> = []
-    var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }
+    var bookmarks: [Bookmark] = [] { didSet { if !reloadingConfig { vault.saveConfig("bookmarks.json", bookmarks) } } }
+    /// Modification dates of the config read last, to reload it when another device or app changes it.
+    @ObservationIgnored private var configDates: [String: Date] = [:]
+    @ObservationIgnored private var reloadingConfig = false
     private var saveTasks: [String: Task<Void, Never>] = [:]
     private var watcher: VaultWatcher?
     /// Windows showing this vault, so file operations and external changes update every one of them.
@@ -27,6 +30,8 @@ final class VaultModel {
     /// Windows not in the background; the watcher runs while there is at least one.
     @ObservationIgnored private var foregroundWindows = Set<ObjectIdentifier>()
     var lastError: String?
+    /// While the vault folder is being moved: edits stay unsaved (in `dirty`) instead of recreating it at the old path.
+    @ObservationIgnored var savesPaused = false
 
     init(vault: Vault) {
         self.vault = vault
@@ -35,6 +40,7 @@ final class VaultModel {
         recentFiles = vault.loadConfig("recent.json", fallback: [String]())
         themes = vault.themes()
         bookmarks = vault.loadConfig("bookmarks.json", fallback: [Bookmark]())
+        for name in Self.reloadedConfig { configDates[name] = configDate(name) }
         Task.detached { [vault] in vault.downloadPlaceholders() }
         Task {
             await index.load()
@@ -79,7 +85,7 @@ final class VaultModel {
 
     func save(_ path: String) {
         saveTasks[path]?.cancel(); saveTasks[path] = nil
-        guard dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
+        guard !savesPaused, dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
         do {
             try vault.write(text, to: path)
             dirty.remove(path)
@@ -93,6 +99,7 @@ final class VaultModel {
 
     private func externalChange() async {
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
+        reloadConfigIfChanged()
         await index.refreshFromDisk(skipping: dirty)
         // Files moved or deleted outside Netherite: drop their unsaved edits (warning about them) and close them.
         let lost = dirty.filter(isGone)
@@ -103,6 +110,30 @@ final class VaultModel {
         guard index.isLoaded else { return }
         let files = Set(index.files)
         for pane in panes { pane.removeMissing(files) }
+    }
+
+    private static let reloadedConfig = ["app.json", "bookmarks.json", "themes"]
+
+    /// Latest modification date of a config file, or of a config folder and the files in it.
+    private func configDate(_ name: String) -> Date? {
+        let url = vault.configURL.appending(path: name)
+        let files = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return ([url] + files).compactMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }.max()
+    }
+
+    /// Picks up settings, bookmarks and themes changed elsewhere (iCloud, another app) without writing them back,
+    /// so a later change here doesn't overwrite them with stale values.
+    private func reloadConfigIfChanged() {
+        func changed(_ name: String) -> Bool {
+            let date = configDate(name)
+            defer { configDates[name] = date }
+            return date != configDates[name]
+        }
+        reloadingConfig = true
+        defer { reloadingConfig = false }
+        if changed("app.json"), case let s = vault.settings, s != settings { settings = s }
+        if changed("bookmarks.json"), case let b = vault.loadConfig("bookmarks.json", fallback: [Bookmark]()), b != bookmarks { bookmarks = b }
+        if changed("themes") { reloadThemes() }
     }
 
     /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
@@ -134,9 +165,10 @@ final class VaultModel {
 
     @discardableResult
     func newNote(in folder: String? = nil, named name: String? = nil, content: String = "") -> String? {
-        perform {
+        let base = name.map(Self.visibleName) ?? ""
+        return perform {
             try index.createNote(in: folder ?? settings.newNoteFolder,
-                                 named: name ?? String(localized: "Untitled", comment: "Default new note name"), content: content)
+                                 named: base.isEmpty ? String(localized: "Untitled", comment: "Default new note name") : base, content: content)
         }
     }
 
@@ -149,8 +181,8 @@ final class VaultModel {
     @discardableResult
     func rename(_ path: String, to newName: String) -> String? {
         // Line breaks (pasted into a title or rename field) must never reach the file name.
-        let clean = newName.split(whereSeparator: \.isNewline).joined(separator: " ")
-            .replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
+        let clean = Self.visibleName(newName.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .replacingOccurrences(of: "/", with: "-")).trimmingCharacters(in: .whitespaces)
         guard !clean.isEmpty else { return nil }
         let ext = path.fileExtension
         let isFolder = index.folders.contains(path)
@@ -210,6 +242,10 @@ final class VaultModel {
         let path = vault.availablePath(folder: settings.attachmentFolder, base: name, ext: ext)
         do { try vault.write(data, to: path); index.didCreate(path); return path } catch { lastError = error.localizedDescription; return nil }
     }
+
+    /// A name that starts with `.` makes a hidden file, which the vault never lists: drop the leading dots (and spaces).
+    // ponytail: local until the core's shared helper lands (R5-08).
+    private static func visibleName(_ name: String) -> String { String(name.drop { $0 == "." || $0.isWhitespace }) }
 
     private func perform<T>(_ body: () throws -> T) -> T? {
         do { return try body() } catch { lastError = error.localizedDescription; return nil }

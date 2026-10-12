@@ -77,11 +77,18 @@ struct HTMLWebView {
     /// For the web viewer: reports loading start/finish and failures (`nil` error while loading or on success).
     var onLoad: ((_ loading: Bool, _ error: Error?) -> Void)?
     var webViewRef: ((WKWebView) -> Void)?
+    /// For the reading view: a heading (`#…`-less text), `^block` or `fn-label` to scroll to once; set to nil when handled.
+    var scrollTarget: Binding<String?>?
+    /// For the reading view: reloading a changed page keeps the scroll position.
+    var keepsScrollPosition = false
 
     @MainActor final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLWebView
         var lastHTML: String?
         var lastURL: URL?
+        /// Applied once the page being loaded finishes: a scroll target, else the previous page's scroll position.
+        var pendingTarget: String?
+        var restoreY: Double?
         init(_ p: HTMLWebView) { parent = p }
 
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
@@ -120,6 +127,9 @@ struct HTMLWebView {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if let t = pendingTarget { scroll(webView, to: t) }
+            else if let y = restoreY { webView.evaluateJavaScript("window.scrollTo(0, \(y))") }
+            pendingTarget = nil; restoreY = nil
             parent.onNavigate?(webView.title, webView.url)
             parent.onLoad?(false, nil)
         }
@@ -127,6 +137,11 @@ struct HTMLWebView {
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(error) }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(error) }
+
+        func scroll(_ webView: WKWebView, to target: String) {
+            let json = (try? String(data: JSONEncoder().encode(target), encoding: .utf8)) ?? "\"\""
+            webView.evaluateJavaScript("window.netheriteScrollTo && netheriteScrollTo(\(json))")
+        }
 
         private func failed(_ error: Error) {
             // A cancelled load (new navigation, or one our policy cancelled) isn't a failure.
@@ -169,10 +184,28 @@ struct HTMLWebView {
     }
 
     func update(_ wv: WKWebView, context: Context) {
-        context.coordinator.parent = self
-        if let html, html != context.coordinator.lastHTML {
-            context.coordinator.lastHTML = html
-            wv.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+        let c = context.coordinator
+        c.parent = self
+        let target = scrollTarget?.wrappedValue
+        if target != nil {
+            // Consumed once: later updates (a toggled task, an edit) must not jump back to it.
+            DispatchQueue.main.async { scrollTarget?.wrappedValue = nil }
+        }
+        if let html, html != c.lastHTML {
+            let reloading = c.lastHTML != nil
+            c.lastHTML = html
+            if let target { c.pendingTarget = target; c.restoreY = nil }
+            if target == nil, reloading, keepsScrollPosition {
+                wv.evaluateJavaScript("window.scrollY") { [weak wv] y, _ in
+                    guard c.lastHTML == html else { return }   // a newer page already replaced this one
+                    c.restoreY = (y as? NSNumber)?.doubleValue
+                    wv?.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+                }
+            } else {
+                wv.loadHTMLString(html, baseURL: URL(string: "nth://web/"))
+            }
+        } else if let target {
+            if wv.isLoading { c.pendingTarget = target } else { c.scroll(wv, to: target) }
         } else if let url, url != context.coordinator.lastURL {
             context.coordinator.lastURL = url
             wv.load(URLRequest(url: url))

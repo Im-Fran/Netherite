@@ -243,11 +243,23 @@ final class AppModel {
         let access = source.startAccessingSecurityScopedResource()
         defer { if access { source.stopAccessingSecurityScopedResource() } }
         let target = docs.appending(path: Vault(root: docs).availablePath(folder: "", base: recent.name, ext: ""), directoryHint: .isDirectory)
-        open[recent.path]?.flushAll()
-        try await Task.detached {
-            try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-            try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
-        }.value
+        let model = open[recent.path]
+        model?.flushAll()
+        // What's typed during the move is saved at the new place, never at the old path (that would recreate the vault there).
+        model?.savesPaused = true
+        do {
+            try await Task.detached {
+                try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+                try FileManager.default.setUbiquitous(true, itemAt: source, destinationURL: target)
+            }.value
+        } catch {
+            model?.savesPaused = false
+            model?.flushAll()
+            throw error
+        }
+        if let model {
+            for p in model.dirty { if let text = model.index.notes[p]?.text { try? Vault(root: target).write(text, to: p) } }
+        }
         // Close only once the vault is at its new place and listed there: windows showing it follow `relocated`
         // as soon as it closes, and reopen it from `recents` (a failed move leaves it open where it was).
         recents.removeAll { $0.path == recent.path }

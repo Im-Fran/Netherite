@@ -13,16 +13,26 @@ struct ReaderView: View {
     var body: some View {
         let model = window.model
         let body = HTMLRenderer.render(text, context: .app(model.index, source: path))
-        let sub = pane.pendingLine.flatMap { line in model.index.notes[path]?.parsed.headings.first { $0.line == line }?.text }
+        // The heading, block or footnote at the requested line (outline, footnotes, links), scrolled to once.
+        let line = pane.pendingLine
+        let parsed = model.index.notes[path]?.parsed
+        let sub = line.flatMap { line in
+            parsed?.headings.first { $0.line == line }?.text
+                ?? parsed?.blockIDs.first { $0.value == line }.map { "^" + $0.key }
+                ?? parsed?.footnotes.first { $0.line == line }.map { "fn-" + $0.label }
+        }
         HTMLWebView(
             html: HTMLRenderer.page(title: path.noteName, body: body, assets: "nth://web/", theme: model.theme,
-                                    fullWidth: !model.settings.readableLineLength, initialSubpath: sub,
+                                    fullWidth: !model.settings.readableLineLength,
                                     baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
                                     increaseContrast: A11y.shared.highContrast, reduceMotion: A11y.shared.reduceMotion),
             vault: model.vault,
             onAction: { action in
                 if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
-            })
+            },
+            scrollTarget: Binding(get: { sub }, set: { if $0 == nil, pane.pendingLine == line { pane.pendingLine = nil } }),
+            keepsScrollPosition: true)
+        .id(path)   // another note starts at the top
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Reading view of \(path.noteName)"))
         .overlay(alignment: .topLeading) {
