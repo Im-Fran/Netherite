@@ -52,6 +52,13 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Moving a vault opened in place to Recently Deleted or iCloud Drive works again, and notes save their latest edits before going to the trash.
 - A recording that can't be saved in the vault is kept in Application Support, and the error says where.
 - Highlights and formulas that contain a link render again; link titles and reference definitions no longer create tags.
+- Notes opened from recents, bookmarks or workspaces with different capitals keep your typing; bookmarks and workspaces follow renames and drop deleted notes.
+- Move to iCloud Drive keeps the window on the moved vault and updates the widgets and Share extension.
+- Search waits for you to stop typing and never shows results for an older query; regex search honours Match Case.
+- The graph no longer restarts its layout on every keystroke.
+- Notion and Evernote imports link to the right page or image when names repeat, and HTML imports keep literal text such as `<b>` or `# ` as text.
+- Date templates and daily notes always use the Gregorian calendar and Western digits, matching Obsidian.
+- Renaming a note keeps the titles of Markdown links to it.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
