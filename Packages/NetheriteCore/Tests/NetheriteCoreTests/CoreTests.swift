@@ -144,6 +144,16 @@ Footnote here[^1].
     #expect(NoteParser.parse(out).property("status") == .text("draft"))
 }
 
+// R3-08: the scalar is found with libyaml's line breaks (CRLF, lone CR, NEL, U+2028) and past an alias.
+@Test func renameEscapesQuotedFrontmatterAfterOddBreaksAndAliases() {
+    for t in ["---\r\nrelated: '[[Old]]'\r\n---\r\nx", "---\ntitle: \"a\u{2028}b\"\nrelated: '[[Old]]'\n---\nx",
+              "---\ntitle: \"a\u{85}b\rc\"\nrelated: '[[Old]]'\n---\nx", "---\na: &x 'foo'\nrelated: \"[[Old]]\"\nb: *x\n---\nx"] {
+        let out = VaultIndex.rewriteLinks(in: t, parsed: NoteParser.parse(t), newTarget: { _ in "Mom's.md" },
+                                          linkText: { ($0 as NSString).deletingPathExtension })
+        #expect(NoteParser.parse(out).property("related") == .text("[[Mom's]]"), "\(t.debugDescription)")
+    }
+}
+
 // N-17: renaming keeps the escaped alias pipe of a link inside a table.
 @MainActor @Test func renameKeepsTablePipe() async throws {
     let a = "| a | b |\n|---|---|\n| [[Old\\|alias]] | 1 |"

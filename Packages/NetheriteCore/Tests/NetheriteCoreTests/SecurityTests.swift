@@ -77,7 +77,8 @@ private func renderPlain(_ md: String) -> String {
     #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
     #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
     // R2-19: the same breaks inside code, frontmatter or math don't shift the heading lines.
-    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`"] {
+    // R3-09: NEL (U+0085) too.
+    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`", "```\na\u{85}b\n```"] {
         #expect(HTMLRenderer.section(of: "# A\n\(hidden)\nalpha\n# B\nbeta\n", subpath: "B") == "# B\nbeta", "\(hidden.debugDescription)")
     }
     #expect(HTMLRenderer.section(of: "---\nk: \"a\u{2028}b\"\n---\n# B\nbeta", subpath: "B") == "# B\nbeta")
@@ -97,11 +98,37 @@ private func renderPlain(_ md: String) -> String {
     #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
 }
 
+// R3-05: no tag in an `href` with other title styles or a reference definition, and the parser makes no tag of them.
+@Test func noTagsInLinkTitlesOrReferenceDefinitions() {
+    for md in ["[Jump](#Intro 'T')", "[Jump](#Intro (T))", "[Jump](<#Intro>)", "[Jump][r]\n\n[r]: #Intro", "[Jump][r]\n\n[r]: <#Intro> 'T'"] {
+        let html = renderPlain(md)
+        #expect(!html.contains("class=\"tag\"") && !html.contains("\u{E000}") && html.contains(">Jump</a>"), "\(md.debugDescription) → \(html)")
+        #expect(!NoteParser.parse(md).tags.contains("Intro"), "\(md.debugDescription)")
+    }
+    #expect(NoteParser.parse("[^1]: note #real").tags == ["real"])   // a footnote isn't a reference definition
+}
+
+// R3-04: a highlight or formula that wraps a whole link still renders.
+@Test func tokensCanWrapALink() {
+    let html = renderPlain("==see [docs](https://example.com) now==")
+    #expect(html.contains("<mark>see <a") && html.contains(">docs</a> now</mark>"))
+    #expect(renderPlain("$a [b](c) d$").contains("math-inline"))
+    #expect(!renderPlain("[a](b==c) d==").contains("<mark>"))   // one that only ends there doesn't
+}
+
 // R2-12: unclosed `<tag` runs don't make sanitizing quadratic.
 @Test func sanitizeIsLinearWithUnclosedTags() {
     let start = Date()
     let out = HTMLRenderer.sanitize("<div>\n" + String(repeating: "<a ", count: 20_000))
     #expect(out == "<div>\n" + String(repeating: "&lt;a ", count: 20_000))
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
+// R3-06: also when the only `>` sits inside a quote that never closes.
+@Test func sanitizeIsLinearWithAnUnclosedQuote() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<b>x</b>" + String(repeating: "<a ", count: 20_000) + "x=\">")
+    #expect(out == "<b>x</b>" + String(repeating: "&lt;a ", count: 20_000) + "x=\">")
     #expect(Date().timeIntervalSince(start) < 2)
 }
 

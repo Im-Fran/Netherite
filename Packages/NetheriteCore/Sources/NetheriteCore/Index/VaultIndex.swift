@@ -206,12 +206,23 @@ public final class VaultIndex {
         } ?? []
         // A link inside a quoted YAML scalar needs the new name escaped for that quote style (`Mom's` → `Mom''s`).
         // The scalar holding a name is the last one starting before it (`- [[x]]` is a plain `x` in nested sequences).
+        // Composing repeats an aliased scalar with its anchor's mark, so "last" is by position, not by tree order.
         let scalars = Frontmatter.locate(in: text).flatMap { try? Yams.compose(yaml: $0.yaml) }.map(scalarStyles) ?? []
         let yamlStart = text.hasPrefix("---\r\n") ? 5 : 4
         func quoted(_ name: String, at location: Int) -> String {
-            let lines = ns.substring(with: NSRange(location: yamlStart, length: location - yamlStart)).split(separator: "\n", omittingEmptySubsequences: false)
-            let at = (line: lines.count, column: (lines.last ?? "").unicodeScalars.count + 1)
-            switch scalars.last(where: { ($0.mark.line, $0.mark.column) <= at })?.style {
+            // Lines and columns as libyaml counts them: it breaks on \n, \r, \r\n, U+0085, U+2028 and U+2029.
+            var at = (line: 1, column: 1), previous: Unicode.Scalar?
+            for c in ns.substring(with: NSRange(location: yamlStart, length: location - yamlStart)).unicodeScalars {
+                if "\n\r\u{85}\u{2028}\u{2029}".unicodeScalars.contains(c) {
+                    if !(c == "\n" && previous == "\r") { at.line += 1 }
+                    at.column = 1
+                } else {
+                    at.column += 1
+                }
+                previous = c
+            }
+            let position = { (s: (mark: Mark, style: Node.Scalar.Style)) in (s.mark.line, s.mark.column) }
+            switch scalars.filter({ position($0) <= at }).max(by: { position($0) < position($1) })?.style {
             case .singleQuoted: return name.replacingOccurrences(of: "'", with: "''")
             case .doubleQuoted: return name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             default: return name
