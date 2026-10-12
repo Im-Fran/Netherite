@@ -24,6 +24,10 @@ struct CanvasEditor: View {
         .onDisappear { model?.save() }
         // Flush the debounced save before iOS suspends the app.
         .onChange(of: scenePhase) { if $1 != .active { model?.save() } }
+        #if os(macOS)
+        // ⌘Q doesn't change the scene phase.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in model?.save() }
+        #endif
     }
 }
 
