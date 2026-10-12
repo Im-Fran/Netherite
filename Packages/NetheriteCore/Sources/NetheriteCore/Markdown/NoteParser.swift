@@ -115,7 +115,8 @@ public enum NoteParser {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
         }
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
-        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count)) {
+        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
+        where !note.links.contains(where: { NSIntersectionRange($0.range, m.range).length > 0 }) {   // [[#Heading]], [x](#h)
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }

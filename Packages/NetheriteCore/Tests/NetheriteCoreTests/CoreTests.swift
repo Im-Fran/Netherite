@@ -70,6 +70,11 @@ Footnote here[^1].
     #expect(p.tags == ["tag"])
 }
 
+// N-36: links to headings aren't tags.
+@Test func headingLinksAreNotTags() {
+    #expect(NoteParser.parse("See [[#Intro]], [x](#Other) and (#real)").tags == ["real"])
+}
+
 @Test func resolvesLinks() {
     let r = LinkResolver(files: ["A.md", "x/B.md", "y/B.md", "img/map.png", "x/C.md"])
     #expect(r.resolve("A", from: "x/C.md") == "A.md")
