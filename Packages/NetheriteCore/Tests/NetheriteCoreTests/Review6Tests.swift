@@ -50,3 +50,9 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(index.notes["B.md"]?.text == "links [[C]] plus an external edit")
     #expect(try vault.read("D.md") == "links [[C]] unsaved")
 }
+
+// R6-04: a highlight can end right after a link, and `#` glued to a link isn't a tag.
+@Test func highlightAfterLinkAndTagGluedToLink() {
+    #expect(HTMLRenderer.render("==see [a](b)== end", context: ctx).contains("<mark>see <a"))
+    #expect(!HTMLRenderer.render("after [x](y)#t2", context: ctx).contains("class=\"tag\""))
+}
