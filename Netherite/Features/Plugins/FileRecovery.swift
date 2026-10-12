@@ -5,10 +5,16 @@ import NetheriteCore
 /// Periodic snapshots of changed notes, stored outside the vault (Application Support) so they never sync.
 struct SnapshotStore {
     let vault: Vault
+    /// Keyed by the vault's stable ID, so snapshots follow the vault when its folder moves.
+    let root: URL
 
-    var root: URL {
-        let id = SHA256.hash(data: Data(vault.root.path(percentEncoded: false).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
-        return URL.applicationSupportDirectory.appending(path: "Netherite/Snapshots/\(id)", directoryHint: .isDirectory)
+    init(vault: Vault) {
+        self.vault = vault
+        let base = URL.applicationSupportDirectory.appending(path: "Netherite/Snapshots", directoryHint: .isDirectory)
+        root = base.appending(path: vault.stableID, directoryHint: .isDirectory)
+        // Adopt snapshots taken under the old key, a hash of the folder's path.
+        let legacy = SHA256.hash(data: Data(vault.root.path(percentEncoded: false).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        try? FileManager.default.moveItem(at: base.appending(path: legacy, directoryHint: .isDirectory), to: root)
     }
 
     private func folder(for path: String) -> URL { root.appending(path: path, directoryHint: .isDirectory) }
@@ -31,7 +37,8 @@ struct SnapshotStore {
         if let last = snapshots(for: path).first, (try? String(contentsOf: last.url, encoding: .utf8)) == text { return }
         let dir = folder(for: path)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try? Data(text.utf8).write(to: dir.appending(path: "\(Int(Date.now.timeIntervalSince1970)).md"))
+        // Sub-second timestamps: two saves in the same second (a restore right after a pass) mustn't overwrite each other.
+        try? Data(text.utf8).write(to: dir.appending(path: "\(Date.now.timeIntervalSince1970).md"), options: .withoutOverwriting)
     }
 
     func prune(olderThan days: Int) {

@@ -12,11 +12,20 @@ final class VaultModel {
     var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
     /// The theme as drawn on this device, after the Accessibility preferences.
     var theme: Theme { A11y.shared.apply(vaultTheme) }
-    private(set) var recentFiles: [String]
+    private(set) var recentFiles: [String] {
+        didSet {
+            vault.saveConfig("recent.json", recentFiles)
+            SharedVault.publishRecents(recentFiles)
+        }
+    }
     private(set) var dirty: Set<String> = []
     var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }
     private var saveTasks: [String: Task<Void, Never>] = [:]
     private var watcher: VaultWatcher?
+    /// Windows showing this vault, so file operations and external changes update every one of them.
+    @ObservationIgnored private let windows = NSHashTable<WindowState>.weakObjects()
+    /// Windows not in the background; the watcher runs while there is at least one.
+    @ObservationIgnored private var foregroundWindows = Set<ObjectIdentifier>()
     var lastError: String?
 
     init(vault: Vault) {
@@ -49,6 +58,8 @@ final class VaultModel {
 
     /// Updates the index immediately and writes to disk after a short pause in typing.
     func edit(_ path: String, text: String) {
+        // A file moved or deleted outside this window must not be recreated at its old path.
+        guard !isGone(path) else { return }
         index.update(path, text: text)
         dirty.insert(path)
         saveTasks[path]?.cancel()
@@ -61,7 +72,7 @@ final class VaultModel {
 
     func save(_ path: String) {
         saveTasks[path]?.cancel(); saveTasks[path] = nil
-        guard dirty.contains(path), let text = index.notes[path]?.text else { return }
+        guard dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
         do {
             try vault.write(text, to: path)
             dirty.remove(path)
@@ -76,28 +87,41 @@ final class VaultModel {
     private func externalChange() async {
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
         await index.refreshFromDisk(skipping: dirty)
+        // Files moved or deleted outside Netherite: drop their unsaved edits (warning about them) and close them.
+        let lost = dirty.filter(isGone)
+        for p in lost { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
+        if let p = lost.first {
+            lastError = String(localized: "“\(p.noteName)” was moved or deleted outside Netherite, so its latest changes weren’t saved.")
+        }
+        guard index.isLoaded else { return }
+        let files = Set(index.files)
+        for pane in panes { pane.removeMissing(files) }
     }
+
+    /// The file was moved or deleted (paths are only known once the index has loaded).
+    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) }
 
     func refresh() async { await externalChange() }
 
-    /// Stops observing the vault folder (iOS suspends apps holding file presenters in the background).
-    func suspendWatching() { watcher?.isWatching = false }
+    func register(_ window: WindowState) { windows.add(window) }
 
-    /// Resumes observing and picks up whatever changed while suspended.
-    func resumeWatching() {
-        guard let watcher, !watcher.isWatching else { return }
-        watcher.isWatching = true
-        Task { await externalChange() }
+    private var panes: [Pane] { windows.allObjects.flatMap(\.panes) }
+
+    /// Observes the vault folder while any of its windows is in the foreground
+    /// (iOS suspends apps holding file presenters in the background), catching up on resume.
+    func window(_ window: WindowState, isForeground: Bool) {
+        let id = ObjectIdentifier(window)
+        if isForeground { foregroundWindows.insert(id) } else { foregroundWindows.remove(id) }
+        let wanted = !foregroundWindows.isEmpty
+        guard let watcher, watcher.isWatching != wanted else { return }
+        watcher.isWatching = wanted
+        if wanted { Task { await externalChange() } }
     }
 
     // MARK: File operations
 
     func noteDidOpen(_ path: String) {
-        recentFiles.removeAll { $0 == path }
-        recentFiles.insert(path, at: 0)
-        if recentFiles.count > 50 { recentFiles.removeLast(recentFiles.count - 50) }
-        vault.saveConfig("recent.json", recentFiles)
-        SharedVault.publishRecents(recentFiles)
+        recentFiles = Array(([path] + recentFiles.filter { $0 != path }).prefix(50))
     }
 
     @discardableResult
@@ -128,6 +152,8 @@ final class VaultModel {
     @discardableResult
     func move(_ path: String, to target: String) -> String? {
         guard target != path else { return path }
+        // Drops can carry any text, and a folder can't go inside itself.
+        guard index.files.contains(path) || index.folders.contains(path), !target.hasPrefix(path + "/") else { return nil }
         guard !vault.exists(target) || target.lowercased() == path.lowercased() else {
             lastError = String(localized: "A file named “\(target.noteName)” already exists.")
             return nil
@@ -135,15 +161,19 @@ final class VaultModel {
         // Flush unsaved edits of the item and, for folders, of every note inside it.
         for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         let result: String? = perform { try index.move(path, to: target); return target }
-        if result != nil { recentFiles = recentFiles.map { $0 == path ? target : $0 } }
+        if result != nil {
+            recentFiles = recentFiles.map { $0 == path || $0.hasPrefix(path + "/") ? target + $0.dropFirst(path.count) : $0 }
+            for pane in panes { pane.replacePaths(from: path, to: target) }
+        }
         return result
     }
 
     func trash(_ path: String) {
         // Drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
         for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
-        _ = perform { try index.trash(path) }
+        guard perform({ try index.trash(path) }) != nil else { return }
         recentFiles.removeAll { $0 == path || $0.hasPrefix(path + "/") }
+        for pane in panes { pane.removePath(path) }
     }
 
     /// Writes new content for a file (not via the editor) and reindexes it.

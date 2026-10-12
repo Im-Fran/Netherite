@@ -13,6 +13,12 @@ struct NetheriteApp: App {
 
     init() {
         NetheriteTips.configure()
+        #if os(macOS)
+        // ⌘Q doesn't change the scene phase: save the edits still waiting for their debounced write.
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { for m in AppModel.shared.open.values { m.flushAll() } }
+        }
+        #endif
         #if DIRECT_DISTRIBUTION
         updater.start()
         #endif
