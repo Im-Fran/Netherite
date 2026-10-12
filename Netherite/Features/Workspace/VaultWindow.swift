@@ -138,7 +138,9 @@ struct VaultWindow: View {
         }
         switch url.host() {
         case "open":
-            if let p = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }), window.model.vault.exists(p) {
+            // Open the file's own spelling: another case or a leading "/" would be indexed as a second note, and its edits lost.
+            if let raw = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }),
+               let p = window.model.vault.canonicalPath(raw) {
                 window.open(path: p)
             }
         case "new":
