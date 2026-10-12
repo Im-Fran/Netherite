@@ -139,6 +139,12 @@ final class AppModel {
     }
 
     /// Reopens a vault by path, resolving its security-scoped bookmark when needed.
+    /// Whether a deep link may switch to this vault: only vaults the user already opened, so a link can't turn any folder into a vault.
+    func isKnownVault(_ raw: String) -> Bool {
+        let path = Self.rebased(Self.key(URL(filePath: raw)))
+        return open[path] != nil || recents.contains { $0.path == path }
+    }
+
     func model(forPath raw: String) -> VaultModel? {
         let path = Self.rebased(Self.key(URL(filePath: raw)))
         if let m = open[path] { return m }

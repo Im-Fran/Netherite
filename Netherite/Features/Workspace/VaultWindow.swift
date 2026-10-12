@@ -118,6 +118,8 @@ struct VaultWindow: View {
     private func handleDeepLink(_ url: URL) {
         let q = Dictionary((URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") }) { a, _ in a }
         if let v = q["vault"], AppModel.rebased(AppModel.key(URL(filePath: v))) != AppModel.key(window.model.vault.root), let switchVault = window.switchVault {
+            // A link for another vault never lands in this one, and only switches to a vault the user already opened.
+            guard AppModel.shared.isKnownVault(v) else { return }
             window.model.flushAll()
             switchVault(v, url)
             return

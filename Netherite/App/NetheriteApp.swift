@@ -80,7 +80,8 @@ struct RootView: View {
                     .onOpenURL { url in
                         // Widget and Shortcuts links name their vault: open it, then follow the link.
                         if let vault = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "vault" })?.value {
-                            pendingLink = url; vaultPath = vault; return
+                            if app.isKnownVault(vault) { pendingLink = url; vaultPath = vault }
+                            return
                         }
                         // netherite://guide opens the guide vault from the start page (and from Shortcuts).
                         guard url.host() == "guide" else { return }
