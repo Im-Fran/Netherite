@@ -18,20 +18,23 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
         var dark: Bool
         var fontSize: CGFloat
         var css: String
+        /// Vault whose attachments the HTML may reference (one renderer serves every window).
+        var vault: Vault
     }
 
-    private var cache: [String: PlatformImage] = [:]
+    /// Bounded so long sessions (every edit of an embed renders a new image) don't grow memory without limit.
+    private let cache: NSCache<NSString, PlatformImage> = {
+        let c = NSCache<NSString, PlatformImage>()
+        c.countLimit = 300
+        c.totalCostLimit = 256 << 20
+        return c
+    }()
     private var queue: [Job] = []
     private var waiting: [String: [() -> Void]] = [:]
     private var running = false
     private var ready = false
     private let webView: WKWebView
     private let scheme = NetheriteSchemeHandler(vault: Vault(root: URL.temporaryDirectory))
-    /// Vault whose attachments note embeds may reference.
-    var vault: Vault {
-        get { scheme.vault }
-        set { scheme.vault = newValue }
-    }
     #if os(iOS)
     private var attached = false
     #endif
@@ -58,18 +61,18 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
         webView.loadHTMLString(Self.shell, baseURL: URL(string: "nth://web/"))
     }
 
-    static func key(_ kind: Kind, _ source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String) -> String {
-        "\(kind.rawValue)|\(Int(width))|\(dark)|\(Int(fontSize * 10))|\(css.hashValue)|\(source.hashValue)"
+    static func key(_ kind: Kind, _ source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String, vault: Vault) -> String {
+        "\(kind.rawValue)|\(Int(width))|\(dark)|\(Int(fontSize * 10))|\(css.hashValue)|\(source.hashValue)|\(vault.root.path.hashValue)"
     }
 
     /// Cached image, or nil after scheduling a render; `onReady` runs when it finishes. `css` is extra theme CSS.
-    func image(_ kind: Kind, source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String = "",
+    func image(_ kind: Kind, source: String, width: CGFloat, dark: Bool, fontSize: CGFloat, css: String = "", vault: Vault,
                onReady: @escaping () -> Void) -> PlatformImage? {
-        let key = Self.key(kind, source, width: width, dark: dark, fontSize: fontSize, css: css)
-        if let img = cache[key] { return img }
+        let key = Self.key(kind, source, width: width, dark: dark, fontSize: fontSize, css: css, vault: vault)
+        if let img = cache.object(forKey: key as NSString) { return img }
         if waiting[key] != nil { waiting[key]?.append(onReady); return nil }
         waiting[key] = [onReady]
-        queue.append(Job(key: key, kind: kind, source: source, width: width, dark: dark, fontSize: fontSize, css: css))
+        queue.append(Job(key: key, kind: kind, source: source, width: width, dark: dark, fontSize: fontSize, css: css, vault: vault))
         pump()
         return nil
     }
@@ -88,7 +91,9 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
         let job = queue.removeFirst()
         Task {
             let image = await render(job)
-            if let image { cache[job.key] = image }
+            if let image {
+                cache.setObject(image, forKey: job.key as NSString, cost: Int(image.size.width * image.size.height * 4))
+            }
             let callbacks = waiting.removeValue(forKey: job.key) ?? []
             running = false
             if image != nil { callbacks.forEach { $0() } }
@@ -97,6 +102,7 @@ final class BlockRenderer: NSObject, WKNavigationDelegate {
     }
 
     private func render(_ job: Job) async -> PlatformImage? {
+        scheme.vault = job.vault
         webView.frame.size = CGSize(width: job.width, height: 200)
         guard let result = try? await webView.callAsyncJavaScript(
             "return await window.nthRender(kind, source, dark, size, css)",

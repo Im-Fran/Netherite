@@ -29,10 +29,11 @@ struct NoteEditorView: View {
             }
         }
         .background(Color(pair: model.theme.background, fallback: .clear))
-        .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded(); selectTitleIfFresh() }
+        .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded(); selectTitleIfFresh(); focusBodyIfRequested() }
         .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
-        .onDisappear { model.save(path) }
+        .onChange(of: pane.reading) { jumpIfNeeded() }
+        .onDisappear { model.save(path); controller.isEditing = false }
         .focusedSceneValue(\.editor, controller)
     }
 
@@ -93,7 +94,7 @@ struct NoteEditorView: View {
     /// Rendered math/Mermaid/note-embed previews; re-styles the editor when a render finishes.
     private func blockImage(_ kind: EditorStyler.BlockKind) -> PlatformImage? {
         let renderer = BlockRenderer.shared
-        renderer.vault = model.vault
+        let vault = model.vault
         let width = controller.textWidth
         let fontSize = EditorStyler(theme: theme).baseSize
         let dark = colorScheme == .dark
@@ -102,20 +103,20 @@ struct NoteEditorView: View {
         let css = HTMLRenderer.themeCSS(model.theme) + (A11y.shared.highContrast ? HTMLRenderer.increasedContrastCSS : "")
         switch kind {
         case .math(let tex):
-            return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.math, source: tex, width: width, dark: dark, fontSize: fontSize, vault: vault, onReady: done)
         case .mermaid(let src):
-            return renderer.image(.mermaid, source: src, width: width, dark: dark, fontSize: fontSize, onReady: done)
+            return renderer.image(.mermaid, source: src, width: width, dark: dark, fontSize: fontSize, vault: vault, onReady: done)
         case .noteEmbed(let raw):
             let inner = raw.trimmingCharacters(in: CharacterSet(charactersIn: "![]"))
             let link = NoteParser.splitWiki(inner, isEmbed: true)
             guard model.index.resolver.resolve(link.target, from: path) != nil else { return nil }
             let html = HTMLRenderer.embed(link, .app(model.index, source: path))
             // Re-render when the embedded note changes: its text is part of the cache key via the HTML.
-            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
+            return renderer.image(.html, source: html, width: width, dark: dark, fontSize: fontSize, css: css, vault: vault, onReady: done)
         case .markdown(let md):
             var ctx = RenderContext.app(model.index, source: path)
             ctx.interactiveTasks = false
-            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, css: css, onReady: done)
+            return renderer.image(.html, source: HTMLRenderer.render(md, context: ctx), width: width, dark: dark, fontSize: fontSize, css: css, vault: vault, onReady: done)
         }
     }
 
@@ -135,8 +136,14 @@ struct NoteEditorView: View {
                 .font(.largeTitle.bold())
                 .textFieldStyle(.plain)
                 .focused($titleFocused)
-                .onSubmit { commitTitle(); controller.focus() }
+                .onSubmit(submitTitle)
                 .onChange(of: titleFocused) { if !titleFocused { commitTitle() } }
+                // A title is one line: Return (iOS inserts it in a vertical field) moves to the body, pasted breaks become spaces.
+                .onChange(of: title) {
+                    guard title.contains(where: \.isNewline) else { return }
+                    title = title.split(whereSeparator: \.isNewline).joined(separator: " ")
+                    submitTitle()
+                }
                 .accessibilityLabel("Note title")
             // Writing tips, one at a time (links first, then slash commands), shown inline so they never cover text.
             if onboarded { TipView(window.editorTips.currentTip) }
@@ -155,14 +162,30 @@ struct NoteEditorView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = ceil($0) }
     }
 
+    /// Return in the title: name the note and continue in the body. Renaming recreates this view for the new path,
+    /// so the new editor takes the focus (focusing this one would leave the window without a first responder).
+    private func submitTitle() {
+        commitTitle()
+        if let p = pane.current?.path, p != path { window.focusBody = p } else { controller.focus() }
+    }
+
+    private func focusBodyIfRequested() {
+        guard window.focusBody == path else { return }
+        window.focusBody = nil
+        DispatchQueue.main.async { controller.focus() }
+    }
+
     private func commitTitle() {
-        let clean = title.trimmingCharacters(in: .whitespaces)
+        // After a rename this view still has the old path until SwiftUI replaces it; don't rename twice.
+        guard pane.current?.path == path else { return }
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, clean != path.noteName else { title = path.noteName; return }
         window.rename(path, to: clean)
     }
 
     private func jumpIfNeeded() {
-        guard let line = pane.pendingLine else { return }
+        // Reading view scrolls to the heading itself (ReaderView reads pendingLine), so keep it until the editor shows.
+        guard !pane.reading, let line = pane.pendingLine else { return }
         pane.pendingLine = nil
         DispatchQueue.main.async { controller.scrollTo(line: line) }
     }

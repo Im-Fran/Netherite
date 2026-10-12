@@ -74,6 +74,8 @@ final class Pane: Identifiable {
         if current == d { return }
         history = Array(history.prefix(position + 1)) + [d]
         position = history.count - 1
+        // Opening another note starts in the editor; otherwise typing seems to do nothing (Back/Forward keep the mode).
+        reading = false
     }
 
     func back() { if canGoBack { position -= 1; pendingLine = nil } }
@@ -168,6 +170,8 @@ final class WindowState {
     var explorerSelection: String?
     /// A note created by "New Note" that should open with its title selected for renaming.
     @ObservationIgnored var freshNote: String?
+    /// A note whose body should take focus when its editor appears (after naming a note: renaming recreates the editor).
+    @ObservationIgnored var focusBody: String?
     var presentingSlides = false
     /// Toolbar tips shown one at a time, in this order.
     @ObservationIgnored let toolbarTips = TipGroup(.ordered) {
@@ -177,9 +181,10 @@ final class WindowState {
         GraphTip()
         CommandPaletteTip()
     }
-    /// Current toolbar tip, or nil while the welcome tour is on screen.
+    /// Current toolbar tip, or nil while the welcome tour is on screen or the user is typing in a note
+    /// (a tip's popover takes keyboard focus, so the keystrokes would be lost).
     func toolbarTip<T: Tip>(_ type: T.Type, onboarded: Bool) -> T? {
-        onboarded ? toolbarTips.currentTip as? T : nil
+        onboarded && !editors.values.contains(where: \.isEditing) ? toolbarTips.currentTip as? T : nil
     }
 
     /// Editor tips shown one at a time.
