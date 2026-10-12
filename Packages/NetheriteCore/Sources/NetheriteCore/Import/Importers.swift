@@ -27,6 +27,7 @@ public struct Importer: Sendable {
 
     public func run(_ source: ImportSource, from url: URL) throws -> ImportReport {
         var w = Writer(vault: vault, root: destination)
+        w.shortensLinks = source != .markdown   // a Markdown folder's own links are left as written
         switch source {
         case .evernote: try importENEX(url, &w)
         case .notion: importNotion(try Self.files(at: url), &w)
@@ -96,10 +97,10 @@ public struct Importer: Sendable {
         }
     }
 
+    /// Links by full vault path; `Writer.finish` shortens it once every name is known.
     func embed(_ path: String, mime: String) -> String {
-        let name = (path as NSString).lastPathComponent
-        return mime.hasPrefix("image/") || mime.hasPrefix("audio/") || mime.hasPrefix("video/") || mime == "application/pdf"
-            ? "![[\(name)]]" : "[[\(name)]]"
+        mime.hasPrefix("image/") || mime.hasPrefix("audio/") || mime.hasPrefix("video/") || mime == "application/pdf"
+            ? "![[\(path)]]" : "[[\(path)]]"
     }
 
     // MARK: HTML (Apple Notes export, generic HTML)
@@ -127,7 +128,7 @@ public struct Importer: Sendable {
                     name = (src.removingPercentEncoding ?? src).noteName
                 }
                 guard let data, let p = writer.attachment(data, name: name.isEmpty ? "image" : name, ext: ext.isEmpty ? "png" : ext, folder: "") else { return nil }
-                let md = "![[\((p as NSString).lastPathComponent)]]"
+                let md = "![[\(p)]]"
                 copied[src] = md
                 return md
             }
@@ -155,26 +156,29 @@ public struct Importer: Sendable {
         // CSV databases become notes; "_all.csv" duplicates are skipped.
         let csvs = files.filter { $0.path.fileExtension == "csv" && !$0.path.hasSuffix("_all.csv") }
         for c in csvs { clean[c.path] = (clean[c.path]! as NSString).deletingPathExtension + ".md" }
-        let finalPaths = clean.values.map { $0 }
-        let resolver = LinkResolver(files: finalPaths)
 
-        // Attachments first so note links can point at their final names.
-        var renamed: [String: String] = [:]   // clean path → written vault path
+        // Every page and file is written first: pages that share a name get "Name 1", and links must point at that.
+        var written: [String: String] = [:]   // export path → vault path
         for f in files where !["md", "csv"].contains(f.path.fileExtension) {
             let target = clean[f.path]!
-            if let p = w.attachment(f.data, name: target.noteName, ext: target.fileExtension, folder: target.parentFolder) { renamed[target] = p }
+            if let p = w.attachment(f.data, name: target.noteName, ext: target.fileExtension, folder: target.parentFolder) { written[f.path] = p }
         }
-        for f in files where f.path.fileExtension == "md" || csvs.contains(where: { $0.path == f.path }) {
+        let pages = files.filter { $0.path.fileExtension == "md" || $0.path.fileExtension == "csv" && clean[$0.path]!.isMarkdown }
+        for f in pages {
             let target = clean[f.path]!
             var text = String(decoding: f.data, as: UTF8.self)
             if f.path.fileExtension == "csv" { text = "# \(target.noteName)\n\n" + Self.csvToTable(text) + "\n" }
-            else { text = rewriteNotionLinks(text, from: f.path, clean: clean, resolver: resolver, renamed: renamed) }
             // Notion repeats the page title as a leading "# Title"; keep it (it's the note's own heading).
-            w.note(text, name: target.noteName, folder: target.parentFolder, converter: converter)
+            if let p = w.note(text, name: target.noteName, folder: target.parentFolder, converter: converter) { written[f.path] = p }
+        }
+        for f in pages where f.path.fileExtension == "md" {
+            guard let p = written[f.path] else { continue }
+            w.replace(p, with: rewriteNotionLinks(String(decoding: f.data, as: UTF8.self), from: f.path, clean: clean, written: written))
         }
     }
 
-    func rewriteNotionLinks(_ text: String, from source: String, clean: [String: String], resolver: LinkResolver, renamed: [String: String]) -> String {
+    /// Notion's relative Markdown links → wikilinks by full vault path (`Writer.finish` shortens them).
+    func rewriteNotionLinks(_ text: String, from source: String, clean: [String: String], written: [String: String]) -> String {
         let re = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(([^)\n]+)\)"#)
         let ns = text as NSString
         let out = NSMutableString(string: text)
@@ -183,11 +187,13 @@ public struct Importer: Sendable {
             guard !url.contains("://"), !url.hasPrefix("mailto:") else { continue }
             let decoded = url.removingPercentEncoding ?? url
             let rel = Self.join(source.parentFolder, decoded)
-            guard let target = clean[rel] ?? clean.values.first(where: { $0 == Self.stripNotionIDs(rel) }) else { continue }
+            guard let original = clean[rel] != nil ? rel : clean.first(where: { $0.value == Self.stripNotionIDs(rel) })?.key,
+                  let path = written[original] else { continue }
             let label = ns.substring(with: m.range(at: 2))
-            let name = (renamed[target].map { ($0 as NSString).lastPathComponent }) ?? (target.isMarkdown ? target.noteName : (target as NSString).lastPathComponent)
+            let name = path.isMarkdown ? path.noteName : (path as NSString).lastPathComponent
             let isEmbed = m.range(at: 1).length > 0
-            let link = isEmbed || label.isEmpty || label == name || label == target.noteName ? "[[\(name)]]" : "[[\(name)|\(label)]]"
+            let full = path.isMarkdown ? (path as NSString).deletingPathExtension : path
+            let link = isEmbed || label.isEmpty || label == name ? "[[\(full)]]" : "[[\(full)|\(label)]]"
             out.replaceCharacters(in: m.range, with: (isEmbed ? "!" : "") + link)
         }
         return out as String
@@ -253,6 +259,8 @@ struct Writer {
     let vault: Vault
     let root: String
     var report = ImportReport()
+    /// Shorten full-path wikilinks to imported files in `finish` (importers that write links themselves).
+    var shortensLinks = false
     /// (path, raw text, converter) — converted after all notes exist so links can resolve.
     private var pending: [(String, String, FormatConverter.Options?)] = []
 
@@ -265,17 +273,28 @@ struct Writer {
 
     static func safeName(_ s: String) -> String {
         let cleaned = s.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]\n\r\t]"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"^[.\s]+"#, with: "", options: .regularExpression)   // ".NET tips" would be a hidden file
+            .trimmingCharacters(in: .whitespaces)
         return cleaned.isEmpty ? String(localized: "Untitled", bundle: .module) : String(cleaned.prefix(120))
     }
 
-    mutating func note(_ text: String, name: String, folder: String, converter: FormatConverter.Options?) {
+    @discardableResult
+    mutating func note(_ text: String, name: String, folder: String, converter: FormatConverter.Options?) -> String? {
         let path = vault.availablePath(folder: folderPath(folder), base: Self.safeName(name))
         do {
             try vault.write(text, to: path)   // reserve the name now; converted in finish()
             pending.append((path, text, converter))
             report.notes.append(path)
-        } catch { report.warnings.append("\(name): \(error.localizedDescription)") }
+            return path
+        } catch { report.warnings.append("\(name): \(error.localizedDescription)"); return nil }
+    }
+
+    /// New text for a note already written (links computed once every name is reserved).
+    mutating func replace(_ path: String, with text: String) {
+        guard let i = pending.firstIndex(where: { $0.0 == path }) else { return }
+        do { try vault.write(text, to: path); pending[i].1 = text }
+        catch { report.warnings.append("\(path.noteName): \(error.localizedDescription)") }
     }
 
     @discardableResult
@@ -286,12 +305,23 @@ struct Writer {
         catch { report.warnings.append("\(name).\(ext): \(error.localizedDescription)"); return nil }
     }
 
-    /// Format conversion runs over every imported note once all names are known.
+    /// Link shortening and format conversion run over every imported note once all names are known.
     mutating func finish() {
         let files = report.notes + report.attachments
+        // Full-path links to imported files become what Obsidian writes: the shortest text that is unambiguous
+        // in the whole vault, so two "image.png" or "Notes" never resolve to each other.
+        let resolver = LinkResolver(files: shortensLinks ? vault.allFiles() : [])
+        let full = Dictionary(files.map { ($0.isMarkdown ? ($0 as NSString).deletingPathExtension : $0, $0) }, uniquingKeysWith: { a, _ in a })
+        let wikiTarget = try! NSRegularExpression(pattern: #"(?<=\[\[)[^\[\]|#\n]+"#)
         for (path, text, opts) in pending {
-            guard let opts else { continue }
-            let out = FormatConverter(options: opts, files: files).convert(text, path: path)
+            var out = text
+            if shortensLinks {
+                let ns = text as NSString
+                out = HTMLRenderer.splice(ns, wikiTarget.matches(in: text, range: NSRange(location: 0, length: ns.length)).compactMap { m in
+                    full[ns.substring(with: m.range)].map { (m.range, resolver.linkText(for: $0)) }
+                })
+            }
+            if let opts { out = FormatConverter(options: opts, files: files).convert(out, path: path) }
             if out != text { try? vault.write(out, to: path) }
         }
         pending = []

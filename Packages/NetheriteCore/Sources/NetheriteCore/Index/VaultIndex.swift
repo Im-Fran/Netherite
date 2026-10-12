@@ -243,7 +243,10 @@ public final class VaultIndex {
                 replacement = (link.isEmbed ? "!" : "") + "[[" + name + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
             } else {
                 let encoded = target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "()"))) ?? target
-                replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + ")"
+                let original = ns.substring(with: link.range)
+                let title = NoteParser.Regex.mdLink.firstMatch(in: original, range: NSRange(location: 0, length: (original as NSString).length))
+                    .flatMap { Range($0.range(at: 4), in: original).map { String(original[$0]) } } ?? ""
+                replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + title + ")"
             }
             ns.replaceCharacters(in: link.range, with: replacement)
         }

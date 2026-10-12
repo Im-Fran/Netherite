@@ -62,14 +62,17 @@ public enum HTMLRenderer {
 
         // Replace OFM syntax outside code with placeholder tokens, back to front so ranges stay valid.
         var reps: [(NSRange, String)] = []
-        var taken = IndexSet(), linkTargets = IndexSet()
+        var taken = IndexSet(), linkTargets = IndexSet(), links: [Range<Int>] = []
         let codeMasked = maskCode(src)
         let ns = src as NSString
         func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
             for m in re.matches(in: text, range: full(text)) {
                 let first = sources.count
                 guard let range = Range(m.range), !taken.intersects(integersIn: range),
-                      !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1), let r = make(m) else { continue }
+                      !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1),
+                      // ponytail: linear scan per token; index the links if notes with thousands of both get slow.
+                      !links.contains(where: { $0.overlaps(range) && $0.clamped(to: range) != $0 && range.clamped(to: $0) != range }),
+                      let r = make(m) else { continue }
                 for i in first..<sources.count where sources[i] == nil { sources[i] = ns.substring(with: m.range) }
                 reps.append((m.range, r))
                 taken.insert(integersIn: range)
@@ -83,7 +86,9 @@ public enum HTMLRenderer {
         }
         // A Markdown link's destination is a URL and an image's alt is plain text: no token starts or ends inside them
         // (`[Jump](#Intro)` isn't a tag, `![a $x$](…)` keeps its text), but one can wrap them (`==see [a](b)==`).
+        // A token must wrap a whole link or sit inside it: `[a ==b](c) d==` would nest the HTML wrongly.
         for m in NoteParser.Regex.mdLink.matches(in: codeMasked, range: full(codeMasked)) {
+            links.append(Range(m.range)!)
             linkTargets.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
         }
         add(NoteParser.Regex.inlineMath, in: codeMasked) { m in

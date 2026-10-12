@@ -38,7 +38,7 @@ public struct HTMLToMarkdown {
             inline = ""
         }
         for c in n.children {
-            guard let tag = c.tag else { inline += collapse(c.text); continue }
+            guard let tag = c.tag else { inline += Self.escape(collapse(c.text)); continue }
             if Self.skip.contains(tag) { continue }
             switch tag {
             case "h1", "h2", "h3", "h4", "h5", "h6":
@@ -117,7 +117,7 @@ public struct HTMLToMarkdown {
     }
 
     private func inline(_ n: HTMLNode) -> String {
-        guard let tag = n.tag else { return collapse(n.text) }
+        guard let tag = n.tag else { return Self.escape(collapse(n.text)) }
         if Self.skip.contains(tag) { return "" }
         let inner = { n.children.map(inline).joined() }
         func wrap(_ m: String) -> String {
@@ -154,6 +154,22 @@ public struct HTMLToMarkdown {
     private func collapse(_ s: String) -> String {
         s.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
     }
+
+    /// Escapes a text node so literal `<b>`, `2 * 3`, `[[x]]` or `==` stay text. A node may start a line, so a leading
+    /// `#`, `-`/`+` list marker or `1.` is escaped too (harmless mid-line). Nodes are collapsed, so they hold no newlines.
+    static func escape(_ s: String) -> String {
+        var out = ""
+        for c in s {
+            switch c {
+            case "\\", "*", "_", "[", "]", ">", "`": out += "\\" + String(c)
+            case "<": out += "&lt;"
+            default: out.append(c)
+            }
+        }
+        return out.replacingOccurrences(of: #"=(?==)|(?<==)="#, with: #"\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"^(\s*)(#|[-+](?=\s|$))"#, with: #"$1\\$2"#, options: .regularExpression)
+            .replacingOccurrences(of: #"^(\s*\d+)([.)])(?=\s|$)"#, with: #"$1\\$2"#, options: .regularExpression)
+    }
 }
 
 /// Tiny tolerant HTML tree (text nodes have `tag == nil`).
@@ -184,7 +200,8 @@ final class HTMLNode {
         let root = HTMLNode(tag: "#root")
         var stack = [root]
         let s = html as NSString
-        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(/?)>"#)
+        // Attribute names and unquoted values stop at "<": an unclosed "<y z" can't scan ahead through every later tag.
+        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s<>]+))?)*)\s*(/?)>"#)
         let attrRE = try! NSRegularExpression(pattern: #"([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?"#)
         var last = 0
         func addText(_ t: String) {
