@@ -184,7 +184,7 @@ struct NoteEditorView: View {
     }
 
     private func jumpIfNeeded() {
-        // Reading view scrolls to the heading itself (ReaderView reads pendingLine), so keep it until the editor shows.
+        // Reading view scrolls to the heading itself (from `readerLine`), so keep it until the editor shows.
         guard !pane.reading, let line = pane.pendingLine else { return }
         pane.pendingLine = nil
         DispatchQueue.main.async { controller.scrollTo(line: line) }

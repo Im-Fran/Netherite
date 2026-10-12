@@ -62,8 +62,10 @@ final class Pane: Identifiable {
     private(set) var history: [Destination] = []
     private(set) var position = -1
     var reading = false
-    /// Line to scroll to / select after opening (heading or block links, search results).
-    var pendingLine: Int?
+    /// Line to scroll to / select after opening (heading or block links, search results), kept until the editor shows.
+    var pendingLine: Int? { didSet { readerLine = pendingLine } }
+    /// The same line for the reading view, which consumes it once scrolled without taking it from the editor.
+    var readerLine: Int?
 
     var current: Destination? { history.indices.contains(position) ? history[position] : nil }
     var canGoBack: Bool { position > 0 }

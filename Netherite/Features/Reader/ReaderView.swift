@@ -14,7 +14,7 @@ struct ReaderView: View {
         let model = window.model
         let body = HTMLRenderer.render(text, context: .app(model.index, source: path))
         // The heading, block or footnote at the requested line (outline, footnotes, links), scrolled to once.
-        let line = pane.pendingLine
+        let line = pane.readerLine
         let parsed = model.index.notes[path]?.parsed
         let sub = line.flatMap { line in
             parsed?.headings.first { $0.line == line }?.text
@@ -30,7 +30,7 @@ struct ReaderView: View {
             onAction: { action in
                 if case .hover(let p, let sub, let rect) = action { hover = (p, sub, rect) } else { window.handle(action, from: path) }
             },
-            scrollTarget: Binding(get: { sub }, set: { if $0 == nil, pane.pendingLine == line { pane.pendingLine = nil } }),
+            scrollTarget: Binding(get: { sub }, set: { if $0 == nil, pane.readerLine == line { pane.readerLine = nil } }),
             keepsScrollPosition: true)
         .id(path)   // another note starts at the top
         .accessibilityElement(children: .contain)
