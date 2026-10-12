@@ -16,9 +16,10 @@ public struct HTMLToMarkdown {
         md = md.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         md = md.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
         // Text `%` and `=` (see `escape`) are escaped only where they'd pair with a neighbour in the joined Markdown,
-        // or, for `=`, fill a line (a `=` line under text is a heading underline).
+        // or, for `=`, fill a line (a `=` line under text is a heading underline, also inside a quote or a list item).
         md = md.replacingOccurrences(of: #"(?<=[%\x{E000}])\x{E000}|\x{E000}(?=%)"#, with: "&#37;", options: .regularExpression)
-            .replacingOccurrences(of: #"(?m)(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])|(?<=^[ \t]{0,3})\x{E001}(?=[ \t]*$)"#, with: #"\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)^([ \t>]*)\x{E001}(?=[ \t]*$)"#, with: #"$1\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])"#, with: #"\\="#, options: .regularExpression)
             .replacingOccurrences(of: "\u{E000}", with: "%").replacingOccurrences(of: "\u{E001}", with: "=")
         return md.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
     }
@@ -172,7 +173,6 @@ public struct HTMLToMarkdown {
             case "<": out += "&lt;"
             case "%": out += "\u{E000}"   // `%%` opens a comment
             case "=": out += "\u{E001}"   // `==` opens a highlight
-            case "\u{E000}", "\u{E001}": out += "\u{FFFD}"
             default: out.append(c)
             }
         }
@@ -206,6 +206,7 @@ final class HTMLNode {
     func all(_ t: String) -> [HTMLNode] { children.flatMap { ($0.tag == t ? [$0] : []) + $0.all(t) } }
 
     static func parse(_ html: String) -> HTMLNode {
+        let html = neutralizeMarkers(html)
         let root = HTMLNode(tag: "#root")
         var stack = [root]
         let s = html as NSString
@@ -270,6 +271,12 @@ final class HTMLNode {
             else { out += named[e] ?? ns.substring(with: m.range) }
             last = NSMaxRange(m.range)
         }
-        return out + ns.substring(from: last)
+        return neutralizeMarkers(out + ns.substring(from: last))
+    }
+
+    /// U+E000/U+E001 are `HTMLToMarkdown`'s `%`/`=` placeholders: literal ones (also from `&#xE000;`) become U+FFFD,
+    /// so text that skips `escape` (code, links, images) can't be turned into `%`/`=`.
+    static func neutralizeMarkers(_ s: String) -> String {
+        s.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
     }
 }

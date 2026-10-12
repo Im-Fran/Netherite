@@ -105,6 +105,15 @@ public struct Vault: Sendable, Hashable {
         try result.get()
     }
 
+    /// File attributes of the note itself: a symlinked note reports its target's dates, not the link's.
+    public func resourceValues(of path: String, forKeys keys: Set<URLResourceKey>) -> URLResourceValues? {
+        try? url(for: path).resolvingSymlinksInPath().resourceValues(forKeys: keys)
+    }
+
+    public func modificationDate(of path: String) -> Date? {
+        resourceValues(of: path, forKeys: [.contentModificationDateKey])?.contentModificationDate
+    }
+
     public func exists(_ path: String) -> Bool {
         FileManager.default.fileExists(atPath: url(for: path).path(percentEncoded: false))
     }

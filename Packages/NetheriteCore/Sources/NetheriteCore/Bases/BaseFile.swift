@@ -221,7 +221,7 @@ public extension BaseRow {
     @MainActor static func all(from index: VaultIndex) -> [BaseRow] {
         index.files.map { path in
             let rec = index.notes[path]
-            let values = rec == nil ? try? index.vault.url(for: path).resourceValues(forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey]) : nil
+            let values = rec == nil ? index.vault.resourceValues(of: path, forKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey]) : nil
             return BaseRow(path: path, properties: rec?.parsed.properties ?? [], tags: rec?.parsed.tags ?? [],
                            links: index.outgoing[path] ?? [], size: rec?.text.utf8.count ?? values?.fileSize ?? 0,
                            ctime: rec?.created ?? values?.creationDate ?? .distantPast,
