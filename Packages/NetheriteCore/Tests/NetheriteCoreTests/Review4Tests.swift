@@ -45,3 +45,12 @@ import Testing
         #expect(Date().timeIntervalSince(start) < 1)
     }
 }
+
+// R4-16: a /regex/ term honours "Match case".
+@Test func regexSearchHonoursCaseSensitivity() {
+    func regex(_ q: SearchQuery) -> NSRegularExpression? { if case .regex(let r)? = q.terms.first { r } else { nil } }
+    #expect(regex(SearchQuery("/Foo/"))?.options.contains(.caseInsensitive) == true)
+    #expect(regex(SearchQuery("/Foo/", caseSensitive: true))?.options.contains(.caseInsensitive) == false)
+    if case .not(.regex(let r))? = SearchQuery("-/Foo/", caseSensitive: true).terms.first { #expect(!r.options.contains(.caseInsensitive)) }
+    else { Issue.record("expected a negated regex") }
+}

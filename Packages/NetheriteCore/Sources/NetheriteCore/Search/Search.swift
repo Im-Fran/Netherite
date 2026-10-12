@@ -28,7 +28,7 @@ public struct SearchQuery: Sendable {
         let straight = String(raw.map { "“”„«»".contains($0) ? "\"" : $0 })
         for tok in Self.tokenize(straight) {
             if tok == "OR" { pendingOr = true; continue }
-            guard let term = Self.term(tok) else { continue }
+            guard let term = Self.term(tok, caseSensitive: caseSensitive) else { continue }
             if pendingOr, let last = out.popLast() { out.append(.or(last, term)) } else { out.append(term) }
             pendingOr = false
         }
@@ -57,15 +57,15 @@ public struct SearchQuery: Sendable {
         s.count >= 2 && s.hasPrefix("\"") && s.hasSuffix("\"") ? String(s.dropFirst().dropLast()) : s
     }
 
-    static func term(_ tok: String) -> Term? {
-        if tok.hasPrefix("-"), tok.count > 1 { return term(String(tok.dropFirst())).map { .not($0) } }
+    static func term(_ tok: String, caseSensitive: Bool = false) -> Term? {
+        if tok.hasPrefix("-"), tok.count > 1 { return term(String(tok.dropFirst()), caseSensitive: caseSensitive).map { .not($0) } }
         if tok.hasPrefix("["), tok.hasSuffix("]") {
             let inner = tok.dropFirst().dropLast()
             let parts = inner.split(separator: ":", maxSplits: 1).map { unquote(String($0).trimmingCharacters(in: .whitespaces)) }
             return parts.first.map { .property(key: $0, value: parts.count > 1 ? parts[1] : nil) }
         }
         if tok.count > 2, tok.hasPrefix("/"), tok.hasSuffix("/") {
-            return (try? NSRegularExpression(pattern: String(tok.dropFirst().dropLast()), options: .caseInsensitive)).map { .regex($0) }
+            return (try? NSRegularExpression(pattern: String(tok.dropFirst().dropLast()), options: caseSensitive ? [] : .caseInsensitive)).map { .regex($0) }
         }
         if let colon = tok.firstIndex(of: ":") {
             let op = tok[..<colon].lowercased(), val = unquote(String(tok[tok.index(after: colon)...]))
