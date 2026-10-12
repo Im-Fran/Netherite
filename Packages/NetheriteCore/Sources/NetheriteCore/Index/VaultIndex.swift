@@ -64,7 +64,7 @@ public final class VaultIndex {
 
     nonisolated static func record(_ vault: Vault, _ path: String) -> NoteRecord? {
         guard let text = try? vault.read(path) else { return nil }
-        let values = try? vault.url(for: path).resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+        let values = vault.resourceValues(of: path, forKeys: [.contentModificationDateKey, .creationDateKey])
         return NoteRecord(path: path, text: text, parsed: NoteParser.parse(text),
                           modified: values?.contentModificationDate ?? .now, created: values?.creationDate ?? .now)
     }
@@ -80,7 +80,7 @@ public final class VaultIndex {
             let entries = vault.entries()
             var changed: [String: NoteRecord] = [:]
             for e in entries where !e.isFolder && e.path.isMarkdown {
-                let mod = try? vault.url(for: e.path).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                let mod = vault.modificationDate(of: e.path)
                 if known[e.path] == .distantFuture { continue }
                 if known[e.path] == nil || mod != known[e.path] { if let r = Self.record(vault, e.path) { changed[e.path] = r } }
             }

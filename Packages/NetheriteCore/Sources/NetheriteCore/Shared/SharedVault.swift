@@ -89,7 +89,7 @@ public extension Vault {
         let q = query.trimmingCharacters(in: .whitespaces)
         let notes = allFiles().filter { $0.isMarkdown && (q.isEmpty || $0.noteName.localizedCaseInsensitiveContains(q)) }
         let dated = notes.map { p in
-            (p, (try? url(for: p).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast)
+            (p, modificationDate(of: p) ?? .distantPast)
         }
         return dated.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
     }
