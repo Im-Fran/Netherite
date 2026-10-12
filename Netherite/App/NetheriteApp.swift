@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 import NetheriteCore
 #if DIRECT_DISTRIBUTION
 import OpenUpdater
@@ -77,18 +78,11 @@ struct RootView: View {
                     .tint(Color(pair: window.model.theme.accent, fallback: .accentColor))
             } else {
                 VaultPicker { vaultPath = AppModel.key($0.vault.root) }
-                    .onOpenURL { url in
-                        // Widget and Shortcuts links name their vault: open it, then follow the link.
-                        if let vault = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "vault" })?.value {
-                            if app.isKnownVault(vault) { pendingLink = url; vaultPath = vault }
-                            return
-                        }
-                        // netherite://guide opens the guide vault from the start page (and from Shortcuts).
-                        guard url.host() == "guide" else { return }
-                        Task {
-                            let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
-                            if let m = try? app.createGuideVault(in: parent) { vaultPath = AppModel.key(m.vault.root) }
-                        }
+                    .onOpenURL(perform: follow)
+                    // A Spotlight result names its vault too: follow it as an `open` link.
+                    .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                        if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                           let url = SystemIntegration.openLink(forIdentifier: id) { follow(url) }
                     }
             }
         }
@@ -124,6 +118,20 @@ struct RootView: View {
         }
         // Outermost, so the onboarding cover and every sheet inherit it.
         .accessibilityRoot(appearance: window?.model.theme.appearance)
+    }
+
+    private func follow(_ url: URL) {
+        // Widget and Shortcuts links name their vault: open it, then follow the link.
+        if let vault = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "vault" })?.value {
+            if app.isKnownVault(vault) { pendingLink = url; vaultPath = vault }
+            return
+        }
+        // netherite://guide opens the guide vault from the start page (and from Shortcuts).
+        guard url.host() == "guide" else { return }
+        Task {
+            let parent = await AppModel.iCloudDocuments() ?? AppModel.localDocuments
+            if let m = try? app.createGuideVault(in: parent) { vaultPath = AppModel.key(m.vault.root) }
+        }
     }
 }
 

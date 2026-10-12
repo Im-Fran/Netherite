@@ -61,6 +61,7 @@ final class VaultModel {
         // A file moved or deleted outside this window must not be recreated at its old path.
         guard !isGone(path) else { return }
         // On disk but not indexed yet (made by a widget, the Share Extension or an intent before the next refresh).
+        // `isGone` matched the exact spelling, so this can't add a second record for a file the index has in other case.
         if index.isLoaded && !index.files.contains(path) { index.didCreate(path) }
         index.update(path, text: text)
         dirty.insert(path)
@@ -101,7 +102,8 @@ final class VaultModel {
     }
 
     /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
-    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.exists(path) }
+    /// Case counts: after an outside rename to other capitals, `exists` still finds the file on APFS, but this path is gone.
+    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.existsExactly(path) }
 
     func refresh() async { await externalChange() }
 
@@ -173,6 +175,8 @@ final class VaultModel {
     }
 
     func trash(_ path: String) {
+        // Unsaved edits go into the trashed files, so restoring them from the Trash keeps them.
+        for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         // Once trashed, drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
         // If trashing fails they stay, so the edits are still saved.
         guard perform({ try index.trash(path) }) != nil else { return }

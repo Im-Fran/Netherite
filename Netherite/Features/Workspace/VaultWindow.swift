@@ -70,13 +70,8 @@ struct VaultWindow: View {
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            // Routed like an `open` link, so a note of another vault opens there (or not at all) and a missing one is skipped.
-            guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String else { return }
-            let (vault, path) = SystemIntegration.path(fromIdentifier: id)
-            var link = URLComponents()
-            link.scheme = "netherite"; link.host = "open"
-            link.queryItems = [URLQueryItem(name: "path", value: path)] + (vault.map { [URLQueryItem(name: "vault", value: $0)] } ?? [])
-            if let url = link.url { handleDeepLink(url) }
+            if let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+               let url = SystemIntegration.openLink(forIdentifier: id) { handleDeepLink(url) }
         }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
@@ -138,7 +133,9 @@ struct VaultWindow: View {
         }
         switch url.host() {
         case "open":
-            if let p = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }), window.model.vault.exists(p) {
+            // Open the file's own spelling: another case or a leading "/" would be indexed as a second note, and its edits lost.
+            if let raw = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }),
+               let p = window.model.vault.canonicalPath(raw) {
                 window.open(path: p)
             }
         case "new":

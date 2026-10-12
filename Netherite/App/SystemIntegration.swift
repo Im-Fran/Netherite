@@ -41,10 +41,19 @@ enum SystemIntegration {
 
     private static func vaultDomain(_ model: VaultModel) -> String { model.vault.root.path(percentEncoded: false) }
 
-    /// Splits a Spotlight identifier ("vault root|note path") back into its parts.
-    /// Note names can't contain "|", so it splits at the last one. Pre-namespacing identifiers are a bare path (vault nil).
-    static func path(fromIdentifier id: String) -> (vault: String?, path: String) {
-        guard let bar = id.lastIndex(of: "|") else { return (nil, id) }
-        return (String(id[..<bar]), String(id[id.index(after: bar)...]))
+    /// The `open` deep link for a Spotlight identifier ("vault root|note path"; pre-namespacing ones are a bare path),
+    /// routed like any link so a note of another vault opens there (or not at all) and a missing one is skipped.
+    /// Both parts may contain "|": the vault is the first prefix naming a known vault; nil when none does.
+    static func openLink(forIdentifier id: String) -> URL? {
+        var link = URLComponents()
+        link.scheme = "netherite"; link.host = "open"
+        if !id.contains("|") {
+            link.queryItems = [URLQueryItem(name: "path", value: id)]
+        } else {
+            guard let bar = id.indices.first(where: { id[$0] == "|" && $0 > id.startIndex && AppModel.shared.isKnownVault(String(id[..<$0])) }) else { return nil }
+            link.queryItems = [URLQueryItem(name: "path", value: String(id[id.index(after: bar)...])),
+                               URLQueryItem(name: "vault", value: String(id[..<bar]))]
+        }
+        return link.url
     }
 }
