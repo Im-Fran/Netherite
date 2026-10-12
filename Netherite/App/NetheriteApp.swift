@@ -65,6 +65,8 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
     @State private var window: WindowState?
+    /// A deep link for another vault, followed once this window shows it.
+    @State private var pendingLink: URL?
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
@@ -76,6 +78,10 @@ struct RootView: View {
             } else {
                 VaultPicker { vaultPath = AppModel.key($0.vault.root) }
                     .onOpenURL { url in
+                        // Widget and Shortcuts links name their vault: open it, then follow the link.
+                        if let vault = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "vault" })?.value {
+                            pendingLink = url; vaultPath = vault; return
+                        }
                         // netherite://guide opens the guide vault from the start page (and from Shortcuts).
                         guard url.host() == "guide" else { return }
                         Task {
@@ -108,6 +114,9 @@ struct RootView: View {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
             window?.closeVault = { vaultPath = "" }
+            window?.switchVault = { path, link in pendingLink = link; vaultPath = path }
+            window?.pendingLink = pendingLink
+            pendingLink = nil
         }
         // Outermost, so the onboarding cover and every sheet inherit it.
         .accessibilityRoot(appearance: window?.model.theme.appearance)

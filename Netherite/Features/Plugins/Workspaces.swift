@@ -86,7 +86,7 @@ struct WorkspacesView: View {
                 Button("Delete", role: .destructive) { window.deleteWorkspace(w); list = window.workspaces }
             }
         }
-        .frame(minWidth: 440, minHeight: 360)
+        .macOnly { $0.frame(minWidth: 440, minHeight: 360) }
         .onAppear { list = window.workspaces }
     }
 

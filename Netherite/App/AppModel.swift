@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 import NetheriteCore
 
 struct RecentVault: Codable, Hashable, Identifiable {
@@ -124,14 +125,14 @@ final class AppModel {
     @discardableResult
     func openVault(at url: URL, bookmark: Data? = nil) -> VaultModel {
         let key = Self.key(url)
-        if let m = open[key] { publishShared(url); touch(url, bookmark: bookmark); return m }
+        if let m = open[key] { publishShared(url, m); touch(url, bookmark: bookmark); return m }
         // Returns false for folders that need no security scope (app container, iCloud); only unreadable ones are an error.
         if url.startAccessingSecurityScopedResource() { scoped.insert(key) }
         else if !FileManager.default.isReadableFile(atPath: key) {
             lastError = String(localized: "Netherite can’t access “\(url.lastPathComponent)”. Open the folder again to grant access.")
         }
-        publishShared(url)
         let model = VaultModel(vault: Vault(root: url))
+        publishShared(url, model)
         open[key] = model
         touch(url, bookmark: bookmark ?? makeBookmark(url))
         return model
@@ -166,6 +167,9 @@ final class AppModel {
     func forget(_ recent: RecentVault) {
         recents.removeAll { $0.id == recent.id }
         persist()
+        // Clips, widgets and Shortcuts must not keep writing into a vault that was removed or trashed.
+        SharedVault.withdraw(recent.path, replacingWith: recents.first.map { SharedVault(name: $0.name, path: $0.path, bookmark: $0.bookmark) })
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: Managing vaults
@@ -312,11 +316,13 @@ final class AppModel {
         persist()
     }
 
-    /// Extensions, widgets and intents read the most recently opened vault from the App Group.
+    /// Extensions, widgets and intents read the most recently opened vault (and its recent notes) from the App Group.
     /// The bookmark is made after security-scoped access starts, or it comes back nil on iOS.
-    private func publishShared(_ url: URL) {
+    private func publishShared(_ url: URL, _ model: VaultModel) {
         SharedVault.publish(SharedVault(name: url.lastPathComponent, path: Self.key(url),
                                         bookmark: try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)))
+        SharedVault.publishRecents(model.recentFiles, vault: Self.key(url))
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func persist() {

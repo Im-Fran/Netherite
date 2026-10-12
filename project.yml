@@ -62,6 +62,8 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
         NSMicrophoneUsageDescription: Netherite records audio notes that are saved into your vault.
+        # Keeps an audio recording going when the app moves to the background (iOS).
+        UIBackgroundModes: [audio]
         NSUbiquitousContainers:
           iCloud.cl.franciscosolis.netherite:
             NSUbiquitousContainerIsDocumentScopePublic: true

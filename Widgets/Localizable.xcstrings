@@ -131,6 +131,16 @@
         }
       }
     },
+    "Move “%@” to iCloud Drive to see it here" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mueve “%@” a iCloud Drive para verla aquí"
+          }
+        }
+      }
+    },
     "New Note" : {
       "localizations" : {
         "es" : {

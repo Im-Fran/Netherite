@@ -24,12 +24,23 @@ public struct SharedVault: Codable, Hashable, Sendable {
         d?.data(forKey: "sharedVault").flatMap { try? JSONDecoder().decode(SharedVault.self, from: $0) }
     }
 
-    public static func publishRecents(_ paths: [String], to d: UserDefaults? = defaults) {
-        d?.set(Array(paths.prefix(20)), forKey: "recentNotes")
+    /// Stops sharing the vault at `path` (trashed or removed from the list), sharing `next` instead, or nothing.
+    public static func withdraw(_ path: String, replacingWith next: SharedVault?, in d: UserDefaults? = defaults) {
+        guard current(d)?.path == path else { return }
+        if let next { publish(next, to: d) } else { d?.removeObject(forKey: "sharedVault") }
     }
 
+    /// Recent notes of the vault at `vault`; ignored unless it is the shared vault, so another open vault can't mix in its notes.
+    public static func publishRecents(_ paths: [String], vault: String, to d: UserDefaults? = defaults) {
+        guard current(d)?.path == vault else { return }
+        d?.set(Array(paths.prefix(20)), forKey: "recentNotes")
+        d?.set(vault, forKey: "recentNotesVault")
+    }
+
+    /// The shared vault's recent notes (empty when the published ones belong to another vault).
     public static func recents(_ d: UserDefaults? = defaults) -> [String] {
-        d?.stringArray(forKey: "recentNotes") ?? []
+        guard let vault = current(d)?.path, d?.string(forKey: "recentNotesVault") == vault else { return [] }
+        return d?.stringArray(forKey: "recentNotes") ?? []
     }
 
     /// The vault folder, via bookmark when it still resolves, else by path.
@@ -51,6 +62,8 @@ public struct SharedVault: Codable, Hashable, Sendable {
     }
 
     private func folderURL() -> URL? {
+        // Extensions only reach the iCloud container after asking for it (this call may block: keep it off the main thread).
+        if path.contains("/Mobile Documents/") { _ = FileManager.default.url(forUbiquityContainerIdentifier: nil) }
         if let bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) { return url }
@@ -90,12 +103,21 @@ public extension Vault {
 }
 
 public extension SharedVault {
-    /// `netherite://open?path=…`, built with URLComponents so `&`, `+` and `#` in names survive.
-    static func openURL(path: String) -> URL {
+    /// `netherite://open?path=…&vault=…`, built with URLComponents so `&`, `+` and `#` in names survive.
+    /// `vault` (the vault folder's path) lets the app open the note in the right vault.
+    static func openURL(path: String, vault: String? = nil) -> URL {
+        link("open", [URLQueryItem(name: "path", value: path)], vault: vault)
+    }
+
+    /// `netherite://daily?vault=…`
+    static func dailyURL(vault: String?) -> URL { link("daily", [], vault: vault) }
+
+    private static func link(_ host: String, _ items: [URLQueryItem], vault: String?) -> URL {
         var c = URLComponents()
         c.scheme = "netherite"
-        c.host = "open"
-        c.queryItems = [URLQueryItem(name: "path", value: path)]
+        c.host = host
+        let all = items + (vault.map { [URLQueryItem(name: "vault", value: $0)] } ?? [])
+        c.queryItems = all.isEmpty ? nil : all
         // URLComponents leaves "+" as-is in queries, which some parsers read as a space.
         c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         return c.url!

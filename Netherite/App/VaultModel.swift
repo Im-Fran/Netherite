@@ -15,7 +15,7 @@ final class VaultModel {
     private(set) var recentFiles: [String] {
         didSet {
             vault.saveConfig("recent.json", recentFiles)
-            SharedVault.publishRecents(recentFiles)
+            SharedVault.publishRecents(recentFiles, vault: AppModel.key(vault.root))
         }
     }
     private(set) var dirty: Set<String> = []

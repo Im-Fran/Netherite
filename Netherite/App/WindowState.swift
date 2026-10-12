@@ -151,6 +151,10 @@ final class WindowState {
     var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     /// Returns this window to the vault picker (set by RootView; iOS has no File › Open Vault… on iPhone).
     @ObservationIgnored var closeVault: (() -> Void)?
+    /// Shows another vault in this window and follows the deep link there (set by RootView).
+    @ObservationIgnored var switchVault: ((_ path: String, _ link: URL) -> Void)?
+    /// A deep link to follow once the window shows its vault.
+    @ObservationIgnored var pendingLink: URL?
     /// File awaiting the "Move to Trash" confirmation shown by the vault window.
     var pendingTrash: String?
     var sheet: ActiveSheet? {
