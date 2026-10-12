@@ -40,6 +40,21 @@ extension WindowState {
     }
 }
 
+extension VaultModel {
+    /// Rewrites the panes of every saved workspace (`nil` drops one), so they follow renamed, moved and trashed files.
+    func updateWorkspaces(_ change: (Destination) -> Destination?) {
+        let all = vault.loadConfig("workspaces.json", fallback: [Workspace]())
+        let updated = all.map { w in
+            var w = w
+            let kept = w.panes.indices.compactMap { i in change(w.panes[i]).map { ($0, w.readingModes.indices.contains(i) && w.readingModes[i]) } }
+            w.panes = kept.map { $0.0 }
+            w.readingModes = kept.map { $0.1 }
+            return w
+        }
+        if updated != all { vault.saveConfig("workspaces.json", updated) }
+    }
+}
+
 struct WorkspacesView: View {
     @Environment(WindowState.self) private var window
     @Environment(\.dismiss) private var dismiss
