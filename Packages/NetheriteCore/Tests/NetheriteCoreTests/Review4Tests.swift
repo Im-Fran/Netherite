@@ -71,3 +71,16 @@ import Testing
         #expect(f.date(from: "2026-10-12") == date, "\(id)")
     }
 }
+
+// R4-10: an imported title starting with "." doesn't become a hidden note.
+@Test func importedTitleNeverHidden() throws {
+    #expect(Writer.safeName(".NET tips") == "NET tips")
+    #expect(Writer.safeName(" . .x") == "x")
+    #expect(!Writer.safeName("...").isEmpty && !Writer.safeName("...").hasPrefix("."))
+    let vault = tempVault()
+    try FileManager.default.createDirectory(at: vault.root, withIntermediateDirectories: true)
+    let src = vault.root.appending(path: "x.html")
+    try Data("<html><head><title>.NET tips</title></head><body><p>hi</p></body></html>".utf8).write(to: src)
+    let report = try Importer(vault: vault, destination: "H").run(.html, from: src)
+    #expect(report.notes == ["H/NET tips.md"] && vault.allFiles().contains("H/NET tips.md"))
+}

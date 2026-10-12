@@ -265,7 +265,9 @@ struct Writer {
 
     static func safeName(_ s: String) -> String {
         let cleaned = s.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]\n\r\t]"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"^[.\s]+"#, with: "", options: .regularExpression)   // ".NET tips" would be a hidden file
+            .trimmingCharacters(in: .whitespaces)
         return cleaned.isEmpty ? String(localized: "Untitled", bundle: .module) : String(cleaned.prefix(120))
     }
 
