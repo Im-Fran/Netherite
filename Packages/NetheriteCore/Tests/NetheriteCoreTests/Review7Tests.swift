@@ -26,3 +26,14 @@ import Testing
     #expect(!vault.exists("B.md"))
     #expect(!index.files.contains("B.md"))
 }
+
+private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNote: { _ in nil },
+                                linkHref: { _, t, _ in t }, assetURL: { $0 }, tagHref: { "tag:" + $0 })
+
+// R7-04: a highlight can wrap a wikilink or inline math.
+@Test func highlightWrapsWikilinkAndMath() {
+    let wiki = HTMLRenderer.render("==see [[w]] ok==", context: ctx)
+    #expect(wiki.contains("<mark>see <a") && wiki.contains("ok</mark>"))
+    #expect(HTMLRenderer.render("==$x$==", context: ctx).contains("<mark><span class=\"math math-inline\""))
+    #expect(!HTMLRenderer.render("[a ==b](c) d==", context: ctx).contains("<mark>"))
+}

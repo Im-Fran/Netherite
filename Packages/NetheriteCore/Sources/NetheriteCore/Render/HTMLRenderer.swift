@@ -65,18 +65,23 @@ public enum HTMLRenderer {
         var taken = IndexSet(), linkTargets = IndexSet(), links: [Range<Int>] = []
         let codeMasked = maskCode(src)
         let ns = src as NSString
-        func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
+        /// Replaces the capture `groups` of each match (the whole match by default) with `make`'s strings. Only those
+        /// ranges must be free: a highlight replaces just its `==`, so it can wrap a wikilink or math token.
+        func add(_ re: NSRegularExpression, in text: String, groups: [Int] = [0], _ make: (NSTextCheckingResult) -> [String]?) {
             for m in re.matches(in: text, range: full(text)) {
                 let first = sources.count
-                guard let range = Range(m.range), !taken.intersects(integersIn: range),
+                let parts = groups.map { m.range(at: $0) }
+                guard let range = Range(m.range), !parts.contains(where: { taken.intersects(integersIn: Range($0)!) }),
                       !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1),
                       // ponytail: linear scan per token; index the links if notes with thousands of both get slow.
                       !links.contains(where: { $0.overlaps(range) && $0.clamped(to: range) != $0 && range.clamped(to: $0) != range }),
                       let r = make(m) else { continue }
                 for i in first..<sources.count where sources[i] == nil { sources[i] = ns.substring(with: m.range) }
-                reps.append((m.range, r))
-                taken.insert(integersIn: range)
+                for (part, r) in zip(parts, r) { reps.append((part, r)); taken.insert(integersIn: Range(part)!) }
             }
+        }
+        func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
+            add(re, in: text) { make($0).map { [$0] } }
         }
         add(NoteParser.Regex.comment, in: codeMasked) { m in String(repeating: "\n", count: ns.substring(with: m.range).filter { $0 == "\n" }.count) }
         add(NoteParser.Regex.mathBlock, in: codeMasked) { m in
@@ -91,8 +96,10 @@ public enum HTMLRenderer {
             links.append(Range(m.range)!)
             linkTargets.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
         }
+        var inlineMath: [NSRange] = []
         add(NoteParser.Regex.inlineMath, in: codeMasked) { m in
-            token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
+            inlineMath.append(m.range)
+            return token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
         }
         let masked = NoteParser.maskedText(src)
         add(NoteParser.Regex.wiki, in: masked) { m in
@@ -101,12 +108,13 @@ public enum HTMLRenderer {
         }
         // `==` and tags are matched with link destinations and titles blanked, so an `==` inside `[a](b "x==y")` can't
         // pair with (and swallow) a highlight after the link. They're filled with U+FFFC, not spaces, so the link still
-        // counts as text: `==see [a](b)==` closes after it and `[x](y)#t` isn't a tag.
+        // counts as text: `==see [a](b)==` closes after it and `[x](y)#t` isn't a tag. Inline math, blanked in `masked`,
+        // counts as text too: `==$x$==` is a highlight.
         var unlinkedUnits = Array(masked.utf16)
-        for r in linkTargets.rangeView { NoteParser.blank(&unlinkedUnits, NSRange(r), with: 0xFFFC) }
+        for r in linkTargets.rangeView.map(NSRange.init) + inlineMath { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
         let unlinked = String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count)
-        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: unlinked) { m in
-            token("<mark>", source: "==") + ns.substring(with: m.range(at: 2)) + token("</mark>", source: "==")
+        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: unlinked, groups: [1, 3]) { _ in
+            [token("<mark>", source: "=="), token("</mark>", source: "==")]
         }
         add(NoteParser.Regex.tag, in: unlinked) { m in
             let tag = ns.substring(with: m.range(at: 1))
