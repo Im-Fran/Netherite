@@ -194,7 +194,10 @@ final class AppModel {
     /// Moves a vault to Recently Deleted (permanently deleted after 90 days). Vaults in folders Netherite didn't
     /// create go to the system Trash on the Mac; on iOS those can only be removed from the list.
     func trashVault(_ recent: RecentVault) async throws {
-        let url = URL(filePath: recent.path, directoryHint: .isDirectory)
+        // `close` ends the open vault's security scope: hold one of our own for the move.
+        let url = resolvedURL(recent)
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
         let parents = await Self.vaultParents().map(Self.key)
         if parents.contains(Self.key(url.deletingLastPathComponent())) {
             close(recent.path)
@@ -235,7 +238,10 @@ final class AppModel {
     /// Moves a vault stored on this device into iCloud Drive; the system uploads it from there.
     func moveToICloud(_ recent: RecentVault) async throws {
         guard let docs = await Self.iCloudDocuments() else { throw Self.iCloudUnavailable }
-        let source = URL(filePath: recent.path, directoryHint: .isDirectory)
+        // `close` ends the open vault's security scope: hold one of our own for the move.
+        let source = resolvedURL(recent)
+        let access = source.startAccessingSecurityScopedResource()
+        defer { if access { source.stopAccessingSecurityScopedResource() } }
         let target = docs.appending(path: Vault(root: docs).availablePath(folder: "", base: recent.name, ext: ""), directoryHint: .isDirectory)
         close(recent.path)
         try await Task.detached {
