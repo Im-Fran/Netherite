@@ -101,7 +101,8 @@ final class VaultModel {
     }
 
     /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
-    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.exists(path) }
+    /// Case counts: after an outside rename to other capitals, `exists` still finds the file on APFS, but this path is gone.
+    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.existsExactly(path) }
 
     func refresh() async { await externalChange() }
 
