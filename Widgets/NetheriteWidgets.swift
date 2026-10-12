@@ -22,6 +22,8 @@ struct VaultEntry: TimelineEntry {
     var dailyTitle: String
     var dailyExcerpt: String
     var recents: [String]
+    /// The vault folder, so taps open notes in this vault.
+    var vaultPath: String? = nil
 }
 
 struct VaultProvider: TimelineProvider {
@@ -48,12 +50,12 @@ struct VaultProvider: TimelineProvider {
         let recents = SharedVault.recents().filter(vault.exists)
         return VaultEntry(date: .now, vaultName: shared?.name, dailyTitle: daily.noteName,
                           dailyExcerpt: vault.excerpt(daily, length: 400),
-                          recents: recents.isEmpty ? vault.searchTitles("", limit: 8) : recents)
+                          recents: recents.isEmpty ? vault.searchTitles("", limit: 8) : recents, vaultPath: shared?.path)
     }
 }
 
-private func openURL(_ path: String) -> URL {
-    SharedVault.openURL(path: path)
+private func openURL(_ path: String, in entry: VaultEntry) -> URL {
+    SharedVault.openURL(path: path, vault: entry.vaultPath)
 }
 
 private struct NoVaultView: View {
@@ -72,7 +74,7 @@ struct DailyNoteWidget: Widget {
         StaticConfiguration(kind: "DailyNote", provider: VaultProvider()) { entry in
             DailyNoteView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
-                .widgetURL(URL(string: "netherite://daily"))
+                .widgetURL(SharedVault.dailyURL(vault: entry.vaultPath))
         }
         .configurationDisplayName("Daily Note")
         .description("Today's daily note at a glance.")
@@ -119,7 +121,7 @@ struct RecentNotesWidget: Widget {
             RecentNotesView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
                 // Small widgets are a single tap target and ignore Link: open the most recent note.
-                .widgetURL(entry.recents.first.map(openURL))
+                .widgetURL(entry.recents.first.map { openURL($0, in: entry) })
         }
         .configurationDisplayName("Recent Notes")
         .description("Jump back into the notes you opened last.")
@@ -148,7 +150,7 @@ struct RecentNotesView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label(entry.vaultName ?? "", systemImage: "clock").font(.caption.bold()).foregroundStyle(.tint).lineLimit(1).widgetAccentable()
                 ForEach(entry.recents.prefix(limit), id: \.self) { path in
-                    Link(destination: openURL(path)) {
+                    Link(destination: openURL(path, in: entry)) {
                         Label(path.noteName, systemImage: "doc.text").font(.subheadline).lineLimit(1).privacySensitive()
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(.rect)

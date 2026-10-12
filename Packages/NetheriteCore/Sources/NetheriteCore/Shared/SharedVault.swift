@@ -101,12 +101,21 @@ public extension Vault {
 }
 
 public extension SharedVault {
-    /// `netherite://open?path=…`, built with URLComponents so `&`, `+` and `#` in names survive.
-    static func openURL(path: String) -> URL {
+    /// `netherite://open?path=…&vault=…`, built with URLComponents so `&`, `+` and `#` in names survive.
+    /// `vault` (the vault folder's path) lets the app open the note in the right vault.
+    static func openURL(path: String, vault: String? = nil) -> URL {
+        link("open", [URLQueryItem(name: "path", value: path)], vault: vault)
+    }
+
+    /// `netherite://daily?vault=…`
+    static func dailyURL(vault: String?) -> URL { link("daily", [], vault: vault) }
+
+    private static func link(_ host: String, _ items: [URLQueryItem], vault: String?) -> URL {
         var c = URLComponents()
         c.scheme = "netherite"
-        c.host = "open"
-        c.queryItems = [URLQueryItem(name: "path", value: path)]
+        c.host = host
+        let all = items + (vault.map { [URLQueryItem(name: "vault", value: $0)] } ?? [])
+        c.queryItems = all.isEmpty ? nil : all
         // URLComponents leaves "+" as-is in queries, which some parsers read as a space.
         c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         return c.url!

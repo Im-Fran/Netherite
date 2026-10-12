@@ -94,7 +94,7 @@ struct OpenDailyNoteIntent: AppIntent {
     static let description = IntentDescription("Opens today's daily note in Netherite.")
 
     func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(openURL("netherite://daily")))
+        .result(opensIntent: OpenURLIntent(SharedVault.dailyURL(vault: SharedVault.current()?.path)))
     }
 }
 
@@ -105,7 +105,8 @@ struct OpenNoteIntent: AppIntent {
     @Parameter(title: "Note") var note: NoteEntity
 
     func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(SharedVault.openURL(path: note.id)))
+        // Notes come from the shared vault: open them there, whichever vault the app shows.
+        .result(opensIntent: OpenURLIntent(SharedVault.openURL(path: note.id, vault: SharedVault.current()?.path)))
     }
 }
 

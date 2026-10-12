@@ -61,6 +61,7 @@ struct VaultWindow: View {
             else if window.pane.current == nil, let last = window.model.recentFiles.first(where: window.model.vault.exists) {
                 window.open(path: last)
             }
+            if let link = window.pendingLink { window.pendingLink = nil; handleDeepLink(link) }
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
@@ -114,8 +115,14 @@ struct VaultWindow: View {
     }
 
     /// netherite://open?path=Folder/Note.md · netherite://new?name=…&content=… · netherite://daily · netherite://search?query=…
+    /// `vault=<folder path>` (widgets, Shortcuts) switches this window to that vault first.
     private func handleDeepLink(_ url: URL) {
         let q = Dictionary((URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") }) { a, _ in a }
+        if let v = q["vault"], AppModel.rebased(AppModel.key(URL(filePath: v))) != AppModel.key(window.model.vault.root), let switchVault = window.switchVault {
+            window.model.flushAll()
+            switchVault(v, url)
+            return
+        }
         switch url.host() {
         case "open": if let p = q["path"] ?? q["file"] { window.open(path: p.hasSuffix(".md") || p.contains(".") ? p : p + ".md") }
         case "new":

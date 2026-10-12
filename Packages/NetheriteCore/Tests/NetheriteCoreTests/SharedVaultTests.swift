@@ -49,3 +49,12 @@ import Testing
     #expect(SharedVault.current(d) == nil)
 }
 
+@Test func deepLinksCarryTheVault() {
+    let items = { (url: URL) in Dictionary(uniqueKeysWithValues: (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value) }) }
+    let open = SharedVault.openURL(path: "a.md", vault: "/V a&b")
+    #expect(items(open)["vault"] == "/V a&b")
+    #expect(items(open)["path"] == "a.md")
+    let daily = SharedVault.dailyURL(vault: "/V")
+    #expect(daily.host() == "daily" && items(daily)["vault"] == "/V")
+    #expect(SharedVault.dailyURL(vault: nil).absoluteString == "netherite://daily")
+}
