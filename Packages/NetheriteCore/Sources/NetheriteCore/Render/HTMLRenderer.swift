@@ -33,8 +33,10 @@ public enum HTMLRenderer {
 
     /// Renders a note's Markdown to an HTML fragment.
     public static func render(_ text: String, context ctx: RenderContext) -> String {
-        var tokens: [String] = []
-        func token(_ html: String) -> String { tokens.append(html); return "\u{E000}\(tokens.count - 1)\u{E001}" }
+        var tokens: [String] = [], sources: [String?] = []   // the text each token replaced, for link destinations
+        func token(_ html: String, source: String? = nil) -> String {
+            tokens.append(html); sources.append(source); return "\u{E000}\(tokens.count - 1)\u{E001}"
+        }
 
         // The placeholder markers are private-use characters; a note can't smuggle in its own (N-21).
         var src = text.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
@@ -65,8 +67,10 @@ public enum HTMLRenderer {
         let ns = src as NSString
         func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
             for m in re.matches(in: text, range: full(text)) {
+                let first = sources.count
                 guard let range = Range(m.range), !taken.intersects(integersIn: range),
                       !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1), let r = make(m) else { continue }
+                for i in first..<sources.count where sources[i] == nil { sources[i] = ns.substring(with: m.range) }
                 reps.append((m.range, r))
                 taken.insert(integersIn: range)
             }
@@ -91,7 +95,7 @@ public enum HTMLRenderer {
             return token(link.isEmbed ? embed(link, ctx) : anchor(link, ctx))
         }
         add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: masked) { m in
-            token("<mark>") + ns.substring(with: m.range(at: 2)) + token("</mark>")
+            token("<mark>", source: "==") + ns.substring(with: m.range(at: 2)) + token("</mark>", source: "==")
         }
         add(NoteParser.Regex.tag, in: masked) { m in
             let tag = ns.substring(with: m.range(at: 1))
@@ -105,7 +109,7 @@ public enum HTMLRenderer {
         add(try! NSRegularExpression(pattern: #"[ \t]\^([A-Za-z0-9\-]+)[ \t]*$"#, options: .anchorsMatchLines), in: masked) { m in
             token("<a class=\"block-id\" id=\"^\(escape(ns.substring(with: m.range(at: 1))))\"></a>")
         }
-        var walker = HTMLWalker(ctx: ctx)
+        var walker = HTMLWalker(ctx: ctx, sources: sources.map { $0 ?? "" })
         walker.visit(Document(parsing: splice(ns, reps), options: [.disableSmartOpts]))
         var html = props + walker.result
 
@@ -376,13 +380,16 @@ public enum HTMLRenderer {
 /// CommonMark/GFM → HTML with escaping, heading anchors, callouts, interactive tasks and code/mermaid blocks.
 struct HTMLWalker: MarkupWalker {
     var ctx: RenderContext
+    /// The original text of each placeholder token: a destination gets it back, so no tag or link lands in an `href`
+    /// (a reference definition or a title the link pattern doesn't cover).
+    let sources: [String]
     var result = ""
     private let esc = HTMLRenderer.escape
 
-    init(ctx: RenderContext) { self.ctx = ctx }
+    init(ctx: RenderContext, sources: [String] = []) { self.ctx = ctx; self.sources = sources }
 
     mutating func inner(_ m: Markup) -> String {
-        var w = HTMLWalker(ctx: ctx)
+        var w = HTMLWalker(ctx: ctx, sources: sources)
         for c in m.children { w.visit(c) }
         return w.result
     }
@@ -419,7 +426,7 @@ struct HTMLWalker: MarkupWalker {
     }
 
     mutating func visitLink(_ l: Markdown.Link) {
-        let dest = l.destination ?? ""
+        let dest = HTMLRenderer.restoreTokens(l.destination ?? "", sources)
         let isExternal = dest.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
         if isExternal {
             let href = HTMLRenderer.safeURL(dest, schemes: HTMLRenderer.linkSchemes).map { " href=\"\(esc($0))\"" } ?? ""
@@ -433,7 +440,7 @@ struct HTMLWalker: MarkupWalker {
     }
 
     mutating func visitImage(_ i: Markdown.Image) {
-        let src = i.source ?? ""
+        let src = HTMLRenderer.restoreTokens(i.source ?? "", sources)
         let isExternal = src.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
         let url = isExternal ? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? ""
             : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? "")

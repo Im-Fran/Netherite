@@ -98,6 +98,16 @@ private func renderPlain(_ md: String) -> String {
     #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
 }
 
+// R3-05: no tag in an `href` with other title styles or a reference definition, and the parser makes no tag of them.
+@Test func noTagsInLinkTitlesOrReferenceDefinitions() {
+    for md in ["[Jump](#Intro 'T')", "[Jump](#Intro (T))", "[Jump](<#Intro>)", "[Jump][r]\n\n[r]: #Intro", "[Jump][r]\n\n[r]: <#Intro> 'T'"] {
+        let html = renderPlain(md)
+        #expect(!html.contains("class=\"tag\"") && !html.contains("\u{E000}") && html.contains(">Jump</a>"), "\(md.debugDescription) → \(html)")
+        #expect(!NoteParser.parse(md).tags.contains("Intro"), "\(md.debugDescription)")
+    }
+    #expect(NoteParser.parse("[^1]: note #real").tags == ["real"])   // a footnote isn't a reference definition
+}
+
 // R3-04: a highlight or formula that wraps a whole link still renders.
 @Test func tokensCanWrapALink() {
     let html = renderPlain("==see [docs](https://example.com) now==")

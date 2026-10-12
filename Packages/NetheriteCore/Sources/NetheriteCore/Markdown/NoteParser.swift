@@ -121,8 +121,9 @@ public enum NoteParser {
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
         var linked = IndexSet()
         for l in note.links { if let r = Range(l.range) { linked.insert(integersIn: r) } }
+        for m in Regex.refDef.matches(in: masked, range: NSRange(location: 0, length: units.count)) { linked.insert(integersIn: Range(m.range)!) }
         for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
-        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h)
+        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h), [r]: #h
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }
@@ -202,7 +203,9 @@ public enum NoteParser {
 
     enum Regex {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
-        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?(?:\s+"[^"]*")?\)"#)
+        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)"#)
+        /// A link reference definition (`[r]: #Intro 'T'`); not a footnote (`[^1]: …`).
+        static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$"#, options: .anchorsMatchLines)
         static let tag = try! NSRegularExpression(pattern: #"(?:^|(?<=[\s(\[{,]))#([\p{L}\p{N}_\-/]+)"#, options: .anchorsMatchLines)
         static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$"#)
         static let blockID = try! NSRegularExpression(pattern: #"(?:^|\s)\^([A-Za-z0-9\-]+)\s*$"#)
