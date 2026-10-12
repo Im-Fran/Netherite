@@ -146,7 +146,8 @@ public enum Frontmatter {
     /// Returns `text` with its frontmatter replaced by `props` (removed when empty).
     /// Keys whose value didn't change keep their original YAML (quoting, comments, nested values).
     /// Throws `InvalidYAML` instead of overwriting a block that isn't a YAML mapping, since its keys couldn't be read.
-    public static func replacing(in text: String, with props: [Property]) throws -> String {
+    /// `verbatim` holds YAML blocks to write as is for keys new to the frontmatter.
+    public static func replacing(in text: String, with props: [Property], verbatim: [String: String] = [:]) throws -> String {
         let ns = text as NSString
         let fm = locate(in: text)
         if let fm {
@@ -157,26 +158,65 @@ public enum Frontmatter {
         }
         let body = fm.map { ns.substring(from: NSMaxRange($0.range)) } ?? text
         guard !props.isEmpty else { return body }
-        return "---\n\(fm.flatMap { merge(props, into: $0.yaml) } ?? serialize(props))\n---\n" + body
+        let yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
+            ?? props.map { verbatim[$0.key] ?? serialize([$0]) }.joined(separator: "\n")
+        return "---\n\(yaml)\n---\n" + body
+    }
+
+    /// `target` with the properties of `source` added to its frontmatter: tags, aliases and lists are joined
+    /// without duplicates, other keys keep the target's value, and keys new to the target keep their original YAML.
+    public static func merging(_ source: String, into target: String) throws -> String {
+        let props = { (text: String) in locate(in: text).map { parse($0.yaml) } ?? [] }
+        let original = props(target)
+        var merged = original
+        var verbatim: [String: String] = [:]
+        let sourceBlocks = locate(in: source).flatMap { blocks($0.yaml)?.keys } ?? []
+        for p in props(source) {
+            guard let i = merged.firstIndex(where: { $0.key.caseInsensitiveCompare(p.key) == .orderedSame }) else {
+                merged.append(p)
+                // A block indented as a whole (`  a: 1`) wouldn't sit at the target's top level.
+                if let b = sourceBlocks.first(where: { $0.key == p.key }), b.lines.first?.first?.isWhitespace == false {
+                    verbatim[p.key] = b.lines.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
+                }
+                continue
+            }
+            // `tags: foo` is a one-item list to the parser, so a scalar on either side still joins.
+            var joins = ["tags", "tag", "aliases", "alias"].contains(p.key.lowercased())
+            if case .list = p.value { joins = true }
+            if case .list = merged[i].value { joins = true }
+            let a = merged[i].value.strings
+            let new = p.value.strings.filter { !a.contains($0) }
+            if joins, !new.isEmpty { merged[i].value = .list(a + new) }
+        }
+        return merged == original ? target : try replacing(in: target, with: merged, verbatim: verbatim)
+    }
+
+    /// Splits a YAML mapping into the lines before its first key and one line block per top-level key;
+    /// nil when it isn't a mapping or two keys share a line.
+    static func blocks(_ yaml: String) -> (head: [String], keys: [(key: String, value: PropertyValue, lines: [String])])? {
+        guard let node = try? Yams.compose(yaml: yaml), case .mapping(let map) = node else { return nil }
+        let lines = yaml.components(separatedBy: "\n")
+        var starts: [(key: String, value: PropertyValue, line: Int)] = []
+        for (k, v) in map {
+            guard let key = k.string, let line = k.mark?.line, line - 1 > (starts.last?.line ?? -1) else { return nil }
+            starts.append((key, value(of: v), line - 1))
+        }
+        guard let first = starts.first else { return nil }
+        return (Array(lines[..<first.line]), starts.indices.map { i in
+            (starts[i].key, starts[i].value, Array(lines[starts[i].line..<(i + 1 < starts.count ? starts[i + 1].line : lines.count)]))
+        })
     }
 
     /// Rewrites only the top-level keys of `yaml` whose value differs from `props`; nil when the
     /// mapping can't be split into one line block per key.
-    static func merge(_ props: [Property], into yaml: String) -> String? {
-        guard let node = try? Yams.compose(yaml: yaml), case .mapping(let map) = node else { return nil }
-        let lines = yaml.components(separatedBy: "\n")
-        var keys: [(key: String, value: PropertyValue, line: Int)] = []
-        for (k, v) in map {
-            guard let key = k.string, let line = k.mark?.line, line - 1 > (keys.last?.line ?? -1) else { return nil }
-            keys.append((key, value(of: v), line - 1))
-        }
-        guard let first = keys.first else { return nil }
-        var out = Array(lines[..<first.line])
+    static func merge(_ props: [Property], into yaml: String, verbatim: [String: String] = [:]) -> String? {
+        guard let (head, keys) = blocks(yaml) else { return nil }
+        var out = head
         for p in props {
-            if let i = keys.firstIndex(where: { $0.key == p.key }), keys[i].value == p.value {
-                out += lines[keys[i].line..<(i + 1 < keys.count ? keys[i + 1].line : lines.count)]
+            if let b = keys.first(where: { $0.key == p.key }), b.value == p.value {
+                out += b.lines
             } else {
-                out.append(serialize([p]))
+                out.append(verbatim[p.key] ?? serialize([p]))
             }
         }
         return out.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
