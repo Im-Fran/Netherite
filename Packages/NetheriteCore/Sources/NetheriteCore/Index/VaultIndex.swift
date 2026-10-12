@@ -34,6 +34,8 @@ public final class VaultIndex {
     public private(set) var isLoaded = false
     /// Bumped on every change so views can cheaply observe "anything changed".
     public private(set) var revision = 0
+    /// Bumped only when files, resolved or unresolved links, or tags change (what the graph draws), not on every keystroke.
+    public private(set) var linkRevision = 0
 
     public init(vault: Vault) { self.vault = vault }
 
@@ -106,9 +108,11 @@ public final class VaultIndex {
     public func update(_ path: String, text: String) {
         guard notes[path]?.text != text else { return }
         let now = Date.now
+        let before = (outgoing[path], unresolved[path], notes[path]?.parsed.tags)
         notes[path] = NoteRecord(path: path, text: text, parsed: NoteParser.parse(text), modified: now, created: notes[path]?.created ?? now)
         relink(path)
         revision += 1
+        if before.0 != outgoing[path] || before.1 != unresolved[path] || before.2 != notes[path]?.parsed.tags { linkRevision += 1 }
     }
 
     public func didCreate(_ path: String, isFolder: Bool = false) {
@@ -263,6 +267,7 @@ public final class VaultIndex {
         outgoing = [:]; incoming = [:]; unresolved = [:]
         for path in notes.keys { link(path) }
         revision += 1
+        linkRevision += 1
     }
 
     private func relink(_ path: String) {
