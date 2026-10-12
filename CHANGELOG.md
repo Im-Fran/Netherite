@@ -84,6 +84,7 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Following a link that includes `.md` to a note that doesn't exist yet creates `Note.md`, not `Note.md.md`; merging a list into a number, date or checkbox property keeps the existing value.
 - Links to a missing canvas or base create it; links to a missing attachment say it isn't in the vault.
 - Editing or merging properties that use YAML anchors (`&name`, `*name`) keeps the frontmatter valid, along with the nested values and comments of the other properties.
+- Property values with emoji are saved as written instead of as `\U0001F389`-style escapes.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
