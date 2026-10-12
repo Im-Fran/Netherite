@@ -5,13 +5,13 @@ import NetheriteCore
 /// Periodic snapshots of changed notes, stored outside the vault (Application Support) so they never sync.
 struct SnapshotStore {
     let vault: Vault
-    /// Keyed by the vault's stable ID, so snapshots follow the vault when its folder moves.
+    /// Keyed by the vault's stable ID, so snapshots follow the vault when its folder moves (and a copy gets its own).
     let root: URL
 
     init(vault: Vault) {
         self.vault = vault
         let base = URL.applicationSupportDirectory.appending(path: "Netherite/Snapshots", directoryHint: .isDirectory)
-        root = base.appending(path: vault.stableID, directoryHint: .isDirectory)
+        root = base.appending(path: vault.stableID(ledger: base), directoryHint: .isDirectory)
         // Adopt snapshots taken under the old key, a hash of the folder's path.
         let legacy = SHA256.hash(data: Data(vault.root.path(percentEncoded: false).utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
         try? FileManager.default.moveItem(at: base.appending(path: legacy, directoryHint: .isDirectory), to: root)
