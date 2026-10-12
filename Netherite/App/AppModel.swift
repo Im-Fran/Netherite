@@ -261,7 +261,11 @@ final class AppModel {
         if let model {
             for p in model.dirty {
                 guard let text = model.index.notes[p]?.text else { continue }
-                do { try Vault(root: target).write(text, to: p) } catch { unsaved.append(p.noteName) }
+                do { try Vault(root: target).write(text, to: p) } catch {
+                    // Keep the text where it can be restored from: File Recovery's snapshots follow the vault's ID.
+                    SnapshotStore(vault: Vault(root: target)).save(text, for: p)
+                    unsaved.append(p.noteName)
+                }
             }
         }
         // Close only once the vault is at its new place and listed there: windows showing it follow `relocated`
@@ -277,7 +281,11 @@ final class AppModel {
         await refreshStorage([Self.key(target)])
         // The vault did move; say which edits made during the move didn't make it instead of dropping them silently.
         if !unsaved.isEmpty {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: String(localized: "The vault moved to iCloud Drive, but the latest changes to \(unsaved.map { "“\($0)”" }.formatted()) couldn’t be saved.")])
+            let names = unsaved.map { "“\($0)”" }.formatted()
+            let message = model?.settings.isEnabled(.fileRecovery) ?? false
+                ? String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery.")
+                : String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery, which is off: turn it on in Settings › Core Plugins to restore them.")
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: message])
         }
     }
 

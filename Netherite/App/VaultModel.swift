@@ -19,6 +19,8 @@ final class VaultModel {
         }
     }
     private(set) var dirty: Set<String> = []
+    /// Notes created but not opened yet: they open in the editor even with "Open Notes in Reading View" on.
+    @ObservationIgnored var createdNotes: Set<String> = []
     var bookmarks: [Bookmark] = [] { didSet { if !reloadingConfig { vault.saveConfig("bookmarks.json", bookmarks) } } }
     /// Modification dates of the config read last, to reload it when another device or app changes it.
     @ObservationIgnored private var configDates: [String: Date] = [:]
@@ -176,10 +178,12 @@ final class VaultModel {
     @discardableResult
     func newNote(in folder: String? = nil, named name: String? = nil, content: String = "") -> String? {
         // The core strips leading dots (and falls back to "Untitled") so a note never ends up hidden.
-        return perform {
+        let path = perform {
             try index.createNote(in: folder ?? settings.newNoteFolder,
                                  named: name ?? String(localized: "Untitled", comment: "Default new note name"), content: content)
         }
+        if let path { createdNotes.insert(path) }
+        return path
     }
 
     @discardableResult

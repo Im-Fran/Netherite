@@ -6735,12 +6735,22 @@
         }
       }
     },
-    "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved." : {
+    "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved there. They were kept as snapshots in File Recovery." : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La bóveda se movió a iCloud Drive, pero no se pudieron guardar los últimos cambios de %@."
+            "value" : "La bóveda se movió a iCloud Drive, pero no se pudieron guardar allí los últimos cambios de %@. Se guardaron como instantáneas en Recuperación de archivos."
+          }
+        }
+      }
+    },
+    "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved there. They were kept as snapshots in File Recovery, which is off: turn it on in Settings › Core Plugins to restore them." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La bóveda se movió a iCloud Drive, pero no se pudieron guardar allí los últimos cambios de %@. Se guardaron como instantáneas en Recuperación de archivos, que está desactivada: actívala en Ajustes › Plugins principales para restaurarlos."
           }
         }
       }

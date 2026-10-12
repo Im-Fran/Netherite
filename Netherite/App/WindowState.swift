@@ -71,13 +71,13 @@ final class Pane: Identifiable {
     var canGoBack: Bool { position > 0 }
     var canGoForward: Bool { position < history.count - 1 }
 
-    func open(_ d: Destination, line: Int? = nil) {
+    func open(_ d: Destination, line: Int? = nil, reading: Bool = false) {
         pendingLine = line
         if current == d { return }
         history = Array(history.prefix(position + 1)) + [d]
         position = history.count - 1
-        // Opening another note starts in the editor; otherwise typing seems to do nothing (Back/Forward keep the mode).
-        reading = false
+        // Opening another note starts in the editor unless asked otherwise; Back/Forward keep the mode.
+        self.reading = reading
     }
 
     func back() { if canGoBack { position -= 1; pendingLine = nil } }
@@ -218,7 +218,10 @@ final class WindowState {
     func open(_ d: Destination, line: Int? = nil, newPane: Bool = false) {
         guard let d = canonical(d) else { return }
         if newPane { split() }
-        pane.open(d, line: line)
+        // "Open Notes in Reading View", except for a note just created: typing into it would seem to do nothing.
+        var reading = false
+        if case .note(let p) = d { reading = model.createdNotes.remove(p) == nil && model.settings.defaultToReadingMode }
+        pane.open(d, line: line, reading: reading)
         preferredCompactColumn = .detail
         if let p = d.path { model.noteDidOpen(p); explorerSelection = p }
         switch d {

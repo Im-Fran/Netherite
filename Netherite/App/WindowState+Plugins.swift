@@ -11,7 +11,7 @@ extension WindowState {
         // The index may still be loading at startup: check the disk too so today's note is never overwritten.
         if !model.index.files.contains(path) && !model.vault.exists(path) {
             let content = s.dailyNotes.template.isEmpty ? "" : Templates.render(templateText(s.dailyNotes.template), title: path.noteName, date: date)
-            do { try model.vault.write(content, to: path); model.index.didCreate(path) } catch { model.lastError = error.localizedDescription; return }
+            do { try model.vault.write(content, to: path); model.index.didCreate(path); model.createdNotes.insert(path) } catch { model.lastError = error.localizedDescription; return }
         }
         open(path: path)
         NetheriteTips.donate(NetheriteTips.dailyOpened)
@@ -104,15 +104,19 @@ extension WindowState {
         guard source != target else { return }
         model.save(source)
         let index = model.index
-        let body = model.text(of: source)
-        model.edit(target, text: model.text(of: target) + "\n\n" + body)
+        // The index may predate an external edit: notes without unsaved edits are read from disk, as `VaultIndex.move` does.
+        func current(_ path: String) -> String? {
+            model.dirty.contains(path) ? index.notes[path]?.text : (try? model.vault.read(path)) ?? index.notes[path]?.text
+        }
+        let body = current(source) ?? model.text(of: source)
+        model.edit(target, text: (current(target) ?? model.text(of: target)) + "\n\n" + body)
         model.save(target)
         for from in index.backlinks(for: source).map(\.source) where from != source {
-            guard let rec = index.notes[from] else { continue }
-            let text = VaultIndex.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
+            guard let old = current(from) else { continue }
+            let text = VaultIndex.rewriteLinks(in: old, parsed: NoteParser.parse(old)) { link in
                 index.resolver.resolve(link.target, from: from) == source ? target : nil
             } linkText: { index.resolver.linkText(for: $0) }
-            if text != rec.text { model.overwrite(from, with: text) }
+            if text != old { model.overwrite(from, with: text) }
         }
         trash(source)
         open(path: target)
