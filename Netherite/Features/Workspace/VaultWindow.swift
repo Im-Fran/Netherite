@@ -9,6 +9,8 @@ struct VaultWindow: View {
     @State var window: WindowState
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window's startup ran; `.task` runs again when the view reappears (after a full-screen cover on iOS).
+    @State private var started = false
 
     var body: some View {
         @Bindable var window = window
@@ -53,8 +55,12 @@ struct VaultWindow: View {
             // the model keeps watching while any other window of the vault is still in the foreground.
             window.model.window(window, isForeground: phase != .background)
         }
+        // Reappearing (a full-screen cover was dismissed) turns the watcher back on.
+        .onAppear { window.model.window(window, isForeground: scenePhase != .background) }
         .onDisappear { window.model.window(window, isForeground: false) }
         .task {
+            guard !started else { return }
+            started = true
             if sizeClass == .compact { window.showInspector = false }
             if window.model.settings.dailyNotes.openOnStartup && window.model.settings.isEnabled(.dailyNotes) { window.openDailyNote() }
             else if window.pane.current == nil, let last = window.model.recentFiles.first(where: window.model.vault.exists) {
