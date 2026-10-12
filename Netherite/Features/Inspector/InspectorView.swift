@@ -43,7 +43,8 @@ struct InspectorView: View {
                 case .backlinks: BacklinksView(path: path)
                 case .outgoing: OutgoingLinksView(path: path)
                 case .outline: OutlineView(path: path)
-                case .properties: PropertiesEditor(path: path)
+                // A fresh editor per note, so a half-typed list draft never lands in the next one.
+                case .properties: PropertiesEditor(path: path).id(path)
                 case .footnotes: FootnotesView(path: path)
                 }
             } else {

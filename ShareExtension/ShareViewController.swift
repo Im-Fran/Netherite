@@ -31,10 +31,18 @@ final class ClipModel {
     }
     var input = SharedInput()
     let shared = SharedVault.current()
-    /// Checked up front; `save()` holds folder access only while it writes.
-    let canReachVault = SharedVault.current()?.withVault { _ in true } ?? false
+    /// Whether the vault folder can be read (nil while checking); `save()` holds folder access only while it writes.
+    private(set) var canReachVault: Bool?
     /// The vault the app shares, even when this extension can't reach its folder (it's inside the app's own container).
     var sharedName: String? { shared?.name }
+
+    /// Off the main thread: reaching an iCloud vault can block.
+    func checkVault() async {
+        let shared = shared
+        canReachVault = await Task.detached {
+            shared?.withVault { (try? FileManager.default.contentsOfDirectory(at: $0.root, includingPropertiesForKeys: nil)) != nil } ?? false
+        }.value
+    }
 
     func load(_ items: [NSExtensionItem]) async {
         for provider in items.flatMap({ $0.attachments ?? [] }) {
@@ -143,7 +151,7 @@ struct ClipView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if !model.canReachVault {
+                if model.canReachVault == false {
                     Section {
                         if let name = model.sharedName {
                             Label("Netherite’s extensions can’t reach “\(name)”. Move it to iCloud Drive from the vault list, then share again.", systemImage: "exclamationmark.triangle")
@@ -198,13 +206,14 @@ struct ClipView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     // Saving while the page downloads keeps just the link.
                     Button("Save") { model.skipFetch(); if model.save() { done(true) } }
-                        .disabled(!model.itemsLoaded || !model.canReachVault)
+                        .disabled(!model.itemsLoaded || model.canReachVault != true)
                 }
             }
         }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 460)
         #endif
+        .task { await model.checkVault() }
     }
 }
 

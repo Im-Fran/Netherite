@@ -9,6 +9,8 @@ struct VaultWindow: View {
     @State var window: WindowState
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window's startup ran; `.task` runs again when the view reappears (after a full-screen cover on iOS).
+    @State private var started = false
 
     var body: some View {
         @Bindable var window = window
@@ -53,8 +55,12 @@ struct VaultWindow: View {
             // the model keeps watching while any other window of the vault is still in the foreground.
             window.model.window(window, isForeground: phase != .background)
         }
+        // Reappearing (a full-screen cover was dismissed) turns the watcher back on.
+        .onAppear { window.model.window(window, isForeground: scenePhase != .background) }
         .onDisappear { window.model.window(window, isForeground: false) }
         .task {
+            guard !started else { return }
+            started = true
             if sizeClass == .compact { window.showInspector = false }
             if window.model.settings.dailyNotes.openOnStartup && window.model.settings.isEnabled(.dailyNotes) { window.openDailyNote() }
             else if window.pane.current == nil, let last = window.model.recentFiles.first(where: window.model.vault.exists) {
@@ -64,7 +70,13 @@ struct VaultWindow: View {
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: SystemIntegration.path(fromIdentifier: path).path) }
+            // Routed like an `open` link, so a note of another vault opens there (or not at all) and a missing one is skipped.
+            guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String else { return }
+            let (vault, path) = SystemIntegration.path(fromIdentifier: id)
+            var link = URLComponents()
+            link.scheme = "netherite"; link.host = "open"
+            link.queryItems = [URLQueryItem(name: "path", value: path)] + (vault.map { [URLQueryItem(name: "vault", value: $0)] } ?? [])
+            if let url = link.url { handleDeepLink(url) }
         }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
@@ -125,7 +137,10 @@ struct VaultWindow: View {
             return
         }
         switch url.host() {
-        case "open": if let p = q["path"] ?? q["file"] { window.open(path: p.hasSuffix(".md") || p.contains(".") ? p : p + ".md") }
+        case "open":
+            if let p = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }), window.model.vault.exists(p) {
+                window.open(path: p)
+            }
         case "new":
             if let p = window.model.newNote(named: q["name"], content: q["content"] ?? "") { window.open(path: p) }
         case "daily": window.openDailyNote()

@@ -114,8 +114,11 @@ struct RootView: View {
         .task(id: vaultPath) {
             // Resolve outside of `body`: opening a vault mutates observed app state.
             window = vaultPath.isEmpty ? nil : app.model(forPath: vaultPath).map { WindowState(model: $0) }
-            window?.closeVault = { vaultPath = "" }
-            window?.switchVault = { path, link in pendingLink = link; vaultPath = path }
+            // Capture only the bindings: capturing `self` would retain the window through its @State (a cycle).
+            window?.closeVault = { [vaultPath = $vaultPath] in vaultPath.wrappedValue = "" }
+            window?.switchVault = { [vaultPath = $vaultPath, pendingLink = $pendingLink] path, link in
+                pendingLink.wrappedValue = link; vaultPath.wrappedValue = path
+            }
             window?.pendingLink = pendingLink
             pendingLink = nil
         }
