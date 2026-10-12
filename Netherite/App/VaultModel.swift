@@ -24,6 +24,8 @@ final class VaultModel {
     private var watcher: VaultWatcher?
     /// Windows showing this vault, so file operations and external changes update every one of them.
     @ObservationIgnored private let windows = NSHashTable<WindowState>.weakObjects()
+    /// Windows not in the background; the watcher runs while there is at least one.
+    @ObservationIgnored private var foregroundWindows = Set<ObjectIdentifier>()
     var lastError: String?
 
     init(vault: Vault) {
@@ -105,14 +107,15 @@ final class VaultModel {
 
     private var panes: [Pane] { windows.allObjects.flatMap(\.panes) }
 
-    /// Stops observing the vault folder (iOS suspends apps holding file presenters in the background).
-    func suspendWatching() { watcher?.isWatching = false }
-
-    /// Resumes observing and picks up whatever changed while suspended.
-    func resumeWatching() {
-        guard let watcher, !watcher.isWatching else { return }
-        watcher.isWatching = true
-        Task { await externalChange() }
+    /// Observes the vault folder while any of its windows is in the foreground
+    /// (iOS suspends apps holding file presenters in the background), catching up on resume.
+    func window(_ window: WindowState, isForeground: Bool) {
+        let id = ObjectIdentifier(window)
+        if isForeground { foregroundWindows.insert(id) } else { foregroundWindows.remove(id) }
+        let wanted = !foregroundWindows.isEmpty
+        guard let watcher, watcher.isWatching != wanted else { return }
+        watcher.isWatching = wanted
+        if wanted { Task { await externalChange() } }
     }
 
     // MARK: File operations

@@ -47,14 +47,13 @@ struct VaultWindow: View {
         } message: {
             Text(window.model.lastError ?? "")
         }
-        .onChange(of: scenePhase) { _, phase in
-            // A suspended app shouldn't keep a file presenter registered (it can stall coordinated writes from extensions).
-            switch phase {
-            case .active: window.model.resumeWatching()
-            case .background: window.model.flushAll(); window.model.suspendWatching()
-            default: window.model.flushAll()
-            }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase != .active { window.model.flushAll() }
+            // A suspended app shouldn't keep a file presenter registered (it can stall coordinated writes from extensions);
+            // the model keeps watching while any other window of the vault is still in the foreground.
+            window.model.window(window, isForeground: phase != .background)
         }
+        .onDisappear { window.model.window(window, isForeground: false) }
         .task {
             if sizeClass == .compact { window.showInspector = false }
             if window.model.settings.dailyNotes.openOnStartup && window.model.settings.isEnabled(.dailyNotes) { window.openDailyNote() }
