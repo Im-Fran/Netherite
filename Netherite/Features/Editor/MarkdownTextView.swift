@@ -200,10 +200,16 @@ struct MarkdownTextView {
 
         func caretRect(_ tv: PlatformTextView) -> CGRect {
             #if os(macOS)
-            guard let window = tv.window, let scroll = tv.enclosingScrollView else { return .zero }
-            let screen = tv.firstRect(forCharacterRange: tv.selectedRange(), actualRange: nil)
-            let inWindow = window.convertFromScreen(screen)
-            let local = scroll.convert(inWindow, from: nil)
+            // Ask TextKit 2 for the insertion point: firstRect(forCharacterRange:) can return .zero (empty range at the end
+            // of the text, layout invalidated by a restyle), which put the completion list at the bottom of the window.
+            guard let scroll = tv.enclosingScrollView, let tlm = tv.textLayoutManager, let tcm = tlm.textContentManager,
+                  let loc = tcm.location(tcm.documentRange.location, offsetBy: tv.selectedRange().location) else { return .zero }
+            let caret = NSTextRange(location: loc)
+            tlm.ensureLayout(for: caret)
+            var frame = CGRect.zero
+            tlm.enumerateTextSegments(in: caret, type: .selection, options: [.rangeNotRequired]) { _, f, _, _ in frame = f; return false }
+            let origin = tv.textContainerOrigin
+            let local = scroll.convert(frame.offsetBy(dx: origin.x, dy: origin.y), from: tv)
             return CGRect(x: local.minX, y: scroll.bounds.height - local.maxY, width: max(1, local.width), height: local.height)
             #else
             guard let pos = tv.selectedTextRange?.end else { return .zero }
