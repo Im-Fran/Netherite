@@ -7,7 +7,7 @@ import Testing
     let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     SharedVault.publish(SharedVault(name: "V", path: dir.path(percentEncoded: false)), to: d)
-    SharedVault.publishRecents(["a.md"], to: d)
+    SharedVault.publishRecents(["a.md"], vault: dir.path(percentEncoded: false), to: d)
     #expect(SharedVault.recents(d) == ["a.md"])
     let vault = try #require(SharedVault.current(d)?.resolve())
 
@@ -27,3 +27,14 @@ import Testing
     #expect(url.host() == "open")
     #expect(items?.first { $0.name == "path" }?.value == path)
 }
+
+@Test func recentsBelongToTheSharedVault() {
+    let d = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+    SharedVault.publish(SharedVault(name: "A", path: "/a"), to: d)
+    SharedVault.publishRecents(["a.md"], vault: "/a", to: d)
+    SharedVault.publishRecents(["b.md"], vault: "/b", to: d)   // another open vault: ignored
+    #expect(SharedVault.recents(d) == ["a.md"])
+    SharedVault.publish(SharedVault(name: "B", path: "/b"), to: d)
+    #expect(SharedVault.recents(d).isEmpty)
+}
+

@@ -24,12 +24,17 @@ public struct SharedVault: Codable, Hashable, Sendable {
         d?.data(forKey: "sharedVault").flatMap { try? JSONDecoder().decode(SharedVault.self, from: $0) }
     }
 
-    public static func publishRecents(_ paths: [String], to d: UserDefaults? = defaults) {
+    /// Recent notes of the vault at `vault`; ignored unless it is the shared vault, so another open vault can't mix in its notes.
+    public static func publishRecents(_ paths: [String], vault: String, to d: UserDefaults? = defaults) {
+        guard current(d)?.path == vault else { return }
         d?.set(Array(paths.prefix(20)), forKey: "recentNotes")
+        d?.set(vault, forKey: "recentNotesVault")
     }
 
+    /// The shared vault's recent notes (empty when the published ones belong to another vault).
     public static func recents(_ d: UserDefaults? = defaults) -> [String] {
-        d?.stringArray(forKey: "recentNotes") ?? []
+        guard let vault = current(d)?.path, d?.string(forKey: "recentNotesVault") == vault else { return [] }
+        return d?.stringArray(forKey: "recentNotes") ?? []
     }
 
     /// The vault folder, via bookmark when it still resolves, else by path.

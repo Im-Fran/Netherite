@@ -97,7 +97,7 @@ final class VaultModel {
         recentFiles.insert(path, at: 0)
         if recentFiles.count > 50 { recentFiles.removeLast(recentFiles.count - 50) }
         vault.saveConfig("recent.json", recentFiles)
-        SharedVault.publishRecents(recentFiles)
+        SharedVault.publishRecents(recentFiles, vault: AppModel.key(vault.root))
     }
 
     @discardableResult

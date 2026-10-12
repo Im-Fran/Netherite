@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import WidgetKit
 import NetheriteCore
 
 // Compiled into both the app and the widget extension (interactive widget buttons run these intents).
@@ -53,6 +54,7 @@ struct CreateNoteIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> {
         let (folder, noteTitle, content) = (self.folder, self.noteTitle, self.content)
         let path = try await withSharedVault { try $0.createNote(in: folder, named: noteTitle, content: content) }
+        WidgetCenter.shared.reloadAllTimelines()
         return .result(value: NoteEntity(id: path))
     }
 }
@@ -69,6 +71,7 @@ struct AppendToDailyNoteIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let text = self.text
         _ = try await withSharedVault { try $0.appendToDailyNote(text) }
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }
@@ -81,6 +84,7 @@ struct LogTimeIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let line = "- " + Templates.format(.now, "HH:mm") + " "
         _ = try await withSharedVault { try $0.appendToDailyNote(line) }
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }

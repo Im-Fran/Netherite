@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import WidgetKit
 import NetheriteCore
 
 /// What was shared, normalized.
@@ -116,6 +117,7 @@ final class ClipModel {
                 let tagText = tagList.map { " #\($0)" }.joined()
                 try vault.appendToDailyNote("- " + link + tagText + (parts.isEmpty ? "" : "\n\n" + parts.joined(separator: "\n\n")))
             }
+            WidgetCenter.shared.reloadAllTimelines()
             return true
         } catch {
             self.error = error.localizedDescription
