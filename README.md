@@ -187,9 +187,9 @@ bundle exec fastlane tag version:0.2.0
 `tag` pulls `dev`, checks that the changelog has the version and pushes the `0.2.0` tag. The tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
 1. Builds iOS/iPadOS and macOS, uploads both to **TestFlight** and fills in *What to Test* with that version's changelog (with emojis). The build number is one past the latest on TestFlight.
-2. Re-exports the macOS archive with **Developer ID**, notarizes it and attaches `Netherite-<version>-macOS.zip` to the tag's **GitHub Release**, using the same changelog section as the release notes.
+2. Re-exports the macOS archive with **Developer ID**, notarizes it and publishes the **GitHub Release** `<version>` (without the `+build`) with `Netherite.dmg`, plus `Netherite.zip` and its `.sig` for in-app updates, using the same changelog section as the release notes.
 
-Tags are `<version>[+<build>]` (e.g. `0.2.0` or `0.2.0+7` to force a build number); a tag with a build uses a `## [0.2.0+7]` changelog section when there is one, otherwise `## [0.2.0]`. A build can be re-run from the **Actions** tab with *Run workflow* and the tag name. Nothing is submitted to the App Store: promoting a TestFlight build stays manual.
+Tags are `<version>[+<build>]` with no `v` prefix, like the App Store (e.g. `0.2.0` or `0.2.0+7` to force a build number; CI refuses `v0.2.0`); a tag with a build uses a `## [0.2.0+7]` changelog section when there is one, otherwise `## [0.2.0]`. A build can be re-run from the **Actions** tab with *Run workflow* and the tag name. Nothing is submitted to the App Store: promoting a TestFlight build stays manual.
 
 ### One-time setup
 
