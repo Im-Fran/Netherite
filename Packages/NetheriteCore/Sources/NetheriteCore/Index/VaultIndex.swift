@@ -40,6 +40,7 @@ public final class VaultIndex {
 
     public func load() async {
         let vault = self.vault
+        let before = notes.mapValues(\.modified), beforeFiles = files
         let (entries, records) = await Task.detached(priority: .userInitiated) {
             let entries = vault.entries()
             var records: [String: NoteRecord] = [:]
@@ -48,9 +49,12 @@ public final class VaultIndex {
             }
             return (entries, records)
         }.value
-        files = entries.filter { !$0.isFolder }.map(\.path)
+        // Notes edited or created while the scan ran (the last note opens before the index loads) keep their newer text.
+        let scannedFiles = entries.filter { !$0.isFolder }.map(\.path)
+        let added = Set(files).subtracting(beforeFiles).subtracting(scannedFiles)
+        files = added.isEmpty ? scannedFiles : (scannedFiles + added).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
         folders = entries.filter(\.isFolder).map(\.path)
-        notes = records
+        notes = records.merging(notes.filter { before[$0.key] != $0.value.modified }) { _, mem in mem }
         relinkAll()
         isLoaded = true
     }
