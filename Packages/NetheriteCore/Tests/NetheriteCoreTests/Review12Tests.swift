@@ -74,3 +74,12 @@ import Yams
     #expect(!out.contains(#"\U0001F389"#))
     #expect(BaseFile.parse(out).yaml == out)
 }
+
+// R16-01: the per-line retry stays bounded when a stray quote meets many emoji lines.
+@Test func strayQuoteWithManyEmojiStaysFast() throws {
+    let keys = (0..<400).map { "  k\($0): \"🎉 \($0)\"" }.joined(separator: "\n")
+    let text = "---\nmeta:\n  bad: 'x\"y'\n\(keys)\n---\nT"
+    let start = Date()
+    _ = NoteParser.parse(text)
+    #expect(Date().timeIntervalSince(start) < 0.2)
+}

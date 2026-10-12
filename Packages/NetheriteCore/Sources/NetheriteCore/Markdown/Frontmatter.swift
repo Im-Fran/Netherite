@@ -148,7 +148,11 @@ public enum Frontmatter {
         let whole = unescapingQuotedSpans(yaml)
         if whole != yaml, (try? Yams.compose(yaml: whole)) == base { return whole }
         var lines = yaml.components(separatedBy: "\n")
-        for i in lines.indices where lines[i].contains("\\U") {
+        let escaped = lines.indices.filter { lines[$0].contains("\\U") }
+        // ponytail: one full compose per line is quadratic and runs on every keystroke; past a few lines keep the
+        // escaped (still correct) output. Bisect the candidates if large emoji-heavy mappings ever matter.
+        guard escaped.count <= 32 else { return yaml }
+        for i in escaped {
             var candidate = lines
             candidate[i] = unescapingQuotedSpans(lines[i])
             if candidate[i] != lines[i], (try? Yams.compose(yaml: candidate.joined(separator: "\n"))) == base { lines = candidate }
