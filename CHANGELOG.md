@@ -10,6 +10,8 @@ version, and the release notes on TestFlight and GitHub come from here.
 
 ## [Unreleased]
 
+## [0.1.2+14] - 2026-10-12
+
 ### Changed
 - Properties keep their YAML 1.2 meaning: `yes`/`no` stay text and `01234` is a decimal number.
 - Following a link to another note from Reading view opens it for editing.
@@ -222,7 +224,8 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Onboarding tour, start page, a guide vault that teaches every feature, and feature tips.
 - English and Spanish localization.
 
-[Unreleased]: https://github.com/Im-Fran/Netherite/compare/v0.1.1+13...HEAD
+[Unreleased]: https://github.com/Im-Fran/Netherite/compare/0.1.2+14...HEAD
+[0.1.2+14]: https://github.com/Im-Fran/Netherite/compare/v0.1.1+13...0.1.2+14
 [0.1.1+13]: https://github.com/Im-Fran/Netherite/compare/0.1.0+10...v0.1.1+13
 [0.1.0+10]: https://github.com/Im-Fran/Netherite/compare/0.1.0+9...0.1.0+10
 [0.1.0+9]: https://github.com/Im-Fran/Netherite/compare/0.1.0+8...0.1.0+9
