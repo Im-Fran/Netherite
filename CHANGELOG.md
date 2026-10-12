@@ -72,6 +72,10 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Moving a note keeps edits other devices made to notes that link to it, and saving keeps a file's creation date.
 - Vault settings and bookmarks are kept when iCloud evicts their files, and a shared clip starting with `---` is saved as is.
 - Ticking a task in a hover preview changes the right line, reading view hands heading jumps back to the editor, and a failed save while moving a vault to iCloud Drive is reported.
+- Notes that are symbolic links save again, and moving a note no longer brings back notes deleted elsewhere.
+- Highlights that wrap a wikilink or a formula render; imported `%` and `=` stay plain text unless they would form `%%` or `==`.
+- The "Open Notes in Reading View" setting now works (new notes still open for editing), slide tasks are read-only, and merging notes keeps edits made on other devices.
+- Edits that can't be saved after moving a vault to iCloud Drive are kept in File Recovery.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
