@@ -34,7 +34,8 @@ enum Destination: Hashable, Codable {
         case .graph: String(localized: "Graph View")
         case .localGraph(let p): String(localized: "Local Graph: \(p.noteName)")
         case .web(let url): url.host() ?? url.absoluteString
-        default: path.map { $0.isMarkdown ? $0.noteName : ($0 as NSString).lastPathComponent } ?? ""
+        case .note(let p), .canvas(let p), .base(let p): p.noteName   // as the file explorer shows them
+        case .file(let p): (p as NSString).lastPathComponent
         }
     }
 

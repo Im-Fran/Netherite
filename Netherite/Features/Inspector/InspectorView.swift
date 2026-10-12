@@ -93,7 +93,7 @@ struct BacklinksView: View {
             }
             ForEach(b.contexts, id: \.line) { ctx in
                 Button { window.open(path: b.source, line: ctx.line) } label: {
-                    Text(ctx.text.trimmingCharacters(in: .whitespaces)).font(.callout).foregroundStyle(.secondary).lineLimit(3)
+                    Text(NoteParser.readableLine(ctx.text).trimmingCharacters(in: .whitespaces)).font(.callout).foregroundStyle(.secondary).lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)

@@ -31,6 +31,8 @@ final class CanvasModel {
     @ObservationIgnored private var dragOrigins: [String: CGPoint] = [:]
     @ObservationIgnored private var dragSnapshot: JSONCanvas?
     @ObservationIgnored private var didFit = false
+    /// The file couldn't be read or parsed: editing would overwrite it with what's on screen.
+    @ObservationIgnored private var readFailed = false
 
     init(path: String, vault: Vault) {
         self.path = path
@@ -42,11 +44,14 @@ final class CanvasModel {
 
     func load() {
         do {
-            canvas = try JSONCanvas.parse((try? vault.read(path)) ?? "")
+            canvas = try JSONCanvas.parse(try vault.read(path))
             lastSaved = modificationDate
             loadError = nil
+            readFailed = false
         } catch {
+            // lastSaved stays stale, so the external-change poll keeps retrying (e.g. an iCloud download).
             loadError = error.localizedDescription
+            readFailed = true
         }
     }
 
@@ -62,6 +67,7 @@ final class CanvasModel {
     }
 
     func scheduleSave() {
+        guard !readFailed else { return }
         dirty = true
         saveTask?.cancel()
         saveTask = Task { [weak self] in
@@ -73,7 +79,7 @@ final class CanvasModel {
 
     func save() {
         saveTask?.cancel()
-        guard dirty else { return }
+        guard dirty, !readFailed else { return }
         do {
             try vault.write(canvas.serialized(), to: path)
             dirty = false
@@ -87,6 +93,7 @@ final class CanvasModel {
 
     /// Applies a change as one undoable step.
     func mutate(_ name: LocalizedStringResource, _ body: (inout JSONCanvas) -> Void) {
+        guard !readFailed else { return }
         let before = canvas
         body(&canvas)
         guard canvas != before else { return }
@@ -230,6 +237,7 @@ final class CanvasModel {
     @ObservationIgnored private var editSnapshot: JSONCanvas?
 
     func beginEditing(_ id: String) {
+        if editing != nil { endEditing() }
         editSnapshot = canvas
         selection = [id]
         editing = id
@@ -242,6 +250,16 @@ final class CanvasModel {
     }
 
     func endEditing() {
+        // An empty text card is dropped instead of being saved as `"text": ""`.
+        if let id = editing, let i = canvas.nodes.firstIndex(where: { $0.id == id }), canvas.nodes[i].type == "text",
+           (canvas.nodes[i].text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            canvas.nodes.remove(at: i)
+            canvas.edges.removeAll { $0.fromNode == id || $0.toNode == id }
+            selection.remove(id)
+            scheduleSave()
+            // A card that was empty before editing (just added) leaves no "Edit card" step to undo.
+            if (editSnapshot?.node(id)?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { editSnapshot = nil }
+        }
         if let before = editSnapshot, before != canvas { registerUndo("Edit card", restoring: before) }
         editSnapshot = nil
         editing = nil

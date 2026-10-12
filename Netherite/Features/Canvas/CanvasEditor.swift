@@ -21,7 +21,11 @@ struct CanvasEditor: View {
         .onAppear { if model == nil { model = CanvasModel(path: path, vault: window.model.vault) } }
         .onChange(of: undoManager, initial: true) { model?.undoManager = undoManager }
         .onChange(of: model == nil) { model?.undoManager = undoManager }
-        .onDisappear { model?.save() }
+        .onDisappear {
+            model?.save()
+            // The canvas is gone: its undo steps would otherwise act on a detached model.
+            if let model { undoManager?.removeAllActions(withTarget: model) }
+        }
         // Flush the debounced save before iOS suspends the app.
         .onChange(of: scenePhase) { if $1 != .active { model?.save() } }
     }

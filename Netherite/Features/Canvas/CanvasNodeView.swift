@@ -8,6 +8,7 @@ struct CanvasNodeView: View {
     let additive: Bool
     @Environment(WindowState.self) private var window
     @State private var hovered = false
+    @FocusState private var focused: Bool
     @Environment(\.colorSchemeContrast) private var contrast
 
     private var selected: Bool { model.selection.contains(node.id) }
@@ -50,6 +51,8 @@ struct CanvasNodeView: View {
                 .font(.body)
                 .scrollContentBackground(.hidden)
                 .padding(8)
+                .focused($focused)
+                .onAppear { focused = true }
                 .onDisappear { if model.editing == node.id { model.endEditing() } }
         } else {
             ScrollView {
@@ -78,6 +81,8 @@ struct CanvasNodeView: View {
             if editing {
                 TextField("Group", text: Binding(get: { node.label ?? "" }, set: { model.setText(node.id, $0) }))
                     .textFieldStyle(.plain)
+                    .focused($focused)
+                    .onAppear { focused = true }
                     .onSubmit { model.endEditing() }
                     .frame(width: 200)
             } else {
