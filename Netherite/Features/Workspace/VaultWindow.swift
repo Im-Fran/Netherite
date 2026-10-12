@@ -64,7 +64,13 @@ struct VaultWindow: View {
         }
         .onOpenURL { url in handleDeepLink(url) }
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let path = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String { window.open(path: SystemIntegration.path(fromIdentifier: path).path) }
+            // Routed like an `open` link, so a note of another vault opens there (or not at all) and a missing one is skipped.
+            guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String else { return }
+            let (vault, path) = SystemIntegration.path(fromIdentifier: id)
+            var link = URLComponents()
+            link.scheme = "netherite"; link.host = "open"
+            link.queryItems = [URLQueryItem(name: "path", value: path)] + (vault.map { [URLQueryItem(name: "vault", value: $0)] } ?? [])
+            if let url = link.url { handleDeepLink(url) }
         }
         .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .navigationTitle(window.pane.current?.title ?? window.model.name)
@@ -125,7 +131,10 @@ struct VaultWindow: View {
             return
         }
         switch url.host() {
-        case "open": if let p = q["path"] ?? q["file"] { window.open(path: p.hasSuffix(".md") || p.contains(".") ? p : p + ".md") }
+        case "open":
+            if let p = (q["path"] ?? q["file"]).map({ $0.hasSuffix(".md") || $0.contains(".") ? $0 : $0 + ".md" }), window.model.vault.exists(p) {
+                window.open(path: p)
+            }
         case "new":
             if let p = window.model.newNote(named: q["name"], content: q["content"] ?? "") { window.open(path: p) }
         case "daily": window.openDailyNote()

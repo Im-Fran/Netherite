@@ -60,6 +60,8 @@ final class VaultModel {
     func edit(_ path: String, text: String) {
         // A file moved or deleted outside this window must not be recreated at its old path.
         guard !isGone(path) else { return }
+        // On disk but not indexed yet (made by a widget, the Share Extension or an intent before the next refresh).
+        if index.isLoaded && !index.files.contains(path) { index.didCreate(path) }
         index.update(path, text: text)
         dirty.insert(path)
         saveTasks[path]?.cancel()
@@ -98,8 +100,8 @@ final class VaultModel {
         for pane in panes { pane.removeMissing(files) }
     }
 
-    /// The file was moved or deleted (paths are only known once the index has loaded).
-    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) }
+    /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
+    private func isGone(_ path: String) -> Bool { index.isLoaded && !index.files.contains(path) && !vault.exists(path) }
 
     func refresh() async { await externalChange() }
 
