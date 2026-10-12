@@ -95,7 +95,7 @@ extension WindowState {
         let name = firstLine.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces).prefix(80)
-        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text) else { return }
+        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text, opens: false) else { return }
         e.insert(model.linkText(to: p))
     }
 
