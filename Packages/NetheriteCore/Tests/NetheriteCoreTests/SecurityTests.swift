@@ -45,6 +45,18 @@ private func renderPlain(_ md: String) -> String {
     let zip = try ZipReader(data: makeZip([("a.txt", Data("a".utf8)), ("b.txt", Data(repeating: 65, count: 5000))]))
     #expect(throws: ZipReader.ZipError.self) { try zip.files(maxTotalSize: 1000) }
     #expect(try zip.files().count == 2)
+
+    // A stored entry that declares `size: 0` still costs the bytes it copies.
+    var lying = makeZip([("big.bin", Data(repeating: 1, count: 5000))])
+    let cd = lying.count - 22 - (46 + 7)          // central directory entry of the only file
+    lying.replaceSubrange((cd + 24)..<(cd + 28), with: [0, 0, 0, 0])
+    #expect(throws: ZipReader.ZipError.self) { try ZipReader(data: lying).files(maxTotalSize: 1000) }
+
+    // Nested archives draw from the same budget.
+    let inner = makeZip([("a.txt", Data("a".utf8)), ("b.txt", Data(repeating: 66, count: 800))])
+    let outer = try ZipReader(data: makeZip([("x.txt", Data(repeating: 67, count: 400)), ("in.zip", inner)]))
+    #expect(throws: ZipReader.ZipError.self) { try outer.files(maxTotalSize: 1300) }
+    #expect(try outer.files(maxTotalSize: 1 << 20).map(\.path) == ["x.txt", "a.txt", "b.txt"])
 }
 
 // MARK: N-20 / N-21 / N-40 · renderer robustness

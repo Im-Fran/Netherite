@@ -104,9 +104,12 @@ public struct ZipReader {
     private func files(depth: Int, budget: inout Int) throws -> [(path: String, data: Data)] {
         var out: [(String, Data)] = []
         for e in entries {
-            budget -= e.size
+            // Charge what `read` will actually allocate: stored entries copy `compressedSize` bytes whatever the
+            // header's `size` says, and deflated ones are inflated into exactly `size` bytes (or rejected).
+            budget -= max(e.size, e.compressedSize)
             guard budget >= 0 else { throw ZipError.corrupt }
             let d = try read(e)
+            guard d.count <= max(e.size, e.compressedSize) else { throw ZipError.corrupt }
             if depth < 4, e.path.lowercased().hasSuffix(".zip"), let inner = try? ZipReader(data: d) {
                 out += try inner.files(depth: depth + 1, budget: &budget)
             } else {
