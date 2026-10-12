@@ -56,3 +56,12 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(HTMLRenderer.render("==see [a](b)== end", context: ctx).contains("<mark>see <a"))
     #expect(!HTMLRenderer.render("after [x](y)#t2", context: ctx).contains("class=\"tag\""))
 }
+
+// R6-05: `%%` and `==` split across adjacent text nodes stay literal text.
+@Test func escapeAcrossTextNodes() {
+    let md = HTMLToMarkdown().convert("<p><span>50%</span><span>%secret</span> <span>2%</span><span>% end</span></p>"
+                                      + "<p><span>a=</span><span>=b c=</span><span>=d</span></p>")
+    let html = HTMLRenderer.render(md, context: ctx)
+    #expect(html.contains("secret"))
+    #expect(!html.contains("<mark>"))
+}
