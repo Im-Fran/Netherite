@@ -54,3 +54,9 @@ import Testing
     if case .not(.regex(let r))? = SearchQuery("-/Foo/", caseSensitive: true).terms.first { #expect(!r.options.contains(.caseInsensitive)) }
     else { Issue.record("expected a negated regex") }
 }
+
+// R4-17: a database folder with `\` round-trips; a stray `]` doesn't glue the rest of the query together.
+@Test func databaseFolderEscapesBackslashAndStrayBracket() {
+    #expect(BaseFile.database(folder: #"Notes\2024 "Q1""#).entryFolder == #"Notes\2024 "Q1""#)
+    #expect(SearchQuery.tokenize("] foo [k:v] bar") == ["]", "foo", "[k:v]", "bar"])
+}

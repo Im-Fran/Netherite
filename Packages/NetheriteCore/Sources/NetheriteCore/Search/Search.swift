@@ -44,7 +44,7 @@ public struct SearchQuery: Sendable {
             case "\"" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"),
                  "/" where cur.isEmpty || cur == "-" || cur.hasSuffix(":"): quote = c; cur.append(c)
             case "[": depth += 1; cur.append(c)
-            case "]": depth -= 1; cur.append(c)
+            case "]": depth = max(0, depth - 1); cur.append(c)   // a stray "]" must not swallow the spaces after it
             case " " where depth == 0: if !cur.isEmpty { toks.append(cur); cur = "" }
             default: cur.append(c)
             }
