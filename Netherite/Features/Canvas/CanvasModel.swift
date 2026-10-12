@@ -55,9 +55,8 @@ final class CanvasModel {
         }
     }
 
-    private var modificationDate: Date? {
-        try? vault.url(for: path).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-    }
+    /// The real file's date: a symlinked canvas would otherwise report the link's and miss external edits.
+    private var modificationDate: Date? { vault.modificationDate(of: path) }
 
     /// Reloads when the file was changed by another app or device and we have nothing unsaved.
     // ponytail: polled while visible; hook into the vault watcher if canvases ever get indexed.

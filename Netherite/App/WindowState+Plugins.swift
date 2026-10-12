@@ -111,17 +111,10 @@ extension WindowState {
         let sourceText = current(source) ?? model.text(of: source)
         var targetText = current(target) ?? model.text(of: target)
         // Properties go to the target's frontmatter (lists joined, the target's value kept otherwise), not mid-note.
-        let props = { (text: String) in Frontmatter.locate(in: text).map { Frontmatter.parse($0.yaml) } ?? [] }
         let body: String
         do {
             body = try Frontmatter.replacing(in: sourceText, with: [])
-            let original = props(targetText)
-            var merged = original
-            for p in props(sourceText) {
-                guard let i = merged.firstIndex(where: { $0.key.caseInsensitiveCompare(p.key) == .orderedSame }) else { merged.append(p); continue }
-                if case .list(let a) = merged[i].value, case .list(let b) = p.value { merged[i].value = .list(a + b.filter { !a.contains($0) }) }
-            }
-            if merged != original { targetText = try Frontmatter.replacing(in: targetText, with: merged) }
+            targetText = try Frontmatter.merging(sourceText, into: targetText)
         } catch { model.lastError = error.localizedDescription; return }
         model.edit(target, text: targetText + "\n\n" + body)
         model.save(target)
