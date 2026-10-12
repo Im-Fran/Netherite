@@ -6735,6 +6735,16 @@
         }
       }
     },
+    "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved there or kept as snapshots." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La bóveda se movió a iCloud Drive, pero no se pudieron guardar allí los últimos cambios de %@ ni conservarlos como instantáneas."
+          }
+        }
+      }
+    },
     "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved there. They were kept as snapshots in File Recovery." : {
       "localizations" : {
         "es" : {

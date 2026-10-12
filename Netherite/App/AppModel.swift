@@ -247,6 +247,8 @@ final class AppModel {
         model?.flushAll()
         // What's typed during the move is saved at the new place, never at the old path (that would recreate the vault there).
         model?.savesPaused = true
+        // File Recovery's snapshots follow the vault's ID: make sure `id.json` exists so it moves with the folder.
+        let snapshots = model.map { SnapshotStore(vault: $0.vault) }
         do {
             try await Task.detached {
                 try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
@@ -257,14 +259,13 @@ final class AppModel {
             model?.flushAll()
             throw error
         }
-        var unsaved: [String] = []
-        if let model {
+        var unsaved: [String] = [], lost: [String] = []
+        if let model, let snapshots {
             for p in model.dirty {
                 guard let text = model.index.notes[p]?.text else { continue }
                 do { try Vault(root: target).write(text, to: p) } catch {
-                    // Keep the text where it can be restored from: File Recovery's snapshots follow the vault's ID.
-                    SnapshotStore(vault: Vault(root: target)).save(text, for: p)
-                    unsaved.append(p.noteName)
+                    // Keep the text where it can be restored from.
+                    if snapshots.save(text, for: p) { unsaved.append(p.noteName) } else { lost.append(p.noteName) }
                 }
             }
         }
@@ -280,12 +281,19 @@ final class AppModel {
         close(recent.path)
         await refreshStorage([Self.key(target)])
         // The vault did move; say which edits made during the move didn't make it instead of dropping them silently.
+        var messages: [String] = []
         if !unsaved.isEmpty {
             let names = unsaved.map { "“\($0)”" }.formatted()
-            let message = model?.settings.isEnabled(.fileRecovery) ?? false
+            messages.append(model?.settings.isEnabled(.fileRecovery) ?? false
                 ? String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery.")
-                : String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery, which is off: turn it on in Settings › Core Plugins to restore them.")
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: message])
+                : String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there. They were kept as snapshots in File Recovery, which is off: turn it on in Settings › Core Plugins to restore them."))
+        }
+        if !lost.isEmpty {
+            let names = lost.map { "“\($0)”" }.formatted()
+            messages.append(String(localized: "The vault moved to iCloud Drive, but the latest changes to \(names) couldn’t be saved there or kept as snapshots."))
+        }
+        if !messages.isEmpty {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: messages.joined(separator: "\n\n")])
         }
     }
 
