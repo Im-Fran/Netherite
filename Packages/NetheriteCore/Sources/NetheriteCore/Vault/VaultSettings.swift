@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Per-vault settings stored in `<vault>/.netherite/app.json` (so they sync with the vault).
 public struct VaultSettings: Codable, Hashable, Sendable {
@@ -69,30 +70,64 @@ public extension Vault {
         return (try? JSONDecoder().decode(T.self, from: data)) ?? fallback
     }
 
-    func saveConfig<T: Encodable>(_ name: String, _ value: T) {
+    /// Writes a JSON config file to `.netherite/`, unless it already holds exactly that (every write is a sync,
+    /// and a possible conflict, in iCloud). Returns whether the file now holds `value`.
+    @discardableResult
+    func saveConfig<T: Encodable>(_ name: String, _ value: T) -> Bool {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? enc.encode(value) else { return }
+        guard let data = try? enc.encode(value) else { return false }
+        let url = configURL.appending(path: name)
+        if (try? Data(contentsOf: url)) == data { return true }
         try? FileManager.default.createDirectory(at: configURL, withIntermediateDirectories: true)
-        try? data.write(to: configURL.appending(path: name), options: .atomic)
+        return (try? data.write(to: url, options: .atomic)) != nil
     }
 
     var settings: VaultSettings { loadConfig("app.json", fallback: VaultSettings()) }
 
     /// Stable identifier stored in the vault, so data kept on the device (File Recovery snapshots)
     /// follows the folder when it moves or is renamed.
-    var stableID: String {
-        // The file travels with the vault, so only a well-formed UUID is trusted as a folder name.
-        if let id = loadConfig("id.json", fallback: String?.none), let uuid = UUID(uuidString: id) { return uuid.uuidString }
+    var stableID: String { storedID ?? newStableID() }
+
+    /// `stableID`, telling a copy of a vault from a moved one: `ledger` is a device-local folder that records which
+    /// folder holds each ID. When that folder still exists with the same ID, this one is a copy and gets its own.
+    func stableID(ledger: URL) -> String {
+        let path = root.path(percentEncoded: false)
+        var id = stableID
+        if let owner = try? String(contentsOf: ledger.appending(path: id + ".owner"), encoding: .utf8), owner != path,
+           Vault(root: URL(filePath: owner, directoryHint: .isDirectory)).storedID == id {
+            id = newStableID()
+        }
+        let record = ledger.appending(path: id + ".owner")
+        if (try? String(contentsOf: record, encoding: .utf8)) != path {
+            try? FileManager.default.createDirectory(at: ledger, withIntermediateDirectories: true)
+            try? path.write(to: record, atomically: true, encoding: .utf8)
+        }
+        return id
+    }
+
+    /// The ID in `id.json`. The file travels with the vault, so only a well-formed UUID is trusted as a folder name.
+    private var storedID: String? {
+        loadConfig("id.json", fallback: String?.none).flatMap(UUID.init(uuidString:))?.uuidString
+    }
+
+    private func newStableID() -> String {
         let id = UUID().uuidString
-        saveConfig("id.json", id)
+        // While `id.json` is still an iCloud placeholder, a new ID would sync over the real one; a read-only vault
+        // can't keep one. Either way an ID from the path stays the same on every call.
+        let placeholder = configURL.appending(path: ".id.json.icloud").path(percentEncoded: false)
+        guard !FileManager.default.fileExists(atPath: placeholder), saveConfig("id.json", id) else {
+            return Data(SHA256.hash(data: Data(root.path(percentEncoded: false).utf8))).withUnsafeBytes {
+                UUID(uuid: $0.loadUnaligned(as: uuid_t.self)).uuidString
+            }
+        }
         return id
     }
 
     /// A vault name as one folder name: separators become dashes and leading dots go (`..`, hidden folders); nil when empty.
     static func folderName(for name: String) -> String? {
         let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
-            .trimmingCharacters(in: .whitespacesAndNewlines).drop { $0 == "." }.trimmingCharacters(in: .whitespaces)
+            .drop { $0 == "." || $0.isWhitespace }.trimmingCharacters(in: .whitespacesAndNewlines)   // `. ..` too
         return clean.isEmpty ? nil : clean
     }
 }

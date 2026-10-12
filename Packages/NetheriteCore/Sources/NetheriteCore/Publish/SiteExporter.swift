@@ -216,7 +216,7 @@ public enum SiteExporter {
         let scripts = "<script src=\"\(pre)assets/search-index.js\"></script><script src=\"\(pre)assets/site.js\"></script>"
         let main = "<main class=\"\(wide ? "wide" : "")\"><h1 class=\"inline-title\">\(HTMLRenderer.escape(title))</h1>\(body)</main>"
         return HTMLRenderer.page(title: nil, body: nav + main, assets: pre + "assets/", theme: theme, fullWidth: true,
-                                 extraHead: head, extraBody: scripts)
+                                 extraHead: head, extraBody: scripts, pinScriptsByHash: true)
             .replacingOccurrences(of: "<title></title>", with: "<title>\(HTMLRenderer.escape(title)) · \(HTMLRenderer.escape(siteName))</title>")
     }
 

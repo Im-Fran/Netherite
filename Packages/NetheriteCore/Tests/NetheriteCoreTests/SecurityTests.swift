@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Testing
 @testable import NetheriteCore
 
@@ -59,18 +60,49 @@ private func renderPlain(_ md: String) -> String {
     #expect(try outer.files(maxTotalSize: 1 << 20).map(\.path) == ["x.txt", "a.txt", "b.txt"])
 }
 
+// R2-20: the ZIPs of one import share a single budget.
+@Test func zipBudgetIsPerImport() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    for n in 0..<3 { try makeZip([("f\(n).txt", Data(repeating: 65, count: 600))]).write(to: dir.appending(path: "\(n).zip")) }
+    #expect(throws: ZipReader.ZipError.self) { try Importer.files(at: dir, maxTotalSize: 1000) }
+    #expect(try Importer.files(at: dir, maxTotalSize: 2000).count == 3)
+}
+
 // MARK: N-20 / N-21 / N-40 · renderer robustness
 
 @Test func embedSectionWithOtherLineBreaks() {
     let text = "intro\rmore\u{2028}x\n# Head\nbody ^blk\n# Next"
     #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
     #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
+    // R2-19: the same breaks inside code, frontmatter or math don't shift the heading lines.
+    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`"] {
+        #expect(HTMLRenderer.section(of: "# A\n\(hidden)\nalpha\n# B\nbeta\n", subpath: "B") == "# B\nbeta", "\(hidden.debugDescription)")
+    }
+    #expect(HTMLRenderer.section(of: "---\nk: \"a\u{2028}b\"\n---\n# B\nbeta", subpath: "B") == "# B\nbeta")
 }
 
 @Test func forgedPlaceholderMarkers() {
     let html = renderPlain("a \u{E000}7\u{E001} [[x]] \u{E000}0\u{E001}")
     #expect(!html.contains("\u{E000}") && html.contains("new:x"))
     #expect(HTMLRenderer.restoreTokens("\u{E000}9\u{E001}", ["a"]) == "\u{E000}9\u{E001}")
+}
+
+// R2-09: no token lands inside a link destination or an image alt.
+@Test func noTokensInsideLinkAttributes() {
+    let html = renderPlain("[Jump](#Intro) [see #tag](x.md) ![alt $x$](https://e.com/a.png)")
+    #expect(!html.contains(">#Intro<") && html.contains(">Jump</a>"))
+    #expect(html.contains("alt=\"alt $x$\""))
+    #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
+}
+
+// R2-12: unclosed `<tag` runs don't make sanitizing quadratic.
+@Test func sanitizeIsLinearWithUnclosedTags() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<div>\n" + String(repeating: "<a ", count: 20_000))
+    #expect(out == "<div>\n" + String(repeating: "&lt;a ", count: 20_000))
+    #expect(Date().timeIntervalSince(start) < 2)
 }
 
 @Test func renderIsLinearInLinks() {
@@ -119,8 +151,12 @@ private func renderPlain(_ md: String) -> String {
 
 @Test func pagesCarryCSP() {
     let page = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "nth://web/", initialSubpath: "a", extraBody: "<script>1</script>")
-    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth: file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
+    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth://web/ file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
     #expect(!page.contains("<script>"))   // every script of ours carries the nonce
+    // R2-22: a published page names its inline scripts by hash and never exposes the nonce.
+    let site = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "assets/", extraHead: "<script>a()</script>", pinScriptsByHash: true)
+    #expect(!site.contains(HTMLRenderer.scriptNonce) && !site.contains("nonce"))
+    #expect(site.contains("'sha256-\(Data(SHA256.hash(data: Data("a()".utf8))).base64EncodedString())'"))
 }
 
 // MARK: N-48 · Bases and site export

@@ -111,6 +111,43 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(UUID(uuidString: shared.stableID) != nil)
 }
 
+// R2-17: a copy gets its own ID, a read-only vault and an undownloaded `id.json` get one that doesn't change.
+@Test func vaultIDForCopiesAndUnwritableVaults() throws {
+    let ledger = tempDir()
+    let a = Vault(root: tempDir())
+    let id = a.stableID(ledger: ledger)
+    let copy = tempDir()
+    try FileManager.default.copyItem(at: a.root, to: copy)
+    #expect(Vault(root: copy).stableID(ledger: ledger) != id)
+    #expect(a.stableID(ledger: ledger) == id)
+    let moved = tempDir()
+    try FileManager.default.moveItem(at: a.root, to: moved)
+    #expect(Vault(root: moved).stableID(ledger: ledger) == id)
+
+    let readOnly = Vault(root: tempDir())
+    try FileManager.default.createDirectory(at: readOnly.root, withIntermediateDirectories: true)
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: readOnly.root.path(percentEncoded: false))
+    defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: readOnly.root.path(percentEncoded: false)) }
+    #expect(readOnly.stableID == readOnly.stableID && UUID(uuidString: readOnly.stableID) != nil)
+
+    let cloud = Vault(root: tempDir())
+    try FileManager.default.createDirectory(at: cloud.configURL, withIntermediateDirectories: true)
+    try Data().write(to: cloud.configURL.appending(path: ".id.json.icloud"))
+    #expect(cloud.stableID == cloud.stableID)
+    #expect(!FileManager.default.fileExists(atPath: cloud.configURL.appending(path: "id.json").path(percentEncoded: false)))
+}
+
+// R2-21: saving an unchanged config doesn't touch the file (no iCloud sync for nothing).
+@Test func saveConfigSkipsUnchangedFiles() throws {
+    let vault = Vault(root: tempDir())
+    #expect(vault.saveConfig("recent.json", ["a.md"]))
+    let url = vault.configURL.appending(path: "recent.json")
+    try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1000)], ofItemAtPath: url.path(percentEncoded: false))
+    #expect(vault.saveConfig("recent.json", ["a.md"]))
+    #expect(try url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate == Date(timeIntervalSince1970: 1000))
+    #expect(vault.saveConfig("recent.json", ["b.md"]) && vault.loadConfig("recent.json", fallback: [String]()) == ["b.md"])
+}
+
 @Test func vaultFolderNameIsOneFolder() {
     #expect(Vault.folderName(for: "  My Notes ") == "My Notes")
     #expect(Vault.folderName(for: "a/b") == "a-b")
@@ -118,4 +155,7 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(Vault.folderName(for: "../x") == "-x")
     #expect(Vault.folderName(for: ".hidden") == "hidden")
     #expect(Vault.folderName(for: "  ") == nil)
+    // R2-18: dots and spaces mixed at the start go too.
+    for name in [". .", ". ..", " . . ", ". .. "] { #expect(Vault.folderName(for: name) == nil, "\(name)") }
+    #expect(Vault.folderName(for: " . .x") == "x")
 }

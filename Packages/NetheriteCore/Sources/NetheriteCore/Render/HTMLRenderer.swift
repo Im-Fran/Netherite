@@ -76,6 +76,11 @@ public enum HTMLRenderer {
             let lines = ns.substring(with: m.range).filter { $0 == "\n" }.count
             return token("<div class=\"math math-display\" data-tex=\"\(escape(String(tex)))\"></div>") + String(repeating: "\n", count: lines)
         }
+        // A Markdown link's destination is a URL and an image's alt is plain text: no token goes inside them
+        // (`[Jump](#Intro)` isn't a tag, `![a $x$](…)` keeps its text).
+        for m in NoteParser.Regex.mdLink.matches(in: codeMasked, range: full(codeMasked)) {
+            taken.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
+        }
         add(NoteParser.Regex.inlineMath, in: codeMasked) { m in
             token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
         }
@@ -247,6 +252,8 @@ public enum HTMLRenderer {
         let c = Array(html.unicodeScalars)
         var out = String.UnicodeScalarView(), i = 0
         var skipping: String?   // inside a dropped element
+        // A tag needs a `>` after it: past the last one every `<` is text, without scanning to the end each time.
+        let lastClose = c.lastIndex(of: ">") ?? -1
         func isSpace(_ u: Unicode.Scalar) -> Bool { u == " " || u == "\t" || u == "\n" || u == "\r" || u == "\u{0C}" }
         func emit(_ s: String) { if skipping == nil { out.append(contentsOf: s.unicodeScalars) } }
         while i < c.count {
@@ -259,6 +266,7 @@ public enum HTMLRenderer {
                 i = min(c.count, j + close.count)
                 continue
             }
+            guard i < lastClose else { emit("&lt;"); i += 1; continue }
             var j = i + 1
             let closing = j < c.count && c[j] == "/"
             if closing { j += 1 }
@@ -428,7 +436,7 @@ struct HTMLWalker: MarkupWalker {
         let isExternal = src.range(of: #"^[A-Za-z][A-Za-z0-9+.\-]*:"#, options: .regularExpression) != nil
         let url = isExternal ? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? ""
             : (ctx.resolve(src.removingPercentEncoding ?? src, ctx.source).map(ctx.assetURL) ?? HTMLRenderer.safeURL(src, schemes: HTMLRenderer.mediaSchemes) ?? "")
-        result += "<img src=\"\(esc(url))\" alt=\"\(esc(i.plainText))\" loading=\"lazy\">"
+        result += "<img src=\"\(esc(url))\" alt=\"\(esc(i.plainText.replacingOccurrences(of: "\u{E000}\\d+\u{E001}", with: "", options: .regularExpression)))\" loading=\"lazy\">"
     }
 
     mutating func visitUnorderedList(_ l: UnorderedList) { result += "<ul>\n\(inner(l))</ul>\n" }

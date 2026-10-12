@@ -30,6 +30,21 @@ import Testing
     #expect(index.notes["A.md"]?.text == "typed")
 }
 
+// R2-02: the last note opens (and is typed into, or created) before the first load finishes.
+@MainActor @Test func loadKeepsEditsMadeDuringLoad() async throws {
+    let vault = Vault(root: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
+    try vault.write("disk", to: "A.md")
+    let index = VaultIndex(vault: vault)
+    let load = Task { await index.load() }
+    await Task.yield()
+    index.update("A.md", text: "typed")
+    try vault.write("new", to: "B.md")
+    index.didCreate("B.md")
+    await load.value
+    #expect(index.notes["A.md"]?.text == "typed")
+    #expect(index.files.filter { $0 == "B.md" }.count == 1 && index.notes["B.md"]?.text == "new")
+}
+
 @MainActor @Test func refreshIgnoresOwnSaves() async throws {
     let vault = Vault(root: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
     try vault.write("v1", to: "A.md")
