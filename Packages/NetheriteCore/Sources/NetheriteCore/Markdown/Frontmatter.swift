@@ -141,7 +141,22 @@ public enum Frontmatter {
     /// `allowUnicode`; they are valid as-is in a double-quoted scalar, so write them literally.
     /// Only double-quoted spans are touched (elsewhere `\\U` is literal text), and an escaped backslash is kept.
     static func unescapingAstral(_ yaml: String) -> String {
-        guard yaml.contains("\\U") else { return yaml }
+        guard yaml.contains("\\U"), let base = try? Yams.compose(yaml: yaml) else { return yaml }
+        // The span regex isn't a YAML parser (a `"` can sit inside a plain or single-quoted scalar), so keep the
+        // literal form only when it reads back to the same value: whole document first, then line by line so one
+        // stray quote doesn't keep every emoji escaped.
+        let whole = unescapingQuotedSpans(yaml)
+        if whole != yaml, (try? Yams.compose(yaml: whole)) == base { return whole }
+        var lines = yaml.components(separatedBy: "\n")
+        for i in lines.indices where lines[i].contains("\\U") {
+            var candidate = lines
+            candidate[i] = unescapingQuotedSpans(lines[i])
+            if candidate[i] != lines[i], (try? Yams.compose(yaml: candidate.joined(separator: "\n"))) == base { lines = candidate }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func unescapingQuotedSpans(_ yaml: String) -> String {
         let quoted = try! NSRegularExpression(pattern: #""(?:[^"\\]|\\.)*""#)
         let escape = try! NSRegularExpression(pattern: #"\\(?:(\\)|U([0-9A-Fa-f]{8}))"#)
         let ns = yaml as NSString
@@ -158,11 +173,7 @@ public enum Frontmatter {
             out += span + ns.substring(with: NSRange(location: at, length: NSMaxRange(q.range) - at))
             last = NSMaxRange(q.range)
         }
-        out += ns.substring(from: last)
-        // The span regex isn't a YAML parser (a `"` can sit inside a plain or single-quoted scalar), so keep the
-        // literal form only when it reads back to the same value.
-        guard out != yaml, let a = try? Yams.compose(yaml: out), let b = try? Yams.compose(yaml: yaml), a == b else { return yaml }
-        return out
+        return out + ns.substring(from: last)
     }
 
     public struct InvalidYAML: LocalizedError, Sendable {
