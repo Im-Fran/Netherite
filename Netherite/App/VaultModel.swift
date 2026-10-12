@@ -171,9 +171,10 @@ final class VaultModel {
     }
 
     func trash(_ path: String) {
-        // Drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
-        for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
+        // Once trashed, drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
+        // If trashing fails they stay, so the edits are still saved.
         guard perform({ try index.trash(path) }) != nil else { return }
+        for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
         recentFiles.removeAll { $0 == path || $0.hasPrefix(path + "/") }
         for pane in panes { pane.removePath(path) }
     }
