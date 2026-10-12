@@ -137,6 +137,27 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(!FileManager.default.fileExists(atPath: cloud.configURL.appending(path: "id.json").path(percentEncoded: false)))
 }
 
+// R3-03: the same folder with and without a trailing `/` (or through a symlink) is the same vault, not a copy.
+@Test func vaultIDIgnoresHowThePathIsSpelled() throws {
+    let ledger = tempDir()
+    let dir = tempDir()
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let path = dir.path(percentEncoded: false)
+    let id = Vault(root: URL(filePath: path, directoryHint: .isDirectory)).stableID(ledger: ledger)
+    #expect(Vault(root: URL(filePath: String(path.dropLast()), directoryHint: .notDirectory)).stableID(ledger: ledger) == id)
+    let link = tempDir()
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: dir)
+    #expect(Vault(root: link).stableID(ledger: ledger) == id)
+
+    let readOnly = tempDir()
+    try FileManager.default.createDirectory(at: readOnly, withIntermediateDirectories: true)
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: readOnly.path(percentEncoded: false))
+    defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: readOnly.path(percentEncoded: false)) }
+    let ro = readOnly.path(percentEncoded: false)
+    #expect(Vault(root: URL(filePath: ro, directoryHint: .isDirectory)).stableID
+            == Vault(root: URL(filePath: String(ro.dropLast()), directoryHint: .notDirectory)).stableID)
+}
+
 // R2-21: saving an unchanged config doesn't touch the file (no iCloud sync for nothing).
 @Test func saveConfigSkipsUnchangedFiles() throws {
     let vault = Vault(root: tempDir())
