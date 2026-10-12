@@ -24,6 +24,8 @@ struct VaultEntry: TimelineEntry {
     var recents: [String]
     /// The vault folder, so taps open notes in this vault.
     var vaultPath: String? = nil
+    /// The shared vault's name when the widget can't reach its folder (it's inside the app's own container).
+    var unreachableVault: String? = nil
 }
 
 struct VaultProvider: TimelineProvider {
@@ -44,7 +46,7 @@ struct VaultProvider: TimelineProvider {
     private func entry() -> VaultEntry {
         let shared = SharedVault.current()
         guard let vault = shared?.resolve() else {
-            return VaultEntry(date: .now, vaultName: nil, dailyTitle: "", dailyExcerpt: "", recents: [])
+            return VaultEntry(date: .now, vaultName: nil, dailyTitle: "", dailyExcerpt: "", recents: [], unreachableVault: shared?.name)
         }
         let daily = Templates.dailyNotePath(for: .now, settings: vault.settings)
         let recents = SharedVault.recents().filter(vault.exists)
@@ -59,10 +61,19 @@ private func openURL(_ path: String, in entry: VaultEntry) -> URL {
 }
 
 private struct NoVaultView: View {
+    let entry: VaultEntry
+
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "diamond").font(.title2).foregroundStyle(.tint).widgetAccentable().accessibilityHidden(true)
-            Text("Open a vault in Netherite").font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)
+            Group {
+                if let name = entry.unreachableVault {
+                    Text("Move “\(name)” to iCloud Drive to see it here")
+                } else {
+                    Text("Open a vault in Netherite")
+                }
+            }
+            .font(.caption).multilineTextAlignment(.center).foregroundStyle(.secondary)
         }
     }
 }
@@ -88,7 +99,7 @@ struct DailyNoteView: View {
 
     var body: some View {
         if entry.vaultName == nil {
-            NoVaultView()
+            NoVaultView(entry: entry)
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -145,7 +156,7 @@ struct RecentNotesView: View {
 
     var body: some View {
         if entry.vaultName == nil {
-            NoVaultView()
+            NoVaultView(entry: entry)
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 Label(entry.vaultName ?? "", systemImage: "clock").font(.caption.bold()).foregroundStyle(.tint).lineLimit(1).widgetAccentable()

@@ -62,6 +62,8 @@ public struct SharedVault: Codable, Hashable, Sendable {
     }
 
     private func folderURL() -> URL? {
+        // Extensions only reach the iCloud container after asking for it (this call may block: keep it off the main thread).
+        if path.contains("/Mobile Documents/") { _ = FileManager.default.url(forUbiquityContainerIdentifier: nil) }
         if let bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: bookmark, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) { return url }

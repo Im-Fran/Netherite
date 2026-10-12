@@ -31,6 +31,8 @@ final class ClipModel {
     }
     var input = SharedInput()
     let vault = SharedVault.current()?.resolve()
+    /// The vault the app shares, even when this extension can't reach its folder (it's inside the app's own container).
+    let sharedName = SharedVault.current()?.name
 
     func load(_ items: [NSExtensionItem]) async {
         for provider in items.flatMap({ $0.attachments ?? [] }) {
@@ -135,7 +137,11 @@ struct ClipView: View {
             Form {
                 if model.vault == nil {
                     Section {
-                        Label("Open a vault in Netherite first, then share again.", systemImage: "exclamationmark.triangle")
+                        if let name = model.sharedName {
+                            Label("Netherite’s extensions can’t reach “\(name)”. Move it to iCloud Drive from the vault list, then share again.", systemImage: "exclamationmark.triangle")
+                        } else {
+                            Label("Open a vault in Netherite first, then share again.", systemImage: "exclamationmark.triangle")
+                        }
                     }
                 }
                 Section {

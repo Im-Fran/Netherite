@@ -101,6 +101,16 @@
         }
       }
     },
+    "Netherite’s extensions can’t reach “%@”. Move it to iCloud Drive from the vault list, then share again." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las extensiones de Netherite no pueden acceder a “%@”. Muévela a iCloud Drive desde la lista de bóvedas y vuelve a compartir."
+          }
+        }
+      }
+    },
     "New note in %@" : {
       "localizations" : {
         "es" : {
