@@ -21,8 +21,7 @@ extension WindowState {
     func openAdjacentDailyNote(_ delta: Int) {
         let s = model.settings
         let folder = s.dailyNotes.folder
-        let f = DateFormatter()
-        f.dateFormat = Templates.unicodePattern(s.dailyNotes.format)
+        let f = Templates.formatter(s.dailyNotes.format)
         let dated: [(Date, String)] = model.index.markdownFiles
             .filter { $0.parentFolder == folder }
             .compactMap { p in f.date(from: p.noteName).map { ($0, p) } }

@@ -60,3 +60,14 @@ import Testing
     #expect(BaseFile.database(folder: #"Notes\2024 "Q1""#).entryFolder == #"Notes\2024 "Q1""#)
     #expect(SearchQuery.tokenize("] foo [k:v] bar") == ["]", "foo", "[k:v]", "bar"])
 }
+
+// R4-06: note-name dates are Gregorian with Latin digits whatever the locale.
+@Test func templateDatesUseGregorianLatinDigits() {
+    let date = Date(timeIntervalSince1970: 1_791_763_200)   // 2026-10-12 UTC
+    for id in ["th_TH", "ar_SA", "fa_IR", "ja_JP@calendar=japanese", "en_US", "YYYY-MM-DD"] {
+        let f = id == "YYYY-MM-DD" ? Templates.formatter(id) : Templates.formatter("yyyy-MM-dd", locale: Locale(identifier: id))
+        f.timeZone = TimeZone(identifier: "UTC")
+        #expect(f.string(from: date) == "2026-10-12", "\(id)")
+        #expect(f.date(from: "2026-10-12") == date, "\(id)")
+    }
+}
