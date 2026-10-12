@@ -15,6 +15,11 @@ public struct HTMLToMarkdown {
         var md = block(body, depth: 0)
         md = md.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         md = md.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        // Text `%` and `=` (see `escape`) are escaped only where they'd pair with a neighbour in the joined Markdown,
+        // or, for `=`, fill a line (a `=` line under text is a heading underline).
+        md = md.replacingOccurrences(of: #"(?<=[%\x{E000}])\x{E000}|\x{E000}(?=%)"#, with: "&#37;", options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])|(?<=^[ \t]{0,3})\x{E001}(?=[ \t]*$)"#, with: #"\\="#, options: .regularExpression)
+            .replacingOccurrences(of: "\u{E000}", with: "%").replacingOccurrences(of: "\u{E001}", with: "=")
         return md.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
     }
 
@@ -157,20 +162,21 @@ public struct HTMLToMarkdown {
 
     /// Escapes a text node so literal `<b>`, `2 * 3`, `[[x]]`, `==`, `~~`, `$x$` or `%%` stay text. A node may start a line,
     /// so a leading `#`, `-`/`+` (list marker or `---` rule) or `1.` is escaped too (harmless mid-line). Nodes are
-    /// collapsed, so they hold no newlines. A `%` or `=` at either end is escaped too: the next or previous node may hold the other half.
+    /// collapsed, so they hold no newlines. `%` and `=` become placeholders that `convert` escapes once the nodes are joined:
+    /// the next or previous node may hold the other half of `%%` or `==`.
     static func escape(_ s: String) -> String {
         var out = ""
         for c in s {
             switch c {
             case "\\", "*", "_", "[", "]", ">", "`", "~", "$": out += "\\" + String(c)
             case "<": out += "&lt;"
-            case "%" where out.hasSuffix("%"): out += "&#37;"   // `%%` opens a comment
+            case "%": out += "\u{E000}"   // `%%` opens a comment
+            case "=": out += "\u{E001}"   // `==` opens a highlight
+            case "\u{E000}", "\u{E001}": out += "\u{FFFD}"
             default: out.append(c)
             }
         }
-        return out.replacingOccurrences(of: #"^%|%$"#, with: "&#37;", options: .regularExpression)
-            .replacingOccurrences(of: #"=(?==)|(?<==)=|^=|=$"#, with: #"\\="#, options: .regularExpression)
-            .replacingOccurrences(of: #"^(\s*)([#+-])"#, with: #"$1\\$2"#, options: .regularExpression)
+        return out.replacingOccurrences(of: #"^(\s*)([#+-])"#, with: #"$1\\$2"#, options: .regularExpression)
             .replacingOccurrences(of: #"^(\s*\d+)([.)])(?=\s|$)"#, with: #"$1\\$2"#, options: .regularExpression)
     }
 }

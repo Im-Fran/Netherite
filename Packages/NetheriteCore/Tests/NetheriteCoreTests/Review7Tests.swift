@@ -37,3 +37,12 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(HTMLRenderer.render("==$x$==", context: ctx).contains("<mark><span class=\"math math-inline\""))
     #expect(!HTMLRenderer.render("[a ==b](c) d==", context: ctx).contains("<mark>"))
 }
+
+// R7-03: a `%` or `=` at the edge of an imported text node stays plain text, escaped only when it pairs with a neighbour.
+@Test func importEscapesOnlyPairingPercentAndEquals() {
+    let c = HTMLToMarkdown()
+    #expect(c.convert("<p>Growth was 50%</p>") == "Growth was 50%\n")
+    #expect(c.convert("<p><b>20%</b> off, x=</p>") == "**20%** off, x=\n")
+    #expect(c.convert("<p><span>50%</span><span>%s</span> <mark>a</mark><span>=</span></p>") == "50%&#37;s ==a==\\=\n")
+    #expect(c.convert("<div>a</div><div>=</div><div>=b</div>") == "a\n\\=\n=b\n")
+}
