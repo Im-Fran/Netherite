@@ -252,6 +252,8 @@ public enum HTMLRenderer {
         let c = Array(html.unicodeScalars)
         var out = String.UnicodeScalarView(), i = 0
         var skipping: String?   // inside a dropped element
+        // A tag needs a `>` after it: past the last one every `<` is text, without scanning to the end each time.
+        let lastClose = c.lastIndex(of: ">") ?? -1
         func isSpace(_ u: Unicode.Scalar) -> Bool { u == " " || u == "\t" || u == "\n" || u == "\r" || u == "\u{0C}" }
         func emit(_ s: String) { if skipping == nil { out.append(contentsOf: s.unicodeScalars) } }
         while i < c.count {
@@ -264,6 +266,7 @@ public enum HTMLRenderer {
                 i = min(c.count, j + close.count)
                 continue
             }
+            guard i < lastClose else { emit("&lt;"); i += 1; continue }
             var j = i + 1
             let closing = j < c.count && c[j] == "/"
             if closing { j += 1 }

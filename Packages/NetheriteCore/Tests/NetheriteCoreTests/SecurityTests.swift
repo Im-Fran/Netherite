@@ -81,6 +81,14 @@ private func renderPlain(_ md: String) -> String {
     #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
 }
 
+// R2-12: unclosed `<tag` runs don't make sanitizing quadratic.
+@Test func sanitizeIsLinearWithUnclosedTags() {
+    let start = Date()
+    let out = HTMLRenderer.sanitize("<div>\n" + String(repeating: "<a ", count: 20_000))
+    #expect(out == "<div>\n" + String(repeating: "&lt;a ", count: 20_000))
+    #expect(Date().timeIntervalSince(start) < 2)
+}
+
 @Test func renderIsLinearInLinks() {
     let md = (0..<8000).map { "[[Note \($0)]]" }.joined(separator: " ")
     let start = Date()
