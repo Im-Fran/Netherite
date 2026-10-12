@@ -84,3 +84,11 @@ import Testing
     let report = try Importer(vault: vault, destination: "H").run(.html, from: src)
     #expect(report.notes == ["H/NET tips.md"] && vault.allFiles().contains("H/NET tips.md"))
 }
+
+// R4-11: unclosed tags don't make HTML parsing quadratic.
+@Test func htmlParseLinearWithUnclosedTags() {
+    let start = Date()
+    let md = HTMLToMarkdown().convert(String(repeating: "x <y z ", count: 8_000))
+    #expect(Date().timeIntervalSince(start) < 1)
+    #expect(md.hasPrefix("x"))
+}

@@ -184,7 +184,8 @@ final class HTMLNode {
         let root = HTMLNode(tag: "#root")
         var stack = [root]
         let s = html as NSString
-        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(/?)>"#)
+        // Attribute names and unquoted values stop at "<": an unclosed "<y z" can't scan ahead through every later tag.
+        let tagRE = try! NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<!\[CDATA\[([\s\S]*?)\]\]>|<![^>]*>|<\?[^>]*>|<(/?)([A-Za-z][\w:-]*)((?:\s+[^\s=/<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s<>]+))?)*)\s*(/?)>"#)
         let attrRE = try! NSRegularExpression(pattern: #"([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?"#)
         var last = 0
         func addText(_ t: String) {
