@@ -105,6 +105,10 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     try FileManager.default.moveItem(at: root, to: moved)
     #expect(Vault(root: moved).stableID == id)
     #expect(Vault(root: tempDir()).stableID != id)
+    // A planted ID can't steer snapshots out of their folder.
+    let shared = Vault(root: tempDir())
+    shared.saveConfig("id.json", "../../escape")
+    #expect(UUID(uuidString: shared.stableID) != nil)
 }
 
 @Test func vaultFolderNameIsOneFolder() {

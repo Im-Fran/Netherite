@@ -82,7 +82,8 @@ public extension Vault {
     /// Stable identifier stored in the vault, so data kept on the device (File Recovery snapshots)
     /// follows the folder when it moves or is renamed.
     var stableID: String {
-        if let id = loadConfig("id.json", fallback: String?.none) { return id }
+        // The file travels with the vault, so only a well-formed UUID is trusted as a folder name.
+        if let id = loadConfig("id.json", fallback: String?.none), let uuid = UUID(uuidString: id) { return uuid.uuidString }
         let id = UUID().uuidString
         saveConfig("id.json", id)
         return id
