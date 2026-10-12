@@ -6735,6 +6735,16 @@
         }
       }
     },
+    "The vault moved to iCloud Drive, but the latest changes to %@ couldn’t be saved." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La bóveda se movió a iCloud Drive, pero no se pudieron guardar los últimos cambios de %@."
+          }
+        }
+      }
+    },
     "Theme" : {
       "localizations" : {
         "es" : {
@@ -8466,10 +8476,40 @@
     },
     "Snapshots are kept for %lld days and stored only on this device." : {
       "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Snapshots are kept for %lld day and stored only on this device."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Snapshots are kept for %lld days and stored only on this device."
+                }
+              }
+            }
+          }
+        },
         "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Las instantáneas se conservan durante %lld días y solo se guardan en este dispositivo."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Las instantáneas se conservan durante %lld día y solo se guardan en este dispositivo."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Las instantáneas se conservan durante %lld días y solo se guardan en este dispositivo."
+                }
+              }
+            }
           }
         }
       }

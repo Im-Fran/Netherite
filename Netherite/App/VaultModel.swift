@@ -98,6 +98,8 @@ final class VaultModel {
     func flushAll() { for p in dirty { save(p) } }
 
     private func externalChange() async {
+        // Mid-move the folder looks gone: that must not drop the unsaved edits kept for the new place.
+        guard !savesPaused else { return }
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
         reloadConfigIfChanged()
         await index.refreshFromDisk(skipping: dirty)
@@ -129,10 +131,18 @@ final class VaultModel {
             defer { configDates[name] = date }
             return date != configDates[name]
         }
+        /// The file's new contents, if it changed. A missing or unreadable file (evicted by iCloud, mid-sync) keeps
+        /// the values in memory and its old date, so it's read again next time instead of resetting to defaults.
+        func reloaded<T: Decodable>(_ name: String) -> T? {
+            let date = configDate(name)
+            guard date != configDates[name], let value = vault.loadConfig(name, as: T?.self, fallback: nil) else { return nil }
+            configDates[name] = date
+            return value
+        }
         reloadingConfig = true
         defer { reloadingConfig = false }
-        if changed("app.json"), case let s = vault.settings, s != settings { settings = s }
-        if changed("bookmarks.json"), case let b = vault.loadConfig("bookmarks.json", fallback: [Bookmark]()), b != bookmarks { bookmarks = b }
+        if let s: VaultSettings = reloaded("app.json"), s != settings { settings = s }
+        if let b: [Bookmark] = reloaded("bookmarks.json"), b != bookmarks { bookmarks = b }
         if changed("themes") { reloadThemes() }
     }
 
