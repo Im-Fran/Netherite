@@ -24,3 +24,9 @@ import Testing
     let nested = c.convert("<ul><li>a<ul><li>b<ul><li>c<br>=</li></ul></li></ul></li></ul>")
     #expect(nested.hasSuffix("\\=\n"), "\(nested.debugDescription)")
 }
+
+// R8-03: literal U+E000/U+E001 in code, links, images or entities can't pose as the importer's `%`/`=` markers.
+@Test func importNeutralizesLiteralMarkers() {
+    let md = HTMLToMarkdown().convert("<pre>a\u{E000}\u{E001}b</pre><p><code>x\u{E000}y</code> <a href=\"u\u{E001}\">l</a> <img src=\"s\u{E000}\" alt=\"&#xE001;\"></p>")
+    #expect(!md.contains("%") && !md.contains("=") && !md.contains("\u{E000}") && !md.contains("\u{E001}"), "\(md.debugDescription)")
+}

@@ -173,7 +173,6 @@ public struct HTMLToMarkdown {
             case "<": out += "&lt;"
             case "%": out += "\u{E000}"   // `%%` opens a comment
             case "=": out += "\u{E001}"   // `==` opens a highlight
-            case "\u{E000}", "\u{E001}": out += "\u{FFFD}"
             default: out.append(c)
             }
         }
@@ -207,6 +206,7 @@ final class HTMLNode {
     func all(_ t: String) -> [HTMLNode] { children.flatMap { ($0.tag == t ? [$0] : []) + $0.all(t) } }
 
     static func parse(_ html: String) -> HTMLNode {
+        let html = neutralizeMarkers(html)
         let root = HTMLNode(tag: "#root")
         var stack = [root]
         let s = html as NSString
@@ -271,6 +271,12 @@ final class HTMLNode {
             else { out += named[e] ?? ns.substring(with: m.range) }
             last = NSMaxRange(m.range)
         }
-        return out + ns.substring(from: last)
+        return neutralizeMarkers(out + ns.substring(from: last))
+    }
+
+    /// U+E000/U+E001 are `HTMLToMarkdown`'s `%`/`=` placeholders: literal ones (also from `&#xE000;`) become U+FFFD,
+    /// so text that skips `escape` (code, links, images) can't be turned into `%`/`=`.
+    static func neutralizeMarkers(_ s: String) -> String {
+        s.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
     }
 }
