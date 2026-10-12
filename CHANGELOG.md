@@ -16,6 +16,7 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Notes render only safe link schemes (http, https, mailto, obsidian, netherite) and an allowlist of HTML; links with other schemes show as plain text.
 - `netherite publish` deploys from a temporary folder; `--out` is now only for `netherite export`.
 - The Share extension and widgets explain when a vault stored only on this device can't be reached.
+- File Recovery only takes snapshots while its plugin is on.
 
 ### Fixed
 - Typing right after naming a new note goes into its body instead of being lost.
@@ -38,12 +39,22 @@ version, and the release notes on TestFlight and GitHub come from here.
 - The Workspaces sheet fits on iPhone, "Create Theme from Current…" never overwrites a theme, and Publish cleans up its temporary files.
 - Embedding a block or heading, and some unusual characters, no longer crash rendering; notes with thousands of links render quickly.
 - Bases: `toFixed` no longer crashes and saving keeps property settings and formulas; published sites keep notes named `index`, `404` or `graph`.
+- Typing in a note created by a widget, Shortcut or share, or while a vault is still loading, is no longer reverted.
+- Canvas cards keep every keystroke, and tips also wait while you name a note.
+- Renaming a note to a name with quotes keeps the properties of notes that link to it valid.
+- `[text](#heading)` links and images with formulas in their alt text render correctly.
+- Notes with many links and tags, or broken HTML, no longer slow down editing.
+- The Inspector keeps an unfinished list property with its own note, and full-screen presentations on iPhone and iPad no longer stop iCloud updates.
+- A failed move to Recently Deleted keeps your latest edits, and a recording that can't be saved shows an error.
+- Copies of a vault keep separate File Recovery history, and opening a vault no longer rewrites its settings files.
+- The iPhone welcome tour responds to the first tap.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
 - Rendered notes and published sites are protected against script injection with an HTML allowlist and a Content Security Policy.
 - Web pages opened in the web viewer can no longer read vault files.
 - `netherite://` links only open vaults you have already opened.
+- Published sites pin their scripts by hash, and notes can't load scripts from the vault.
 
 ## [0.1.1+13] - 2026-10-11
 
