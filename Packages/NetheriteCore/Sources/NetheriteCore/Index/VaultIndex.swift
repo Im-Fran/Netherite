@@ -155,8 +155,10 @@ public final class VaultIndex {
 
     /// Moves/renames a file or folder and rewrites every link that pointed into it.
     /// Returns the paths of notes whose text was rewritten.
+    /// Notes changed on disk since they were indexed are rewritten from their disk text, except the paths
+    /// (before the move) in `skipping`: unsaved editor buffers, whose in-memory text wins.
     @discardableResult
-    public func move(_ from: String, to: String) throws -> [String] {
+    public func move(_ from: String, to: String, skipping: Set<String> = []) throws -> [String] {
         guard from != to else { return [] }
         let oldResolver = resolver
         let isFolder = folders.contains(from)
@@ -179,7 +181,8 @@ public final class VaultIndex {
         var rewritten: [String] = []
         for oldSource in affected {
             let source = movedMap[oldSource] ?? oldSource
-            guard let rec = notes[source] else { continue }
+            guard var rec = notes[source] else { continue }
+            if !skipping.contains(oldSource), let disk = Self.record(vault, source), disk.modified != rec.modified { rec = disk; notes[source] = disk }
             let text = Self.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
                 guard !link.target.isEmpty, let target = oldResolver.resolve(link.target, from: oldSource),
                       let newTarget = movedMap[target] else { return nil }

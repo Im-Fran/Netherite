@@ -32,3 +32,21 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(NoteParser.parse(text).properties == [Property(key: "tags", value: .list(["keep"]))])
     #expect(text.contains("Just a sentence."))
 }
+
+// R6-03: a move rewrites links from the disk text of notes edited externally since they were indexed,
+// but keeps the in-memory text of the notes the caller marks as unsaved.
+@MainActor @Test func moveRewritesFreshDiskText() async throws {
+    let vault = tempVault()
+    try vault.write("target", to: "A.md")
+    try vault.write("links [[A]]", to: "B.md")
+    try vault.write("links [[A]]", to: "D.md")
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    try await Task.sleep(for: .milliseconds(1100))
+    try vault.write("links [[A]] plus an external edit", to: "B.md")
+    index.update("D.md", text: "links [[A]] unsaved")
+    try index.move("A.md", to: "C.md", skipping: ["D.md"])
+    #expect(try vault.read("B.md") == "links [[C]] plus an external edit")
+    #expect(index.notes["B.md"]?.text == "links [[C]] plus an external edit")
+    #expect(try vault.read("D.md") == "links [[C]] unsaved")
+}
