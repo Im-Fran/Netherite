@@ -175,6 +175,8 @@ final class VaultModel {
     }
 
     func trash(_ path: String) {
+        // Unsaved edits go into the trashed files, so restoring them from the Trash keeps them.
+        for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         // Once trashed, drop pending saves of the item and anything inside it, or they'd recreate the trashed files.
         // If trashing fails they stay, so the edits are still saved.
         guard perform({ try index.trash(path) }) != nil else { return }
