@@ -97,7 +97,7 @@ struct PagePreview: View {
             if let target = index.resolver.resolve(link.target, from: source) {
                 let text = target.isMarkdown ? HTMLRenderer.section(of: window.model.text(of: target), subpath: link.subpath) : ""
                 let body = target.isMarkdown
-                    ? HTMLRenderer.render(text, context: .app(index, source: target))
+                    ? HTMLRenderer.render(text, context: previewContext(target))
                     : HTMLRenderer.embed(NoteLink(target: target, isEmbed: true, isWiki: true, range: NSRange(), line: 0), .app(index, source: target))
                 HTMLWebView(html: HTMLRenderer.page(title: target.isMarkdown ? target.noteName : nil, body: body, assets: "nth://web/", theme: window.model.theme,
                                                    baseSize: ReaderView.baseSize(dynamicTypeSize), transparentBackground: true,
@@ -109,6 +109,13 @@ struct PagePreview: View {
             }
         }
         .frame(width: 460, height: 340)
+    }
+
+    /// The preview shows a section, so its task lines aren't the note's: toggling one would change the wrong line.
+    private func previewContext(_ target: String) -> RenderContext {
+        var ctx = RenderContext.app(window.model.index, source: target)
+        ctx.interactiveTasks = false
+        return ctx
     }
 }
 
