@@ -92,7 +92,7 @@ public struct Importer: Sendable {
                 if !note.tags.isEmpty { props.append(Property(key: "tags", value: .list(note.tags.map { $0.replacingOccurrences(of: " ", with: "-") }))) }
                 if let s = note.sourceURL { props.append(Property(key: "source", value: .text(s))) }
                 if let a = note.author { props.append(Property(key: "author", value: .text(a))) }
-                w.note(Frontmatter.replacing(in: body, with: props), name: note.title, folder: files.count > 1 ? notebook : "", converter: nil)
+                w.note((try? Frontmatter.replacing(in: body, with: props)) ?? body, name: note.title, folder: files.count > 1 ? notebook : "", converter: nil)
             }
         }
     }

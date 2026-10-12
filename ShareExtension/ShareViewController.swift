@@ -133,7 +133,7 @@ final class ClipModel {
             if let url = input.url { props.append(Property(key: "source", value: .text(url.absoluteString))) }
             props.append(Property(key: "clipped", value: .text(Frontmatter.dateString(.now))))
             if !tagList.isEmpty { props.append(Property(key: "tags", value: .list(tagList))) }
-            let content = Frontmatter.replacing(in: parts.joined(separator: "\n\n") + "\n", with: props)
+            let content = try Frontmatter.replacing(in: parts.joined(separator: "\n\n") + "\n", with: props)
             let name = title.replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "-", options: .regularExpression)
             try vault.createNote(in: Self.folder, named: String(name.prefix(100)), content: content)
         case .dailyNote:

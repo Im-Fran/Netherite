@@ -51,22 +51,22 @@ Footnote here[^1].
     #expect(NoteParser.readableLine("Volver a [[Empieza aquí]] `[[code]]`") == "Volver a Empieza aquí `[[code]]`")
 }
 
-@Test func frontmatterRoundTrip() {
+@Test func frontmatterRoundTrip() throws {
     let props = [Property(key: "tags", value: .list(["a", "b c"])), Property(key: "title", value: .text("Hi: there"))]
-    let text = Frontmatter.replacing(in: "body", with: props)
+    let text = try Frontmatter.replacing(in: "body", with: props)
     #expect(NoteParser.parse(text).properties == props)
-    #expect(Frontmatter.replacing(in: text, with: []) == "body")
+    #expect(try Frontmatter.replacing(in: text, with: []) == "body")
 }
 
 // N-07: editing one property keeps the rest of the frontmatter byte for byte.
-@Test func frontmatterEditKeepsOtherKeys() {
+@Test func frontmatterEditKeepsOtherKeys() throws {
     let text = "---\n# keep me\nauthors: [{name: Ana}]\nmeta: {rating: 5}\nversion: 1.10\nzip: 01234\nanswer: no\nstatus: draft\n---\nbody"
     var props = NoteParser.parse(text).properties
     #expect(props.first { $0.key == "answer" }?.value == .text("no"))
     props[props.firstIndex { $0.key == "status" }!].value = .text("done")
-    let out = Frontmatter.replacing(in: text, with: props)
+    let out = try Frontmatter.replacing(in: text, with: props)
     #expect(out == text.replacingOccurrences(of: "status: draft", with: "status: done"))
-    #expect(Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
+    #expect(try Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
 }
 
 // N-19: a stray backtick doesn't hide the links and tags of the following paragraphs.

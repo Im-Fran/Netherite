@@ -561,6 +561,16 @@
         }
       }
     },
+    "The note's properties aren't valid YAML. Fix them in the editor first." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las propiedades de la nota no son YAML válido. Corrígelas primero en el editor."
+          }
+        }
+      }
+    },
     "The ZIP archive is damaged." : {
       "localizations" : {
         "es" : {

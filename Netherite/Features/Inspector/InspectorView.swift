@@ -313,7 +313,8 @@ struct PropertiesEditor: View {
 
     private func save(_ props: [Property]) {
         let text = window.model.text(of: path)
-        window.model.edit(path, text: Frontmatter.replacing(in: text, with: props))
+        do { window.model.edit(path, text: try Frontmatter.replacing(in: text, with: props)) }
+        catch { window.model.lastError = error.localizedDescription }
     }
 }
 
