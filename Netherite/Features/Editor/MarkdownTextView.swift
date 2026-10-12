@@ -213,9 +213,46 @@ struct MarkdownTextView {
 
         func textChanged(_ tv: PlatformTextView) {
             guard !updating else { return }
+            let text = tv.string
+            echoes.append(text)
+            if echoes.count > 32 { echoes.removeFirst() }
+            // Report first, so the model already matches if restyling triggers a SwiftUI update.
+            parent.onChange(text)
             restyle(tv, force: true)
-            parent.onChange(tv.string)
             parent.controller.updateCompletion(caret: caretRect(tv))
+        }
+
+        /// Texts sent through `onChange` that SwiftUI may still hand back before it catches up with the latest keystrokes.
+        var echoes: [String] = []
+
+        /// Brings the view up to the model's `text`. Stale echoes of our own typing are ignored (assigning them moved the
+        /// caret back and dropped characters); real outside changes are applied as one minimal edit that joins the undo stack.
+        func sync(_ tv: PlatformTextView, to text: String) -> Bool {
+            let current = tv.string
+            if current == text { echoes.removeAll(); return false }
+            if echoes.contains(text) { return false }
+            echoes.removeAll()
+            guard let d = TextDiff.replacement(from: current, to: text) else { return false }
+            updating = true
+            #if os(macOS)
+            let sel = tv.selectedRange()
+            if tv.shouldChangeText(in: d.range, replacementString: d.text) {
+                tv.textStorage?.replaceCharacters(in: d.range, with: d.text)
+                tv.didChangeText()
+            }
+            tv.setSelectedRange(TextDiff.adjust(sel, replacing: d.range, newLength: (d.text as NSString).length))
+            #else
+            let sel = tv.selectedRange
+            if let start = tv.position(from: tv.beginningOfDocument, offset: d.range.location),
+               let end = tv.position(from: start, offset: d.range.length),
+               let r = tv.textRange(from: start, to: end) {
+                tv.replace(r, withText: d.text)
+            }
+            tv.selectedRange = TextDiff.adjust(sel, replacing: d.range, newLength: (d.text as NSString).length)
+            #endif
+            updating = false
+            restyle(tv, force: true)
+            return true
         }
 
         func selectionChanged(_ tv: PlatformTextView) {
@@ -427,12 +464,7 @@ extension MarkdownTextView: NSViewRepresentable {
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv, context: context)
-        if tv.string != text {
-            let sel = tv.selectedRange()
-            tv.string = text
-            tv.setSelectedRange(NSRange(location: min(sel.location, (text as NSString).length), length: 0))
-            context.coordinator.restyle(tv, force: true)
-        } else if themeChanged {
+        if !context.coordinator.sync(tv, to: text), themeChanged {
             context.coordinator.restyle(tv, force: true)
         }
     }
@@ -596,12 +628,7 @@ extension MarkdownTextView: UIViewRepresentable {
         context.coordinator.parent = self
         controller.textView = tv
         configure(tv)
-        if tv.text != text {
-            let sel = tv.selectedRange
-            tv.text = text
-            tv.selectedRange = NSRange(location: min(sel.location, (text as NSString).length), length: 0)
-            context.coordinator.restyle(tv, force: true)
-        } else if themeChanged {
+        if !context.coordinator.sync(tv, to: text), themeChanged {
             context.coordinator.restyle(tv, force: true)
         }
     }
@@ -622,7 +649,7 @@ extension MarkdownTextView.Coordinator: UITextViewDelegate, UIGestureRecognizerD
     func textViewDidChangeSelection(_ tv: UITextView) { selectionChanged(tv) }
 
     func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
-        guard text == "\n", range.length == 0 else { return true }
+        guard !updating, text == "\n", range.length == 0 else { return true }
         let ns = tv.text as NSString
         let line = ns.lineRange(for: NSRange(location: range.location, length: 0))
         let current = ns.substring(with: NSRange(location: line.location, length: range.location - line.location))
