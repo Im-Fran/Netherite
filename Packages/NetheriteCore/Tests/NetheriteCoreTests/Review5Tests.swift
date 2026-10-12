@@ -55,3 +55,12 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(search.contains("Hello world"))
     #expect(!search.contains("private") && !search.contains("secret") && !search.contains("code") && !search.contains("x^2"))
 }
+
+// R5-04: `task-todo:`/`task-done:` honour the task's state, and numbered-list tasks match.
+@Test func taskSearchHonoursState() {
+    let text = "- [ ] buy milk\n1. [x] buy bread"
+    let notes = ["a.md": NoteRecord(path: "a.md", text: text, parsed: NoteParser.parse(text), modified: .now, created: .now)]
+    func count(_ q: String) -> Int { Search.run(SearchQuery(q), in: notes).count }
+    #expect(count("task-todo:milk") == 1 && count("task-done:milk") == 0)
+    #expect(count("task-done:bread") == 1 && count("task-todo:bread") == 0 && count("task:bread") == 1)
+}
