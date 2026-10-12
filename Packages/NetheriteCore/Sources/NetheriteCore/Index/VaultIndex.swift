@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Yams
 
 public struct NoteRecord: Sendable {
     public var path: String
@@ -203,13 +204,28 @@ public final class VaultIndex {
                 return link
             }
         } ?? []
+        // A link inside a quoted YAML scalar needs the new name escaped for that quote style (`Mom's` → `Mom''s`).
+        // The scalar holding a name is the last one starting before it (`- [[x]]` is a plain `x` in nested sequences).
+        let scalars = Frontmatter.locate(in: text).flatMap { try? Yams.compose(yaml: $0.yaml) }.map(scalarStyles) ?? []
+        let yamlStart = text.hasPrefix("---\r\n") ? 5 : 4
+        func quoted(_ name: String, at location: Int) -> String {
+            let lines = ns.substring(with: NSRange(location: yamlStart, length: location - yamlStart)).split(separator: "\n", omittingEmptySubsequences: false)
+            let at = (line: lines.count, column: (lines.last ?? "").unicodeScalars.count + 1)
+            switch scalars.last(where: { ($0.mark.line, $0.mark.column) <= at })?.style {
+            case .singleQuoted: return name.replacingOccurrences(of: "'", with: "''")
+            case .doubleQuoted: return name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            default: return name
+            }
+        }
+        let inFrontmatter = Set(frontmatterLinks.map(\.range.location))
         for link in (frontmatterLinks + parsed.links).reversed() where link.range.location != NSNotFound {
             guard let target = newTarget(link) else { continue }
             let replacement: String
             if link.isWiki {
                 // Keep a table cell's escaped `\|` so the rewrite doesn't split the column.
                 let bar = ns.substring(with: link.range).contains("\\|") ? "\\|" : "|"
-                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
+                let name = inFrontmatter.contains(link.range.location) ? quoted(linkText(target), at: link.range.location + (link.isEmbed ? 3 : 2)) : linkText(target)
+                replacement = (link.isEmbed ? "!" : "") + "[[" + name + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
             } else {
                 let encoded = target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "()"))) ?? target
                 replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + ")"
@@ -217,6 +233,16 @@ public final class VaultIndex {
             ns.replaceCharacters(in: link.range, with: replacement)
         }
         return ns as String
+    }
+
+    /// Every scalar of a YAML tree with where it starts, in document order.
+    private nonisolated static func scalarStyles(_ node: Node) -> [(mark: Mark, style: Node.Scalar.Style)] {
+        switch node {
+        case .scalar(let s): s.mark.map { [($0, s.style)] } ?? []
+        case .sequence(let seq): seq.flatMap(scalarStyles)
+        case .mapping(let map): map.flatMap { scalarStyles($0.key) + scalarStyles($0.value) }
+        default: []
+        }
     }
 
     // MARK: Link graph

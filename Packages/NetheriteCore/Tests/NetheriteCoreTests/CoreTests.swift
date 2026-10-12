@@ -134,6 +134,16 @@ Footnote here[^1].
     #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == a.replacingOccurrences(of: "[[Old", with: "[[New"))
 }
 
+// R2-03: a new name with quotes is escaped for the YAML scalar the link sits in, so the frontmatter stays valid.
+@Test func renameEscapesQuotedFrontmatter() {
+    let t = "---\nrelated: '[[Old]]'\nlist:\n  - \"[[Old|x]]\"\n  - [[Old]]\nstatus: draft\n---\n[[Old]]"
+    let out = VaultIndex.rewriteLinks(in: t, parsed: NoteParser.parse(t), newTarget: { _ in "Mom's \"x\".md" },
+                                      linkText: { ($0 as NSString).deletingPathExtension })
+    #expect(out == "---\nrelated: '[[Mom''s \"x\"]]'\nlist:\n  - \"[[Mom's \\\"x\\\"|x]]\"\n  - [[Mom's \"x\"]]\nstatus: draft\n---\n[[Mom's \"x\"]]")
+    #expect(NoteParser.parse(out).property("related") == .text("[[Mom's \"x\"]]"))
+    #expect(NoteParser.parse(out).property("status") == .text("draft"))
+}
+
 // N-17: renaming keeps the escaped alias pipe of a link inside a table.
 @MainActor @Test func renameKeepsTablePipe() async throws {
     let a = "| a | b |\n|---|---|\n| [[Old\\|alias]] | 1 |"
