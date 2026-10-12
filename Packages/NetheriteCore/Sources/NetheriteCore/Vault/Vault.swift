@@ -84,7 +84,8 @@ public struct Vault: Sendable, Hashable {
     }
 
     public func write(_ data: Data, to path: String) throws {
-        let target = url(for: path)
+        // A note may be a symlink: replace the file it points to, not the link (`replaceItemAt` refuses a link).
+        let target = url(for: path).resolvingSymlinksInPath()
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         var result: Result<Void, Error> = .success(())
         var coordError: NSError?
