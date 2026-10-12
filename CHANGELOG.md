@@ -80,6 +80,7 @@ version, and the release notes on TestFlight and GitHub come from here.
 - With "Open Notes in Reading View", search results and backlinks still jump to the matching line; notes made without opening them (extracted selections, base entries) follow the setting.
 - Merging notes moves the source's properties into the target's frontmatter instead of leaving a second block in the text.
 - Imported HTML keeps a lone `=` line as text inside quotes and lists, and a tag right after inline math renders as a tag.
+- Merging notes keeps every tag and alias and preserves nested, date and number properties as written; symlinked canvases pick up outside edits.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
