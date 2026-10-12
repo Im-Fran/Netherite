@@ -6,7 +6,7 @@ import NetheriteCore
 final class VaultModel {
     let vault: Vault
     let index: VaultIndex
-    var settings: VaultSettings { didSet { if settings != oldValue { vault.saveConfig("app.json", settings) } } }
+    var settings: VaultSettings { didSet { if settings != oldValue, !reloadingConfig { vault.saveConfig("app.json", settings) } } }
     private(set) var themes: [Theme] = []
     /// The vault's chosen theme, as stored (what publishing and "Create Theme from Current" use).
     var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
@@ -19,7 +19,10 @@ final class VaultModel {
         }
     }
     private(set) var dirty: Set<String> = []
-    var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }
+    var bookmarks: [Bookmark] = [] { didSet { if !reloadingConfig { vault.saveConfig("bookmarks.json", bookmarks) } } }
+    /// Modification dates of the config read last, to reload it when another device or app changes it.
+    @ObservationIgnored private var configDates: [String: Date] = [:]
+    @ObservationIgnored private var reloadingConfig = false
     private var saveTasks: [String: Task<Void, Never>] = [:]
     private var watcher: VaultWatcher?
     /// Windows showing this vault, so file operations and external changes update every one of them.
@@ -35,6 +38,7 @@ final class VaultModel {
         recentFiles = vault.loadConfig("recent.json", fallback: [String]())
         themes = vault.themes()
         bookmarks = vault.loadConfig("bookmarks.json", fallback: [Bookmark]())
+        for name in Self.reloadedConfig { configDates[name] = configDate(name) }
         Task.detached { [vault] in vault.downloadPlaceholders() }
         Task {
             await index.load()
@@ -93,6 +97,7 @@ final class VaultModel {
 
     private func externalChange() async {
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
+        reloadConfigIfChanged()
         await index.refreshFromDisk(skipping: dirty)
         // Files moved or deleted outside Netherite: drop their unsaved edits (warning about them) and close them.
         let lost = dirty.filter(isGone)
@@ -103,6 +108,30 @@ final class VaultModel {
         guard index.isLoaded else { return }
         let files = Set(index.files)
         for pane in panes { pane.removeMissing(files) }
+    }
+
+    private static let reloadedConfig = ["app.json", "bookmarks.json", "themes"]
+
+    /// Latest modification date of a config file, or of a config folder and the files in it.
+    private func configDate(_ name: String) -> Date? {
+        let url = vault.configURL.appending(path: name)
+        let files = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return ([url] + files).compactMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }.max()
+    }
+
+    /// Picks up settings, bookmarks and themes changed elsewhere (iCloud, another app) without writing them back,
+    /// so a later change here doesn't overwrite them with stale values.
+    private func reloadConfigIfChanged() {
+        func changed(_ name: String) -> Bool {
+            let date = configDate(name)
+            defer { configDates[name] = date }
+            return date != configDates[name]
+        }
+        reloadingConfig = true
+        defer { reloadingConfig = false }
+        if changed("app.json"), case let s = vault.settings, s != settings { settings = s }
+        if changed("bookmarks.json"), case let b = vault.loadConfig("bookmarks.json", fallback: [Bookmark]()), b != bookmarks { bookmarks = b }
+        if changed("themes") { reloadThemes() }
     }
 
     /// The file was moved or deleted (paths are only known once the index has loaded; the index may not have caught up with new files yet).
