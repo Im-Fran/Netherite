@@ -158,10 +158,10 @@ public enum Frontmatter {
         }
         let body = fm.map { ns.substring(from: NSMaxRange($0.range)) } ?? text
         guard !props.isEmpty else { return body }
-        let yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
+        var yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
             ?? props.map { verbatim[$0.key] ?? serialize([$0]) }.joined(separator: "\n")
-        // A copied block can lean on YAML outside it (an alias whose anchor wasn't copied): reserialize instead.
-        if !verbatim.isEmpty, (try? Yams.compose(yaml: yaml))?.mapping == nil { return try replacing(in: text, with: props) }
+        // A kept block can lean on YAML that was rewritten (an alias whose anchor's key changed): reserialize all.
+        if (try? Yams.compose(yaml: yaml))?.mapping == nil { yaml = props.map { serialize([$0]) }.joined(separator: "\n") }
         return "---\n\(yaml)\n---\n" + body
     }
 
@@ -177,8 +177,10 @@ public enum Frontmatter {
             guard let i = merged.firstIndex(where: { $0.key.caseInsensitiveCompare(p.key) == .orderedSame }) else {
                 merged.append(p)
                 // A block indented as a whole (`  a: 1`) wouldn't sit at the target's top level.
+                // An alias whose anchor is outside the block could resolve against a same-named anchor in the target.
                 if let b = sourceBlocks.first(where: { $0.key == p.key }), b.lines.first?.first?.isWhitespace == false {
-                    verbatim[p.key] = b.lines.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
+                    let block = b.lines.joined(separator: "\n").replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression)
+                    if (try? Yams.compose(yaml: block))?.mapping != nil { verbatim[p.key] = block }
                 }
                 continue
             }
