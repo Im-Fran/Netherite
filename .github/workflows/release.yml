@@ -5,13 +5,13 @@ name: Release
 # the build sits there until someone promotes it, so shipping stays manual.
 #
 # The same tag also builds the Developer ID macOS app (notarized, with
-# OpenUpdater) and publishes it as the GitHub release v<version>:
+# OpenUpdater) and publishes it as the GitHub release <version>:
 # Netherite.dmg for manual installs, Netherite.zip + .zip.sig for OpenUpdater.
 # Notes come from CHANGELOG.md.
 # The release drops the +build suffix: OpenUpdater compares it to
 # CFBundleShortVersionString. Versions with a "-" (1.4.0-beta.1) are pre-releases.
 #
-# Tag format: <version>[+<build>], with an optional leading "v".
+# Tag format: <version>[+<build>], no "v" prefix (the App Store doesn't use one).
 #   1.4.0+7  → version 1.4.0, build 7
 #   1.4.0    → version 1.4.0, build = latest on TestFlight + 1
 on:
@@ -68,8 +68,12 @@ jobs:
               echo "Refusing tag with unexpected characters: $TAG" >&2
               exit 1
               ;;
+            v*)
+              echo "Refusing tag $TAG: tags are <version>[+<build>], without a leading v" >&2
+              exit 1
+              ;;
           esac
-          VERSION="${TAG#v}"
+          VERSION="$TAG"
           BUILD=""
           case "$VERSION" in
             *+*)
@@ -118,5 +122,5 @@ jobs:
           case "$VERSION" in *-*) PRERELEASE="--prerelease" ;; esac
           NOTES="--generate-notes"
           [ -s build/release-notes.md ] && NOTES="--notes-file=build/release-notes.md"
-          gh release create "v$VERSION" build/Netherite.dmg build/Netherite.zip build/Netherite.zip.sig \
+          gh release create "$VERSION" build/Netherite.dmg build/Netherite.zip build/Netherite.zip.sig \
             --target "$GITHUB_SHA" --title "Netherite $VERSION" "$NOTES" $PRERELEASE
