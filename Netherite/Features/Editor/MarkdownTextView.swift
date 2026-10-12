@@ -209,8 +209,8 @@ struct MarkdownTextView {
             var frame = CGRect.zero
             tlm.enumerateTextSegments(in: caret, type: .selection, options: [.rangeNotRequired]) { _, f, _, _ in frame = f; return false }
             let origin = tv.textContainerOrigin
-            let local = scroll.convert(frame.offsetBy(dx: origin.x, dy: origin.y), from: tv)
-            return CGRect(x: local.minX, y: scroll.bounds.height - local.maxY, width: max(1, local.width), height: local.height)
+            let local = scroll.overlayRect(frame.offsetBy(dx: origin.x, dy: origin.y), from: tv)
+            return CGRect(x: local.minX, y: local.minY, width: max(1, local.width), height: local.height)
             #else
             guard let pos = tv.selectedTextRange?.end else { return .zero }
             return tv.caretRect(for: pos).offsetBy(dx: -tv.contentOffset.x, dy: -tv.contentOffset.y)
@@ -402,9 +402,7 @@ final class NetheriteNSTextView: NSTextView {
         for idx in [i, i - 1] where idx >= 0 && idx < storage.length {
             if let target = storage.attribute(.netheriteLink, at: idx, effectiveRange: nil) as? String,
                let rect = firstRectForCharacter(idx), rect.contains(point) {
-                let inScroll = scroll.convert(convert(rect, to: nil), from: nil)
-                let flipped = CGRect(x: inScroll.minX, y: scroll.bounds.height - inScroll.maxY, width: inScroll.width, height: inScroll.height)
-                if c.hover?.target != target { c.hover = .init(target: target, rect: flipped) }
+                if c.hover?.target != target { c.hover = .init(target: target, rect: scroll.overlayRect(rect, from: self)) }
                 return
             }
         }
@@ -428,6 +426,16 @@ final class NetheriteNSTextView: NSTextView {
         let screen = firstRect(forCharacterRange: NSRange(location: i, length: 1), actualRange: nil)
         let r = convert(window.convertFromScreen(screen), from: nil)
         return r.insetBy(dx: -1, dy: -2)
+    }
+}
+
+extension NSScrollView {
+    /// `rect` (in `view`) in this scroll view's top-left space, which is where the SwiftUI overlays draw.
+    /// NSScrollView is flipped on current macOS, so flipping the converted rect again put the completion list
+    /// at the bottom of the window; only flip when the scroll view isn't.
+    func overlayRect(_ rect: CGRect, from view: NSView) -> CGRect {
+        let r = convert(rect, from: view)
+        return isFlipped ? r : CGRect(x: r.minX, y: bounds.height - r.maxY, width: r.width, height: r.height)
     }
 }
 
