@@ -75,6 +75,11 @@ Footnote here[^1].
     #expect(NoteParser.parse("See [[#Intro]], [x](#Other) and (#real)").tags == ["real"])
 }
 
+// N-37: a trailing `#` is only a closing sequence after a space.
+@Test func headingKeepsTrailingHash() {
+    #expect(NoteParser.parse("# C#\n## Budget ##").headings.map(\.text) == ["C#", "Budget"])
+}
+
 @Test func resolvesLinks() {
     let r = LinkResolver(files: ["A.md", "x/B.md", "y/B.md", "img/map.png", "x/C.md"])
     #expect(r.resolve("A", from: "x/C.md") == "A.md")
