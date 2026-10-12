@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import NetheriteCore
 
+private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNote: { _ in nil },
+                                linkHref: { _, t, _ in t }, assetURL: { $0 }, tagHref: { "tag:" + $0 })
+
 // R5-07: invalid YAML is never rewritten (it would wipe every key), and keys with `: ` are quoted.
 @Test func invalidFrontmatterIsNotRewritten() throws {
     let text = "---\ntitle: Meeting: Q3\ntags: [work]\n---\nBody"
@@ -27,4 +30,14 @@ import Testing
     let target = try #require(links.first.flatMap { LinkResolver(files: vault.allFiles()).resolve($0.target, from: page) })
     #expect(try Data(contentsOf: vault.url(for: target)) == Data([7]))
     try? FileManager.default.removeItem(at: vault.root)
+}
+
+// R5-02: imported text can't turn into a setext heading, a fence, strikethrough, math or a hidden comment.
+@Test func htmlTextEscapesObsidianSyntax() {
+    let md = HTMLToMarkdown().convert("<p>Title<br>---</p><p>~~~</p><p>~~gone~~ costs $5 and $6, %%hidden%%</p>")
+    let parsed = NoteParser.parse(md)
+    #expect(parsed.headings.isEmpty)
+    #expect(md.contains("\\---") && md.contains("\\~\\~\\~") && !md.contains("%%"))
+    let html = HTMLRenderer.render(md, context: ctx)
+    #expect(html.contains("hidden") && html.contains("$5 and $6") && html.contains("~~gone~~") && !html.contains("<del>") && !html.contains("math"))
 }

@@ -155,19 +155,21 @@ public struct HTMLToMarkdown {
         s.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
     }
 
-    /// Escapes a text node so literal `<b>`, `2 * 3`, `[[x]]` or `==` stay text. A node may start a line, so a leading
-    /// `#`, `-`/`+` list marker or `1.` is escaped too (harmless mid-line). Nodes are collapsed, so they hold no newlines.
+    /// Escapes a text node so literal `<b>`, `2 * 3`, `[[x]]`, `==`, `~~`, `$x$` or `%%` stay text. A node may start a line,
+    /// so a leading `#`, `-`/`+` (list marker or `---` rule) or `1.` is escaped too (harmless mid-line). Nodes are
+    /// collapsed, so they hold no newlines.
     static func escape(_ s: String) -> String {
         var out = ""
         for c in s {
             switch c {
-            case "\\", "*", "_", "[", "]", ">", "`": out += "\\" + String(c)
+            case "\\", "*", "_", "[", "]", ">", "`", "~", "$": out += "\\" + String(c)
             case "<": out += "&lt;"
+            case "%" where out.hasSuffix("%"): out += "&#37;"   // `%%` opens a comment
             default: out.append(c)
             }
         }
         return out.replacingOccurrences(of: #"=(?==)|(?<==)="#, with: #"\\="#, options: .regularExpression)
-            .replacingOccurrences(of: #"^(\s*)(#|[-+](?=\s|$))"#, with: #"$1\\$2"#, options: .regularExpression)
+            .replacingOccurrences(of: #"^(\s*)([#+-])"#, with: #"$1\\$2"#, options: .regularExpression)
             .replacingOccurrences(of: #"^(\s*\d+)([.)])(?=\s|$)"#, with: #"$1\\$2"#, options: .regularExpression)
     }
 }
