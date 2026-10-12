@@ -16,3 +16,11 @@ import Testing
     await index.refreshFromDisk()
     #expect(index.notes["B.md"]?.text == "v2")
 }
+
+// R8-02: an `=` line inside a blockquote or a nested list item stays text, not a setext heading underline.
+@Test func importEscapesEqualsLineInQuotesAndLists() {
+    let c = HTMLToMarkdown()
+    #expect(c.convert("<blockquote><div>Title</div><div>=</div></blockquote>") == "> Title\n> \\=\n")
+    let nested = c.convert("<ul><li>a<ul><li>b<ul><li>c<br>=</li></ul></li></ul></li></ul>")
+    #expect(nested.hasSuffix("\\=\n"), "\(nested.debugDescription)")
+}

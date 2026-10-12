@@ -16,9 +16,10 @@ public struct HTMLToMarkdown {
         md = md.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         md = md.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
         // Text `%` and `=` (see `escape`) are escaped only where they'd pair with a neighbour in the joined Markdown,
-        // or, for `=`, fill a line (a `=` line under text is a heading underline).
+        // or, for `=`, fill a line (a `=` line under text is a heading underline, also inside a quote or a list item).
         md = md.replacingOccurrences(of: #"(?<=[%\x{E000}])\x{E000}|\x{E000}(?=%)"#, with: "&#37;", options: .regularExpression)
-            .replacingOccurrences(of: #"(?m)(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])|(?<=^[ \t]{0,3})\x{E001}(?=[ \t]*$)"#, with: #"\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)^([ \t>]*)\x{E001}(?=[ \t]*$)"#, with: #"$1\\="#, options: .regularExpression)
+            .replacingOccurrences(of: #"(?<=[=\x{E001}])\x{E001}|\x{E001}(?=[=\x{E001}])"#, with: #"\\="#, options: .regularExpression)
             .replacingOccurrences(of: "\u{E000}", with: "%").replacingOccurrences(of: "\u{E001}", with: "=")
         return md.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
     }
