@@ -121,9 +121,11 @@ public enum NoteParser {
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
         var linked = IndexSet()
         for l in note.links { if let r = Range(l.range) { linked.insert(integersIn: r) } }
-        for m in Regex.refDef.matches(in: masked, range: NSRange(location: 0, length: units.count)) { linked.insert(integersIn: Range(m.range)!) }
+        for re in [Regex.refDef, Regex.mdLink] {   // every Markdown link, external ones included: `[see #x](https://…)`
+            for m in re.matches(in: masked, range: NSRange(location: 0, length: units.count)) { linked.insert(integersIn: Range(m.range)!) }
+        }
         for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
-        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h), [r]: #h
+        where !linked.intersects(integersIn: Range(m.range)!) {   // [[#Heading]], [x](#h), [r]: #h, [#x](url)
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }

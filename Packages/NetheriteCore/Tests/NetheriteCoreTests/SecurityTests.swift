@@ -95,7 +95,7 @@ private func renderPlain(_ md: String) -> String {
     let html = renderPlain("[Jump](#Intro) [see #tag](x.md) ![alt $x$](https://e.com/a.png)")
     #expect(!html.contains(">#Intro<") && html.contains(">Jump</a>"))
     #expect(html.contains("alt=\"alt $x$\""))
-    #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
+    #expect(!html.contains("class=\"tag\""))   // a tag in link text stays text: no <a> nested in the link (R5-06)
 }
 
 // R3-05: no tag in an `href` with other title styles or a reference definition, and the parser makes no tag of them.

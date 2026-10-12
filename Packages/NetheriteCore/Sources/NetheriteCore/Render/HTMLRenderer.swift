@@ -109,7 +109,8 @@ public enum HTMLRenderer {
         }
         add(NoteParser.Regex.tag, in: unlinked) { m in
             let tag = ns.substring(with: m.range(at: 1))
-            guard tag.contains(where: { !$0.isNumber }) else { return nil }
+            // A tag inside a link's text would nest an <a> in the link's <a>.
+            guard tag.contains(where: { !$0.isNumber }), !links.contains(where: { $0.contains(m.range.location) }) else { return nil }
             return token("<a class=\"tag\" href=\"\(escape(ctx.tagHref(tag)))\">#\(escape(tag))</a>")
         }
         add(try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\](?!:)"#), in: masked) { m in

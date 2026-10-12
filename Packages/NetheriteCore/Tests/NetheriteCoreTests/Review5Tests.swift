@@ -70,3 +70,11 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     let html = HTMLRenderer.render("[a](b \"x==y\") then ==hl==", context: ctx)
     #expect(html.contains("<mark>hl</mark>"))
 }
+
+// R5-06: a tag in a Markdown link's text is neither rendered as a nested link nor indexed.
+@Test func tagInsideLinkTextIsText() {
+    let text = "[see #inside](https://example.com) and #outside"
+    #expect(NoteParser.parse(text).tags == ["outside"])
+    let html = HTMLRenderer.render(text, context: ctx)
+    #expect(!html.contains("tag:inside") && html.contains("tag:outside"))
+}
