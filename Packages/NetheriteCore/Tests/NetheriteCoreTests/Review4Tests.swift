@@ -16,3 +16,11 @@ import Testing
     let out = VaultIndex.rewriteLinks(in: text, parsed: NoteParser.parse(text), newTarget: { _ in "New.md" }, linkText: { $0 })
     #expect(out == "See [x](New.md 'Tip') and [y](New.md#H \"T2\")\n")
 }
+
+// R4-13: only a real reference definition hides its `#…` destination from the tags.
+@Test func refDefNeedsDestinationAndOptionalTitleOnly() {
+    #expect(NoteParser.parse("[r]: is my #todo item").tags == ["todo"])
+    #expect(NoteParser.parse("[r]: #Intro\n#real").tags == ["real"])
+    #expect(NoteParser.parse("[r]: #Intro 'Title'").tags.isEmpty)
+    #expect(NoteParser.parse("[r]: <#Intro> \"t\"").tags.isEmpty)
+}

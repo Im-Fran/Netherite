@@ -205,8 +205,9 @@ public enum NoteParser {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
         /// Groups: 1 `!`, 2 text, 3 destination, 4 title with its leading space. A title may wrap onto the next line but, like any inline, never crosses a blank line.
         static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?([ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*"|'(?:[^'\n]|\n(?![ \t]*\n))*'|\((?:[^)\n]|\n(?![ \t]*\n))*\)))?\)"#)
-        /// A link reference definition (`[r]: #Intro 'T'`); not a footnote (`[^1]: …`).
-        static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:.*$"#, options: .anchorsMatchLines)
+        /// A link reference definition (`[r]: #Intro 'T'`): a destination, an optional title and nothing else on the line.
+        /// Not a footnote (`[^1]: …`).
+        static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(?:<[^<>\n]*>|[^\s<]\S*)(?:[ \t]+(?:"[^"\n]*"|'[^'\n]*'|\([^()\n]*\)))?[ \t]*$"#, options: .anchorsMatchLines)
         static let tag = try! NSRegularExpression(pattern: #"(?:^|(?<=[\s(\[{,]))#([\p{L}\p{N}_\-/]+)"#, options: .anchorsMatchLines)
         static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$"#)
         static let blockID = try! NSRegularExpression(pattern: #"(?:^|\s)\^([A-Za-z0-9\-]+)\s*$"#)
