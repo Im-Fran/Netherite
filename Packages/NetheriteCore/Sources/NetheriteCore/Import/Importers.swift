@@ -267,8 +267,10 @@ struct Writer {
     init(vault: Vault, root: String) { self.vault = vault; self.root = root }
 
     /// Archive paths are untrusted: `..`, `.` and empty components never shape the destination.
+    /// With `shortensLinks`, folders get note-safe names too: a `#`, `|` or `]` would cut the full-path links to them.
     func folderPath(_ sub: String) -> String {
-        "\(root)/\(sub)".split(separator: "/").filter { $0 != "." && $0 != ".." }.joined(separator: "/")
+        let parts = sub.split(separator: "/").filter { $0 != "." && $0 != ".." }.map { shortensLinks ? Self.safeName(String($0)) : String($0) }
+        return (root.split(separator: "/").filter { $0 != "." && $0 != ".." }.map(String.init) + parts).joined(separator: "/")
     }
 
     static func safeName(_ s: String) -> String {
