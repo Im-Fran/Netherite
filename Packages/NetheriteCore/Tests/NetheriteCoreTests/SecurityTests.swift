@@ -98,6 +98,14 @@ private func renderPlain(_ md: String) -> String {
     #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
 }
 
+// R3-04: a highlight or formula that wraps a whole link still renders.
+@Test func tokensCanWrapALink() {
+    let html = renderPlain("==see [docs](https://example.com) now==")
+    #expect(html.contains("<mark>see <a") && html.contains(">docs</a> now</mark>"))
+    #expect(renderPlain("$a [b](c) d$").contains("math-inline"))
+    #expect(!renderPlain("[a](b==c) d==").contains("<mark>"))   // one that only ends there doesn't
+}
+
 // R2-12: unclosed `<tag` runs don't make sanitizing quadratic.
 @Test func sanitizeIsLinearWithUnclosedTags() {
     let start = Date()

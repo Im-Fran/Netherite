@@ -60,12 +60,13 @@ public enum HTMLRenderer {
 
         // Replace OFM syntax outside code with placeholder tokens, back to front so ranges stay valid.
         var reps: [(NSRange, String)] = []
-        var taken = IndexSet()
+        var taken = IndexSet(), linkTargets = IndexSet()
         let codeMasked = maskCode(src)
         let ns = src as NSString
         func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
             for m in re.matches(in: text, range: full(text)) {
-                guard let range = Range(m.range), !taken.intersects(integersIn: range), let r = make(m) else { continue }
+                guard let range = Range(m.range), !taken.intersects(integersIn: range),
+                      !linkTargets.contains(range.lowerBound), !linkTargets.contains(range.upperBound - 1), let r = make(m) else { continue }
                 reps.append((m.range, r))
                 taken.insert(integersIn: range)
             }
@@ -76,10 +77,10 @@ public enum HTMLRenderer {
             let lines = ns.substring(with: m.range).filter { $0 == "\n" }.count
             return token("<div class=\"math math-display\" data-tex=\"\(escape(String(tex)))\"></div>") + String(repeating: "\n", count: lines)
         }
-        // A Markdown link's destination is a URL and an image's alt is plain text: no token goes inside them
-        // (`[Jump](#Intro)` isn't a tag, `![a $x$](…)` keeps its text).
+        // A Markdown link's destination is a URL and an image's alt is plain text: no token starts or ends inside them
+        // (`[Jump](#Intro)` isn't a tag, `![a $x$](…)` keeps its text), but one can wrap them (`==see [a](b)==`).
         for m in NoteParser.Regex.mdLink.matches(in: codeMasked, range: full(codeMasked)) {
-            taken.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
+            linkTargets.insert(integersIn: (m.range(at: 1).length > 0 ? m.range.location : NSMaxRange(m.range(at: 2)))..<NSMaxRange(m.range))
         }
         add(NoteParser.Regex.inlineMath, in: codeMasked) { m in
             token("<span class=\"math math-inline\" data-tex=\"\(escape(String(ns.substring(with: m.range).dropFirst().dropLast())))\"></span>")
