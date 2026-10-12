@@ -203,8 +203,9 @@ public enum NoteParser {
 
     enum Regex {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
-        /// Groups: 1 `!`, 2 text, 3 destination, 4 title with its leading space. A title may wrap onto the next line but, like any inline, never crosses a blank line.
-        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?([ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*"|'(?:[^'\n]|\n(?![ \t]*\n))*'|\((?:[^)\n]|\n(?![ \t]*\n))*\)))?\)"#)
+        /// Groups: 1 `!`, 2 text, 3 destination, 4 title with its leading space. A title may wrap onto the next line but, like any inline, never crosses a blank line;
+        /// its loops are possessive so an unclosed title can't backtrack.
+        static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?([ \t]*\n?[ \t]*(?<=\s)(?:"(?:[^"\n]|\n(?![ \t]*\n))*+"|'(?:[^'\n]|\n(?![ \t]*\n))*+'|\((?:[^)\n]|\n(?![ \t]*\n))*+\)))?\)"#)
         /// A link reference definition (`[r]: #Intro 'T'`): a destination, an optional title and nothing else on the line.
         /// Not a footnote (`[^1]: …`).
         static let refDef = try! NSRegularExpression(pattern: #"^ {0,3}\[(?!\^)[^\]\n]+\]:[ \t]*(?:<[^<>\n]*>|[^\s<]\S*)(?:[ \t]+(?:"[^"\n]*"|'[^'\n]*'|\([^()\n]*\)))?[ \t]*$"#, options: .anchorsMatchLines)

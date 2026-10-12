@@ -34,3 +34,14 @@ import Testing
     #expect(html.contains(">a ==b</a> d==</p>"))
     #expect(HTMLRenderer.render("==see [a](b) now== and [x ==y== z](w)", context: ctx).components(separatedBy: "<mark>").count == 3)
 }
+
+// R4-15 follow-up: unclosed multi-line titles and definitions stay linear (no catastrophic backtracking).
+@Test func unclosedLinkTitlesParseLinearly() {
+    for text in ["[a](b \"" + String(repeating: "x\n", count: 20_000),
+                 String(repeating: "[a](b \"x\n", count: 20_000), String(repeating: "[a](b 'x\n", count: 20_000),
+                 String(repeating: "[a](b (x\n", count: 20_000), String(repeating: "[r]: <x\n", count: 20_000)] {
+        let start = Date()
+        _ = NoteParser.parse(text)
+        #expect(Date().timeIntervalSince(start) < 1)
+    }
+}
