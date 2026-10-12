@@ -67,6 +67,11 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Imports keep links working when folder names contain `#` or brackets, and HTML imports keep `---`, `~~~`, `%%` and `$` as text.
 - Task search operators match the task state and tasks in numbered lists; highlights after link titles render, and tags inside link text stay plain text.
 - Counts such as "1 day" and "1 attendee" use the singular in English and Spanish.
+- Long property values and names keep the frontmatter valid, so the Inspector can always edit them.
+- Evernote and HTML imports that start with a horizontal rule keep their text and metadata, and text split across HTML elements can't turn into comments or highlights.
+- Moving a note keeps edits other devices made to notes that link to it, and saving keeps a file's creation date.
+- Vault settings and bookmarks are kept when iCloud evicts their files, and a shared clip starting with `---` is saved as is.
+- Ticking a task in a hover preview changes the right line, reading view hands heading jumps back to the editor, and a failed save while moving a vault to iCloud Drive is reported.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
