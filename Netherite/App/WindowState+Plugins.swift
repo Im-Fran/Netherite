@@ -95,11 +95,11 @@ extension WindowState {
         let name = firstLine.replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"[\\/:*?"<>|#^\[\]]"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces).prefix(80)
-        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text) else { return }
+        guard let p = model.newNote(in: source.parentFolder, named: name.isEmpty ? String(localized: "Untitled") : String(name), content: text, opens: false) else { return }
         e.insert(model.linkText(to: p))
     }
 
-    /// Appends `source` to `target`, repoints links to `source`, then deletes it.
+    /// Appends the body of `source` to `target` and its properties to the target's, repoints links to `source`, then deletes it.
     func merge(_ source: String, into target: String) {
         guard source != target else { return }
         model.save(source)
@@ -108,8 +108,22 @@ extension WindowState {
         func current(_ path: String) -> String? {
             model.dirty.contains(path) ? index.notes[path]?.text : (try? model.vault.read(path)) ?? index.notes[path]?.text
         }
-        let body = current(source) ?? model.text(of: source)
-        model.edit(target, text: (current(target) ?? model.text(of: target)) + "\n\n" + body)
+        let sourceText = current(source) ?? model.text(of: source)
+        var targetText = current(target) ?? model.text(of: target)
+        // Properties go to the target's frontmatter (lists joined, the target's value kept otherwise), not mid-note.
+        let props = { (text: String) in Frontmatter.locate(in: text).map { Frontmatter.parse($0.yaml) } ?? [] }
+        let body: String
+        do {
+            body = try Frontmatter.replacing(in: sourceText, with: [])
+            let original = props(targetText)
+            var merged = original
+            for p in props(sourceText) {
+                guard let i = merged.firstIndex(where: { $0.key.caseInsensitiveCompare(p.key) == .orderedSame }) else { merged.append(p); continue }
+                if case .list(let a) = merged[i].value, case .list(let b) = p.value { merged[i].value = .list(a + b.filter { !a.contains($0) }) }
+            }
+            if merged != original { targetText = try Frontmatter.replacing(in: targetText, with: merged) }
+        } catch { model.lastError = error.localizedDescription; return }
+        model.edit(target, text: targetText + "\n\n" + body)
         model.save(target)
         for from in index.backlinks(for: source).map(\.source) where from != source {
             guard let old = current(from) else { continue }

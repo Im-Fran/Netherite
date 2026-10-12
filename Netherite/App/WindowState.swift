@@ -218,9 +218,17 @@ final class WindowState {
     func open(_ d: Destination, line: Int? = nil, newPane: Bool = false) {
         guard let d = canonical(d) else { return }
         if newPane { split() }
-        // "Open Notes in Reading View", except for a note just created: typing into it would seem to do nothing.
+        // "Open Notes in Reading View", except for a note just created (typing into it would seem to do nothing)
+        // and a jump to a line the reader can't scroll to: only headings, blocks and footnotes are anchors there.
         var reading = false
-        if case .note(let p) = d { reading = model.createdNotes.remove(p) == nil && model.settings.defaultToReadingMode }
+        if case .note(let p) = d {
+            let parsed = model.index.notes[p]?.parsed
+            let anchored = line.map { line in
+                parsed?.headings.contains { $0.line == line } == true || parsed?.blockIDs.values.contains(line) == true
+                    || parsed?.footnotes.contains { $0.line == line } == true
+            } ?? true
+            reading = model.createdNotes.remove(p) == nil && model.settings.defaultToReadingMode && anchored
+        }
         pane.open(d, line: line, reading: reading)
         preferredCompactColumn = .detail
         if let p = d.path { model.noteDidOpen(p); explorerSelection = p }

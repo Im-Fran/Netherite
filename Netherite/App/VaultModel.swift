@@ -175,14 +175,15 @@ final class VaultModel {
         recentFiles = Array(([path] + recentFiles.filter { $0 != path }).prefix(50))
     }
 
+    /// `opens`: the caller opens the note right away, so it starts in the editor (see `createdNotes`).
     @discardableResult
-    func newNote(in folder: String? = nil, named name: String? = nil, content: String = "") -> String? {
+    func newNote(in folder: String? = nil, named name: String? = nil, content: String = "", opens: Bool = true) -> String? {
         // The core strips leading dots (and falls back to "Untitled") so a note never ends up hidden.
         let path = perform {
             try index.createNote(in: folder ?? settings.newNoteFolder,
                                  named: name ?? String(localized: "Untitled", comment: "Default new note name"), content: content)
         }
-        if let path { createdNotes.insert(path) }
+        if let path, opens { createdNotes.insert(path) }
         return path
     }
 

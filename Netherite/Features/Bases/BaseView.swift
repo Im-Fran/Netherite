@@ -436,7 +436,7 @@ struct BaseView: View {
         let clean = Templates.fileName(entryName)
         let folder = base.entryFolder ?? path.parentFolder
         guard let p = model.newNote(in: folder, named: clean.isEmpty ? String(localized: "Untitled") : clean,
-                                    content: try! Frontmatter.replacing(in: "", with: props)) else { return }  // no frontmatter to reject
+                                    content: try! Frontmatter.replacing(in: "", with: props), opens: r.opens) else { return }  // no frontmatter to reject
         if r.opens { window.open(path: p) }
     }
 

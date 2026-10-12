@@ -32,13 +32,14 @@ struct SnapshotStore {
         }.sorted { $0.date > $1.date }
     }
 
-    /// Saves `text` unless it equals the latest snapshot.
-    func save(_ text: String, for path: String) {
-        if let last = snapshots(for: path).first, (try? String(contentsOf: last.url, encoding: .utf8)) == text { return }
+    /// Saves `text` unless it equals the latest snapshot; false when it couldn't be written.
+    @discardableResult
+    func save(_ text: String, for path: String) -> Bool {
+        if let last = snapshots(for: path).first, (try? String(contentsOf: last.url, encoding: .utf8)) == text { return true }
         let dir = folder(for: path)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // Sub-second timestamps: two saves in the same second (a restore right after a pass) mustn't overwrite each other.
-        try? Data(text.utf8).write(to: dir.appending(path: "\(Date.now.timeIntervalSince1970).md"), options: .withoutOverwriting)
+        return (try? Data(text.utf8).write(to: dir.appending(path: "\(Date.now.timeIntervalSince1970).md"), options: .withoutOverwriting)) != nil
     }
 
     func prune(olderThan days: Int) {
