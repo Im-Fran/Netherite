@@ -152,6 +152,8 @@ final class VaultModel {
     @discardableResult
     func move(_ path: String, to target: String) -> String? {
         guard target != path else { return path }
+        // Drops can carry any text, and a folder can't go inside itself.
+        guard index.files.contains(path) || index.folders.contains(path), !target.hasPrefix(path + "/") else { return nil }
         guard !vault.exists(target) || target.lowercased() == path.lowercased() else {
             lastError = String(localized: "A file named “\(target.noteName)” already exists.")
             return nil
