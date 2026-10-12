@@ -18,6 +18,8 @@ final class AppModel {
 
     private(set) var recents: [RecentVault] = []
     private(set) var open: [String: VaultModel] = [:]
+    /// Open vaults whose security-scoped access was started, to stop it when they close.
+    @ObservationIgnored private var scoped: Set<String> = []
     /// Size and sync state of known vaults, keyed by path (refreshed by `refreshStorage`).
     private(set) var storage: [String: VaultStorage] = [:]
     /// Progress and time left of each vault's current iCloud transfers, measured across `refreshStorage` calls.
@@ -122,7 +124,8 @@ final class AppModel {
         let key = Self.key(url)
         if let m = open[key] { publishShared(url); touch(url, bookmark: bookmark); return m }
         // Returns false for folders that need no security scope (app container, iCloud); only unreadable ones are an error.
-        if !url.startAccessingSecurityScopedResource() && !FileManager.default.isReadableFile(atPath: key) {
+        if url.startAccessingSecurityScopedResource() { scoped.insert(key) }
+        else if !FileManager.default.isReadableFile(atPath: key) {
             lastError = String(localized: "Netherite can’t access “\(url.lastPathComponent)”. Open the folder again to grant access.")
         }
         publishShared(url)
@@ -150,6 +153,14 @@ final class AppModel {
         return FileManager.default.fileExists(atPath: path) ? openVault(at: URL(filePath: path)) : nil
     }
 
+    /// A vault's folder, through its security-scoped bookmark when it has one, so it can be read without opening it.
+    /// Balance a successful `startAccessingSecurityScopedResource()` on it with a stop.
+    func resolvedURL(_ recent: RecentVault) -> URL {
+        var stale = false
+        return recent.bookmark.flatMap { try? URL(resolvingBookmarkData: $0, options: bookmarkResolveOptions, relativeTo: nil, bookmarkDataIsStale: &stale) }
+            ?? URL(filePath: recent.path, directoryHint: .isDirectory)
+    }
+
     func forget(_ recent: RecentVault) {
         recents.removeAll { $0.id == recent.id }
         persist()
@@ -164,6 +175,7 @@ final class AppModel {
 
     private func close(_ path: String) {
         open[path]?.flushAll()
+        if scoped.remove(path) != nil { open[path]?.vault.root.stopAccessingSecurityScopedResource() }
         open[path] = nil
     }
 
