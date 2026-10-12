@@ -11,6 +11,7 @@ final class AudioRecorderModel {
     var denied = false
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var interruptions: (any NSObjectProtocol)?
     @ObservationIgnored let fileURL = URL.temporaryDirectory.appending(path: "netherite-recording-\(UUID().uuidString).m4a")
 
     func start() async {
@@ -27,6 +28,15 @@ final class AudioRecorderModel {
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try? AVAudioSession.sharedInstance().setActive(true)
+        // A call or Siri pauses the recorder: carry on recording into the same file once it ends.
+        interruptions = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+            guard (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.ended.rawValue else { return }
+            MainActor.assumeIsolated {
+                guard let self, self.recording, let r = self.recorder else { return }
+                try? AVAudioSession.sharedInstance().setActive(true)
+                r.record()
+            }
+        }
         #endif
         let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 1,
                                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue]
@@ -53,6 +63,8 @@ final class AudioRecorderModel {
         timer?.invalidate()
         recording = false
         #if os(iOS)
+        if let interruptions { NotificationCenter.default.removeObserver(interruptions) }
+        interruptions = nil
         try? AVAudioSession.sharedInstance().setActive(false)
         #endif
         return try? Data(contentsOf: fileURL)
@@ -125,16 +137,24 @@ struct AudioRecorderView: View {
         // VoiceOver focus stays on the button that failed: say why.
         .onChange(of: rec.error) { if let e = rec.error { AccessibilityNotification.Announcement(e).post() } }
         .confirmationDialog("Discard Recording?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-            Button("Discard", role: .destructive) { rec.cancel(); dismiss() }
+            Button("Discard", role: .destructive) { unsaved = nil; rec.cancel(); dismiss() }
         }
         .task { await rec.start() }
-        .onDisappear { rec.cancel() }
+        .onDisappear {
+            // Closing the window (or another sheet replacing this one) mustn't lose the recording: save it.
+            if rec.recording || unsaved != nil { _ = save() } else { rec.cancel() }
+        }
     }
 
     private func finish() {
+        if save() { dismiss() }
+    }
+
+    /// Saves the recording into the attachments folder and embeds it in the current note; false (with an error shown) on failure.
+    private func save() -> Bool {
         guard let data = unsaved ?? rec.stop() else {
             rec.error = String(localized: "The recording couldn't be read.")
-            return
+            return false
         }
         let name = String(localized: "Recording") + " " + Templates.format(.now, "yyyyMMddHHmmss")
         guard let path = window.model.saveAttachment(data, name: name, ext: "m4a") else {
@@ -142,7 +162,7 @@ struct AudioRecorderView: View {
             // Shown here instead of the window alert, which the sheet would hide.
             rec.error = window.model.lastError ?? String(localized: "The recording couldn't be saved.")
             window.model.lastError = nil
-            return
+            return false
         }
         unsaved = nil
         rec.discard()
@@ -153,6 +173,6 @@ struct AudioRecorderView: View {
         } else {
             window.open(path: path)
         }
-        dismiss()
+        return true
     }
 }
