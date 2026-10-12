@@ -99,10 +99,15 @@ public enum HTMLRenderer {
             let link = NoteParser.splitWiki(ns.substring(with: m.range(at: 2)).replacingOccurrences(of: "\\|", with: "|"), isEmbed: m.range(at: 1).length > 0)
             return token(link.isEmbed ? embed(link, ctx) : anchor(link, ctx))
         }
-        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: masked) { m in
+        // `==` and tags are matched with link destinations and titles blanked, so an `==` inside `[a](b "x==y")` can't
+        // pair with (and swallow) a highlight after the link.
+        var unlinkedUnits = Array(masked.utf16)
+        for r in linkTargets.rangeView { NoteParser.blank(&unlinkedUnits, NSRange(r)) }
+        let unlinked = String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count)
+        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: unlinked) { m in
             token("<mark>", source: "==") + ns.substring(with: m.range(at: 2)) + token("</mark>", source: "==")
         }
-        add(NoteParser.Regex.tag, in: masked) { m in
+        add(NoteParser.Regex.tag, in: unlinked) { m in
             let tag = ns.substring(with: m.range(at: 1))
             guard tag.contains(where: { !$0.isNumber }) else { return nil }
             return token("<a class=\"tag\" href=\"\(escape(ctx.tagHref(tag)))\">#\(escape(tag))</a>")

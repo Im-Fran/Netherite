@@ -64,3 +64,9 @@ private let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNo
     #expect(count("task-todo:milk") == 1 && count("task-done:milk") == 0)
     #expect(count("task-done:bread") == 1 && count("task-todo:bread") == 0 && count("task:bread") == 1)
 }
+
+// R5-05: an `==` in a link title doesn't swallow a highlight after the link.
+@Test func highlightAfterLinkWithEqualsTitle() {
+    let html = HTMLRenderer.render("[a](b \"x==y\") then ==hl==", context: ctx)
+    #expect(html.contains("<mark>hl</mark>"))
+}
