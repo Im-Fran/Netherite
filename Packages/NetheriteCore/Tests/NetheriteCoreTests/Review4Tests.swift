@@ -111,3 +111,60 @@ import Testing
     let parsed = NoteParser.parse(md)
     #expect(parsed.links.isEmpty && parsed.headings.isEmpty && parsed.tags.isEmpty)
 }
+
+// R4-04: repeated page and file names link to their own page's copy, and collision renames are reflected.
+@Test func notionImportKeepsRepeatedNamesApart() throws {
+    let a = "0123456789abcdef0123456789abcdef", b = "fedcba9876543210fedcba9876543210"
+    let c = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", d = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    let zip = makeZip([
+        ("Alpha \(a).md", Data("![](Alpha%20\(a)/image.png)\n[Notes](Alpha%20\(a)/Notes%20\(c).md)\n[Dup](Dup%20\(c).md)\n".utf8)),
+        ("Alpha \(a)/image.png", Data([1])),
+        ("Alpha \(a)/Notes \(c).md", Data("alpha notes\n".utf8)),
+        ("Beta \(b).md", Data("![](Beta%20\(b)/image.png)\n[Notes](Beta%20\(b)/Notes%20\(d).md)\n[Dup](Dup%20\(d).md)\n".utf8)),
+        ("Beta \(b)/image.png", Data([2])),
+        ("Beta \(b)/Notes \(d).md", Data("beta notes\n".utf8)),
+        ("Dup \(c).md", Data("one\n".utf8)),
+        ("Dup \(d).md", Data("two\n".utf8)),
+    ])
+    let vault = tempVault()
+    try FileManager.default.createDirectory(at: vault.root, withIntermediateDirectories: true)
+    let url = vault.root.appending(path: "export.zip")
+    try zip.write(to: url)
+    let report = try Importer(vault: vault, destination: "N").run(.notion, from: url)
+    let resolver = LinkResolver(files: vault.allFiles())
+    for (page, image, notes, dup) in [("N/Alpha.md", Data([1]), "alpha notes\n", "one\n"), ("N/Beta.md", Data([2]), "beta notes\n", "two\n")] {
+        let links = NoteParser.parse(try vault.read(page)).links
+        #expect(links.count == 3)
+        let targets = links.compactMap { resolver.resolve($0.target, from: page) }
+        #expect(targets.count == 3)
+        #expect(try Data(contentsOf: vault.url(for: targets[0])) == image)
+        #expect(try vault.read(targets[1]) == notes)
+        #expect(try vault.read(targets[2]) == dup)
+    }
+    #expect(report.notes.contains("N/Dup 1.md"))
+    try? FileManager.default.removeItem(at: vault.root)
+}
+
+@Test func evernoteEmbedsAcrossNotebooksStayApart() throws {
+    func enex(_ byte: UInt8) -> String {
+        """
+        <?xml version="1.0" encoding="UTF-8"?><en-export><note><title>N\(byte)</title><content><![CDATA[<en-note><div>x</div></en-note>]]></content>
+        <resource><data encoding="base64">\(Data([byte]).base64EncodedString())</data><mime>image/png</mime><resource-attributes><file-name>map.png</file-name></resource-attributes></resource>
+        </note></en-export>
+        """
+    }
+    let vault = tempVault()
+    let src = vault.root.appending(path: "src")
+    try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
+    try Data(enex(1).utf8).write(to: src.appending(path: "One.enex"))
+    try Data(enex(2).utf8).write(to: src.appending(path: "Two.enex"))
+    let report = try Importer(vault: vault, destination: "E").run(.evernote, from: src)
+    let resolver = LinkResolver(files: vault.allFiles())
+    for note in report.notes {
+        let link = try #require(NoteParser.parse(try vault.read(note)).links.first)
+        let target = try #require(resolver.resolve(link.target, from: note))
+        #expect(try Data(contentsOf: vault.url(for: target)) == Data([note.hasSuffix("N1.md") ? 1 : 2]))
+    }
+    #expect(report.notes.count == 2)
+    try? FileManager.default.removeItem(at: vault.root)
+}

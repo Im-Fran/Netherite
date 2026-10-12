@@ -124,7 +124,7 @@ func tempVault() -> Vault { Vault(root: FileManager.default.temporaryDirectory.a
 
 @Test func htmlFolderImport() throws {
     let vault = tempVault()
-    let src = vault.root.appending(path: "src")
+    let src = tempVault().root   // outside the vault: a second "a b.png" there would make the link ambiguous
     try FileManager.default.createDirectory(at: src.appending(path: "imgs"), withIntermediateDirectories: true)
     try Data("<html><head><title>Apple Note</title></head><body><div>Line <mark>one</mark></div><div><img src=\"imgs/a%20b.png\"></div></body></html>".utf8)
         .write(to: src.appending(path: "Note.html"))
@@ -135,6 +135,7 @@ func tempVault() -> Vault { Vault(root: FileManager.default.temporaryDirectory.a
     let text = try vault.read("Apple/Apple Note.md")
     #expect(text.contains("Line ==one==") && text.contains("![[a b.png]]"))
     try? FileManager.default.removeItem(at: vault.root)
+    try? FileManager.default.removeItem(at: src)
 }
 
 @Test func formatConverter() {
