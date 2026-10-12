@@ -7744,6 +7744,16 @@
         }
       }
     },
+    "“%@” isn't in this vault." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” no está en esta bóveda."
+          }
+        }
+      }
+    },
     "“%@” was moved or deleted outside Netherite, so its latest changes weren’t saved." : {
       "localizations" : {
         "es" : {

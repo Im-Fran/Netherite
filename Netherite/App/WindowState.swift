@@ -256,16 +256,26 @@ final class WindowState {
         open(Destination(path: path), line: line, newPane: newPane)
     }
 
-    /// Follows a link (with optional #heading / #^block) from `source`, creating the note if it doesn't exist.
+    /// Follows a link (with optional #heading / #^block) from `source`, creating the note, canvas or base
+    /// if it doesn't exist. A missing attachment can't be made up, so it's reported instead.
     func follow(_ link: NoteLink, from source: String?, newPane: Bool = false) {
         let src = source ?? ""
         if let target = model.index.resolver.resolve(link.target, from: src) {
             open(path: target, line: line(for: link.subpath, in: target), newPane: newPane)
-        } else if !link.target.isEmpty, let name = LinkResolver.newNoteName(for: link.target) {
+        } else if !link.target.isEmpty {
             let folder = link.target.contains("/") ? link.target.parentFolder : model.settings.newNoteFolder
-            if let p = model.newNote(in: folder, named: name) {
-                open(path: p, newPane: newPane)
+            let created: String?
+            switch link.target.fileExtension {
+            case "canvas": created = model.newCanvas(in: folder, named: link.target.noteName)
+            case "base": created = model.newBase(in: folder, named: link.target.noteName)
+            default:
+                guard let name = LinkResolver.newNoteName(for: link.target) else {
+                    model.lastError = String(localized: "“\(link.target)” isn't in this vault.")
+                    return
+                }
+                created = model.newNote(in: folder, named: name)
             }
+            if let created { open(path: created, newPane: newPane) }
         }
     }
 
