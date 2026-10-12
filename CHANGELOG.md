@@ -82,6 +82,8 @@ version, and the release notes on TestFlight and GitHub come from here.
 - Imported HTML keeps a lone `=` line as text inside quotes and lists, and a tag right after inline math renders as a tag.
 - Merging notes keeps every tag and alias and preserves nested, date and number properties as written; symlinked canvases pick up outside edits.
 - Following a link that includes `.md` to a note that doesn't exist yet creates `Note.md`, not `Note.md.md`; merging a list into a number, date or checkbox property keeps the existing value.
+- Links to a missing canvas or base create it; links to a missing attachment say it isn't in the vault.
+- Editing or merging properties that use YAML anchors (`&name`, `*name`) keeps the frontmatter valid.
 
 ### Security
 - Imported ZIPs, links, Shortcuts and the `nth://` scheme can no longer read or write outside the vault, and ZIP bombs are rejected.
