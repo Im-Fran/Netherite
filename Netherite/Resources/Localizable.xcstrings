@@ -8466,10 +8466,40 @@
     },
     "Snapshots are kept for %lld days and stored only on this device." : {
       "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Snapshots are kept for %lld day and stored only on this device."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Snapshots are kept for %lld days and stored only on this device."
+                }
+              }
+            }
+          }
+        },
         "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Las instantáneas se conservan durante %lld días y solo se guardan en este dispositivo."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Las instantáneas se conservan durante %lld día y solo se guardan en este dispositivo."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Las instantáneas se conservan durante %lld días y solo se guardan en este dispositivo."
+                }
+              }
+            }
           }
         }
       }
