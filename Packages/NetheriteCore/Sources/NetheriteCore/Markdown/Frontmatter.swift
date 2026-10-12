@@ -158,7 +158,11 @@ public enum Frontmatter {
             out += span + ns.substring(with: NSRange(location: at, length: NSMaxRange(q.range) - at))
             last = NSMaxRange(q.range)
         }
-        return out + ns.substring(from: last)
+        out += ns.substring(from: last)
+        // The span regex isn't a YAML parser (a `"` can sit inside a plain or single-quoted scalar), so keep the
+        // literal form only when it reads back to the same value.
+        guard out != yaml, let a = try? Yams.compose(yaml: out), let b = try? Yams.compose(yaml: yaml), a == b else { return yaml }
+        return out
     }
 
     public struct InvalidYAML: LocalizedError, Sendable {
