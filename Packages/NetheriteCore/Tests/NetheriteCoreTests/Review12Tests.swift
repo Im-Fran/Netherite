@@ -23,3 +23,24 @@ import Yams
     #expect(node?["child"]?["x"]?.int == 1)
     #expect(NoteParser.parse(out).property("base") == .text("hi"))
 }
+
+// R13-01: a rewritten alias block keeps non-ASCII text literal and on one line.
+@Test func rewrittenAliasKeepsUnicodeLiteral() throws {
+    let long = String(repeating: "palabra ", count: 15) + "fin"
+    let t = "---\nautor: &a José Núñez 🎉\nrevisor: *a\nnota: &n \(long)\notra: *n\n---\nT"
+    var props = NoteParser.parse(t).properties
+    props[0].value = .text("Otra")
+    props[2].value = .text("x")
+    let out = try Frontmatter.replacing(in: t, with: props)
+    #expect(out.contains("revisor: \"José Núñez 🎉\"") || out.contains("revisor: José Núñez 🎉"))
+    #expect(out.contains("otra: \(long)\n"))
+}
+
+// R13-01: emoji are written literally by every serialize path, and literal `\U…` text is untouched.
+@Test func emojiPropertiesStayLiteral() throws {
+    let props = [Property(key: "t", value: .text("José 🎉")), Property(key: "raw", value: .text(#"x\U0001F389"#)),
+                 Property(key: "q", value: .text(#"say "hi" \U0001F389 🎉"#))]
+    let out = try Frontmatter.replacing(in: "B", with: props)
+    #expect(out.contains("🎉"))
+    #expect(NoteParser.parse(out).properties.map(\.value) == props.map(\.value))
+}
