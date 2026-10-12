@@ -54,7 +54,7 @@ public struct HTMLToMarkdown {
                     out += (t.isEmpty ? "" : t) + "\n"
                 }
             case "br": inline += "\n"
-            case "hr": flush(); out += "---\n\n"
+            case "hr": flush(); out += "***\n\n" // `---` on the first line would open a frontmatter block.
             case "pre":
                 flush()
                 let lang = (c.first("code")?.attrs["class"] ?? "").components(separatedBy: " ").first { $0.hasPrefix("language-") }.map { String($0.dropFirst(9)) } ?? ""
