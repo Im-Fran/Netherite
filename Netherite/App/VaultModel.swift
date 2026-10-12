@@ -213,7 +213,7 @@ final class VaultModel {
         }
         // Flush unsaved edits of the item and, for folders, of every note inside it.
         for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
-        let result: String? = perform { try index.move(path, to: target); return target }
+        let result: String? = perform { try index.move(path, to: target, skipping: dirty); return target }
         if result != nil {
             func moved(_ p: String) -> String { p == path || p.hasPrefix(path + "/") ? target + p.dropFirst(path.count) : p }
             recentFiles = recentFiles.map(moved)
