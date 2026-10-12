@@ -36,7 +36,8 @@ public enum HTMLRenderer {
         var tokens: [String] = []
         func token(_ html: String) -> String { tokens.append(html); return "\u{E000}\(tokens.count - 1)\u{E001}" }
 
-        var src = text
+        // The placeholder markers are private-use characters; a note can't smuggle in its own (N-21).
+        var src = text.replacingOccurrences(of: "[\u{E000}\u{E001}]", with: "\u{FFFD}", options: .regularExpression)
         var props = ""
         if let fm = Frontmatter.locate(in: src) {
             let parsed = Frontmatter.parse(fm.yaml)
@@ -59,11 +60,14 @@ public enum HTMLRenderer {
 
         // Replace OFM syntax outside code with placeholder tokens, back to front so ranges stay valid.
         var reps: [(NSRange, String)] = []
+        var taken = IndexSet()
         let codeMasked = maskCode(src)
         let ns = src as NSString
         func add(_ re: NSRegularExpression, in text: String, _ make: (NSTextCheckingResult) -> String?) {
-            for m in re.matches(in: text, range: full(text)) where !reps.contains(where: { NSIntersectionRange($0.0, m.range).length > 0 }) {
-                if let r = make(m) { reps.append((m.range, r)) }
+            for m in re.matches(in: text, range: full(text)) {
+                guard let range = Range(m.range), !taken.intersects(integersIn: range), let r = make(m) else { continue }
+                reps.append((m.range, r))
+                taken.insert(integersIn: range)
             }
         }
         add(NoteParser.Regex.comment, in: codeMasked) { m in String(repeating: "\n", count: ns.substring(with: m.range).filter { $0 == "\n" }.count) }
@@ -95,11 +99,8 @@ public enum HTMLRenderer {
         add(try! NSRegularExpression(pattern: #"[ \t]\^([A-Za-z0-9\-]+)[ \t]*$"#, options: .anchorsMatchLines), in: masked) { m in
             token("<a class=\"block-id\" id=\"^\(escape(ns.substring(with: m.range(at: 1))))\"></a>")
         }
-        let out = NSMutableString(string: src)
-        for (r, s) in reps.sorted(by: { $0.0.location > $1.0.location }) { out.replaceCharacters(in: r, with: s) }
-
         var walker = HTMLWalker(ctx: ctx)
-        walker.visit(Document(parsing: out as String, options: [.disableSmartOpts]))
+        walker.visit(Document(parsing: splice(ns, reps), options: [.disableSmartOpts]))
         var html = props + walker.result
 
         if !footnotes.isEmpty {
@@ -119,13 +120,24 @@ public enum HTMLRenderer {
         // Tokens can nest (highlight around a link), so repeat until stable.
         for _ in 0..<3 {
             let ns = s as NSString
-            let matches = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
-            if matches.isEmpty { break }
-            let m = NSMutableString(string: s)
-            for r in matches.reversed() { m.replaceCharacters(in: r.range, with: tokens[Int(ns.substring(with: r.range(at: 1)))!]) }
-            s = m as String
+            let reps = re.matches(in: s, range: NSRange(location: 0, length: ns.length)).compactMap { r -> (NSRange, String)? in
+                guard let i = Int(ns.substring(with: r.range(at: 1))), tokens.indices.contains(i) else { return nil }
+                return (r.range, tokens[i])
+            }
+            if reps.isEmpty { break }
+            s = splice(ns, reps)
         }
         return s
+    }
+
+    /// Replaces non-overlapping ranges in one pass (linear, unlike repeated in-place replacement).
+    static func splice(_ ns: NSString, _ reps: [(NSRange, String)]) -> String {
+        var out = "", pos = 0
+        for (r, s) in reps.sorted(by: { $0.0.location < $1.0.location }) {
+            out += ns.substring(with: NSRange(location: pos, length: r.location - pos)) + s
+            pos = NSMaxRange(r)
+        }
+        return out + ns.substring(from: pos)
     }
 
     // MARK: Links and embeds
@@ -166,18 +178,21 @@ public enum HTMLRenderer {
     /// Extracts the part of a note a `#Heading` or `#^block` subpath points at.
     public static func section(of text: String, subpath: String?) -> String {
         guard let sub = subpath, !sub.isEmpty else { return text }
-        let lines = text.components(separatedBy: "\n")
+        // Split like the parser does (`enumerateLines` also breaks on \r and U+2028), so its line numbers index here.
+        var lines: [String] = []
+        text.enumerateLines { l, _ in lines.append(l) }
         let parsed = NoteParser.parse(text)
         if sub.hasPrefix("^") {
-            guard let line = parsed.blockIDs[String(sub.dropFirst())] else { return "" }
+            guard let line = parsed.blockIDs[String(sub.dropFirst())], lines.indices.contains(line) else { return "" }
             // A block is its paragraph/list item: walk back to the previous blank line.
             var start = line
             while start > 0, !lines[start - 1].trimmingCharacters(in: .whitespaces).isEmpty, !lines[line].hasPrefix("-") { start -= 1 }
             return lines[start...line].joined(separator: "\n")
         }
         let wanted = sub.split(separator: "#").last.map(String.init) ?? sub
-        guard let h = parsed.headings.first(where: { $0.text.caseInsensitiveCompare(wanted) == .orderedSame }) else { return "" }
-        let end = parsed.headings.first { $0.line > h.line && $0.level <= h.level }?.line ?? lines.count
+        guard let h = parsed.headings.first(where: { $0.text.caseInsensitiveCompare(wanted) == .orderedSame }),
+              lines.indices.contains(h.line) else { return "" }
+        let end = min(parsed.headings.first { $0.line > h.line && $0.level <= h.level }?.line ?? lines.count, lines.count)
         return lines[h.line..<end].joined(separator: "\n")
     }
 

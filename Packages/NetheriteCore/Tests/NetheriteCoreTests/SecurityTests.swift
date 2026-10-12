@@ -46,3 +46,25 @@ private func renderPlain(_ md: String) -> String {
     #expect(throws: ZipReader.ZipError.self) { try zip.files(maxTotalSize: 1000) }
     #expect(try zip.files().count == 2)
 }
+
+// MARK: N-20 / N-21 / N-40 · renderer robustness
+
+@Test func embedSectionWithOtherLineBreaks() {
+    let text = "intro\rmore\u{2028}x\n# Head\nbody ^blk\n# Next"
+    #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
+    #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
+}
+
+@Test func forgedPlaceholderMarkers() {
+    let html = renderPlain("a \u{E000}7\u{E001} [[x]] \u{E000}0\u{E001}")
+    #expect(!html.contains("\u{E000}") && html.contains("new:x"))
+    #expect(HTMLRenderer.restoreTokens("\u{E000}9\u{E001}", ["a"]) == "\u{E000}9\u{E001}")
+}
+
+@Test func renderIsLinearInLinks() {
+    let md = (0..<8000).map { "[[Note \($0)]]" }.joined(separator: " ")
+    let start = Date()
+    let html = renderPlain(md)
+    #expect(html.contains("new:Note 7999"))
+    #expect(Date().timeIntervalSince(start) < 2)
+}
