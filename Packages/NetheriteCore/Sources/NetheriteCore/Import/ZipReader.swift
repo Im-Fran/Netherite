@@ -104,7 +104,8 @@ public struct ZipReader {
     private func files(depth: Int, budget: inout Int) throws -> [(path: String, data: Data)] {
         var out: [(String, Data)] = []
         for e in entries {
-            budget -= e.size
+            // Stored entries yield their raw bytes whatever size the header claims; deflated ones must match `size`.
+            budget -= e.method == 0 ? e.compressedSize : e.size
             guard budget >= 0 else { throw ZipError.corrupt }
             let d = try read(e)
             if depth < 4, e.path.lowercased().hasSuffix(".zip"), let inner = try? ZipReader(data: d) {
