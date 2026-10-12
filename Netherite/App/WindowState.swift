@@ -73,6 +73,8 @@ final class Pane: Identifiable {
         if current == d { return }
         history = Array(history.prefix(position + 1)) + [d]
         position = history.count - 1
+        // Opening another note starts in the editor; otherwise typing seems to do nothing (Back/Forward keep the mode).
+        reading = false
     }
 
     func back() { if canGoBack { position -= 1; pendingLine = nil } }

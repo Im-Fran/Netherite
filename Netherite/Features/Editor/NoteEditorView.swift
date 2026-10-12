@@ -32,6 +32,7 @@ struct NoteEditorView: View {
         .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded(); selectTitleIfFresh(); focusBodyIfRequested() }
         .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
+        .onChange(of: pane.reading) { jumpIfNeeded() }
         .onDisappear { model.save(path); controller.isEditing = false }
         .focusedSceneValue(\.editor, controller)
     }
@@ -183,7 +184,8 @@ struct NoteEditorView: View {
     }
 
     private func jumpIfNeeded() {
-        guard let line = pane.pendingLine else { return }
+        // Reading view scrolls to the heading itself (ReaderView reads pendingLine), so keep it until the editor shows.
+        guard !pane.reading, let line = pane.pendingLine else { return }
         pane.pendingLine = nil
         DispatchQueue.main.async { controller.scrollTo(line: line) }
     }
