@@ -98,6 +98,8 @@ final class VaultModel {
     func flushAll() { for p in dirty { save(p) } }
 
     private func externalChange() async {
+        // Mid-move the folder looks gone: that must not drop the unsaved edits kept for the new place.
+        guard !savesPaused else { return }
         Task.detached { [vault = self.vault] in vault.downloadPlaceholders() }
         reloadConfigIfChanged()
         await index.refreshFromDisk(skipping: dirty)

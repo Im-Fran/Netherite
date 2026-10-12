@@ -257,8 +257,12 @@ final class AppModel {
             model?.flushAll()
             throw error
         }
+        var unsaved: [String] = []
         if let model {
-            for p in model.dirty { if let text = model.index.notes[p]?.text { try? Vault(root: target).write(text, to: p) } }
+            for p in model.dirty {
+                guard let text = model.index.notes[p]?.text else { continue }
+                do { try Vault(root: target).write(text, to: p) } catch { unsaved.append(p.noteName) }
+            }
         }
         // Close only once the vault is at its new place and listed there: windows showing it follow `relocated`
         // as soon as it closes, and reopen it from `recents` (a failed move leaves it open where it was).
@@ -271,6 +275,10 @@ final class AppModel {
         WidgetCenter.shared.reloadAllTimelines()
         close(recent.path)
         await refreshStorage([Self.key(target)])
+        // The vault did move; say which edits made during the move didn't make it instead of dropping them silently.
+        if !unsaved.isEmpty {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: String(localized: "The vault moved to iCloud Drive, but the latest changes to \(unsaved.map { "“\($0)”" }.formatted()) couldn’t be saved.")])
+        }
     }
 
     /// Copies a folder picked in Files/Finder into iCloud Drive as a new vault, and opens it.
