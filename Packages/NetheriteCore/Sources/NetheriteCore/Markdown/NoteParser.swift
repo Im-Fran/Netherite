@@ -115,7 +115,8 @@ public enum NoteParser {
                 .map { String($0).trimmingCharacters(in: CharacterSet(charactersIn: "# ")) }.filter { !$0.isEmpty }
         }
         if let v = note.property("aliases") ?? note.property("alias") { note.aliases = v.strings }
-        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count)) {
+        for m in Regex.tag.matches(in: masked, range: NSRange(location: 0, length: units.count))
+        where !note.links.contains(where: { NSIntersectionRange($0.range, m.range).length > 0 }) {   // [[#Heading]], [x](#h)
             let tag = ns.substring(with: m.range(at: 1))
             if tag.contains(where: { !$0.isNumber }) { note.tags.append(tag) }
         }
@@ -195,14 +196,15 @@ public enum NoteParser {
         static let wiki = try! NSRegularExpression(pattern: #"(!?)\[\[([^\[\]\n]+?)\]\]"#)
         static let mdLink = try! NSRegularExpression(pattern: #"(!?)\[([^\]\n]*)\]\(<?([^)>\s]+)>?(?:\s+"[^"]*")?\)"#)
         static let tag = try! NSRegularExpression(pattern: #"(?:^|(?<=[\s(\[{,]))#([\p{L}\p{N}_\-/]+)"#, options: .anchorsMatchLines)
-        static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)\s*#*\s*$"#)
+        static let heading = try! NSRegularExpression(pattern: #"^(#{1,6})\s+(.+?)(?:\s+#+)?\s*$"#)
         static let blockID = try! NSRegularExpression(pattern: #"(?:^|\s)\^([A-Za-z0-9\-]+)\s*$"#)
         static let footnoteDef = try! NSRegularExpression(pattern: #"^\[\^([^\]]+)\]:\s*(.*)$"#)
         static let task = try! NSRegularExpression(pattern: #"^\s*(?:[-*+]|\d+[.)])\s+\[(.)\]"#)
         static let fenced = try! NSRegularExpression(pattern: #"^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^\1\2[`~]*[ \t]*$|\z)"#, options: .anchorsMatchLines)
         static let mathBlock = try! NSRegularExpression(pattern: #"\$\$[\s\S]*?\$\$"#)
         static let comment = try! NSRegularExpression(pattern: #"%%[\s\S]*?%%"#)
-        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n][\s\S]*?\1"#)
+        // A code span never crosses a blank line, so a stray backtick can't swallow the next paragraphs.
+        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n](?:[^\n]|\n(?![ \t\r]*(?:\n|\z)))*?\1"#)
         static let inlineMath = try! NSRegularExpression(pattern: #"(?<![\\$])\$(?=\S)[^$\n]+?(?<=\S)\$(?!\d)"#)
     }
 }

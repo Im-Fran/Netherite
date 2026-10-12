@@ -155,7 +155,8 @@ public final class VaultIndex {
             ? files.filter { $0.hasPrefix(from + "/") }.map { ($0, to + $0.dropFirst(from.count)) }
             : [(from, to)]
         let movedMap = Dictionary(moved, uniquingKeysWith: { a, _ in a })
-        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] })
+        // The moved notes too: their links to themselves (`[[Old#Heading]]`) aren't in `incoming`.
+        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] } + moved.map(\.0))
         try vault.move(from, to: to)
 
         // Update in-memory state for moved files
@@ -171,7 +172,8 @@ public final class VaultIndex {
             let source = movedMap[oldSource] ?? oldSource
             guard let rec = notes[source] else { continue }
             let text = Self.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
-                guard let target = oldResolver.resolve(link.target, from: oldSource), let newTarget = movedMap[target] else { return nil }
+                guard !link.target.isEmpty, let target = oldResolver.resolve(link.target, from: oldSource),
+                      let newTarget = movedMap[target] else { return nil }
                 return newTarget
             } linkText: { resolver.linkText(for: $0) }
             if text != rec.text {
@@ -189,11 +191,21 @@ public final class VaultIndex {
     public nonisolated static func rewriteLinks(in text: String, parsed: ParsedNote,
                                                 newTarget: (NoteLink) -> String?, linkText: (String) -> String) -> String {
         let ns = NSMutableString(string: text)
-        for link in parsed.links.reversed() where link.range.location != NSNotFound {
+        // Frontmatter links are parsed from YAML values without a range: find them in the raw block.
+        let frontmatterLinks: [NoteLink] = parsed.frontmatterRange.map { fm in
+            NoteParser.Regex.wiki.matches(in: text, range: fm).map { m -> NoteLink in
+                var link = NoteParser.splitWiki(ns.substring(with: m.range(at: 2)), isEmbed: m.range(at: 1).length > 0)
+                link.range = m.range
+                return link
+            }
+        } ?? []
+        for link in (frontmatterLinks + parsed.links).reversed() where link.range.location != NSNotFound {
             guard let target = newTarget(link) else { continue }
             let replacement: String
             if link.isWiki {
-                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { "|" + $0 } ?? "") + "]]"
+                // Keep a table cell's escaped `\|` so the rewrite doesn't split the column.
+                let bar = ns.substring(with: link.range).contains("\\|") ? "\\|" : "|"
+                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
             } else {
                 let encoded = target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "()"))) ?? target
                 replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + ")"

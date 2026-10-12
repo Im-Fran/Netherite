@@ -58,6 +58,34 @@ Footnote here[^1].
     #expect(Frontmatter.replacing(in: text, with: []) == "body")
 }
 
+// N-07: editing one property keeps the rest of the frontmatter byte for byte.
+@Test func frontmatterEditKeepsOtherKeys() {
+    let text = "---\n# keep me\nauthors: [{name: Ana}]\nmeta: {rating: 5}\nversion: 1.10\nzip: 01234\nanswer: no\nstatus: draft\n---\nbody"
+    var props = NoteParser.parse(text).properties
+    #expect(props.first { $0.key == "answer" }?.value == .text("no"))
+    props[props.firstIndex { $0.key == "status" }!].value = .text("done")
+    let out = Frontmatter.replacing(in: text, with: props)
+    #expect(out == text.replacingOccurrences(of: "status: draft", with: "status: done"))
+    #expect(Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
+}
+
+// N-19: a stray backtick doesn't hide the links and tags of the following paragraphs.
+@Test func strayBacktickStaysInParagraph() {
+    let p = NoteParser.parse("Use ` here.\n\nSee [[A]] #tag\n\nand `code\nspan` [[B]] `x`")
+    #expect(p.links.map(\.target) == ["A", "B"])
+    #expect(p.tags == ["tag"])
+}
+
+// N-36: links to headings aren't tags.
+@Test func headingLinksAreNotTags() {
+    #expect(NoteParser.parse("See [[#Intro]], [x](#Other) and (#real)").tags == ["real"])
+}
+
+// N-37: a trailing `#` is only a closing sequence after a space.
+@Test func headingKeepsTrailingHash() {
+    #expect(NoteParser.parse("# C#\n## Budget ##").headings.map(\.text) == ["C#", "Budget"])
+}
+
 @Test func resolvesLinks() {
     let r = LinkResolver(files: ["A.md", "x/B.md", "y/B.md", "img/map.png", "x/C.md"])
     #expect(r.resolve("A", from: "x/C.md") == "A.md")
@@ -86,6 +114,35 @@ Footnote here[^1].
     #expect(try vault.read("sub/C.md") == "[b](folder/Renamed.md)")
     #expect(index.backlinks(for: "folder/Renamed.md").count == 2)
     try? FileManager.default.removeItem(at: dir)
+}
+
+/// Renames `Old.md` to `New.md` in a vault holding `files` and returns the new text of `read`.
+@MainActor func renamed(_ files: [String: String], read: String) async throws -> String {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let vault = Vault(root: dir)
+    for (path, text) in files { try vault.write(text, to: path) }
+    let index = VaultIndex(vault: vault)
+    await index.load()
+    try index.move("Old.md", to: "New.md")
+    return try vault.read(read)
+}
+
+// N-16: renaming rewrites links in frontmatter values.
+@MainActor @Test func renameRewritesFrontmatterLinks() async throws {
+    let a = "---\nrelated: \"[[Old]]\"\nlist:\n  - \"[[Old#H|x]]\"\n---\nbody"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == a.replacingOccurrences(of: "[[Old", with: "[[New"))
+}
+
+// N-17: renaming keeps the escaped alias pipe of a link inside a table.
+@MainActor @Test func renameKeepsTablePipe() async throws {
+    let a = "| a | b |\n|---|---|\n| [[Old\\|alias]] | 1 |"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == "| a | b |\n|---|---|\n| [[New\\|alias]] | 1 |")
+}
+
+// N-18: renaming rewrites a note's links to itself.
+@MainActor @Test func renameRewritesSelfLinks() async throws {
+    #expect(try await renamed(["Old.md": "# Old\nSee [[Old#Old]] and [[#Old]]."], read: "New.md") == "# Old\nSee [[New#Old]] and [[#Old]].")
 }
 
 @Test func searchOperators() {
