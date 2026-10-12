@@ -344,7 +344,9 @@ struct VaultDetailView: View {
     @ScaledMetric private var tile = 52.0
 
     var body: some View {
-        if let recent = app.recents.first(where: { $0.path == path }) {
+        // After "Move to iCloud Drive" the vault is listed at its new path: keep showing it.
+        if let recent = app.recents.first(where: { $0.path == path })
+            ?? app.relocated[path].flatMap({ new in app.recents.first { $0.path == new } }) {
             form(recent)
         } else {
             ContentUnavailableView("Vault Not Found", systemImage: "questionmark.folder")

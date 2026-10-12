@@ -30,6 +30,8 @@ final class VaultModel {
     /// Windows not in the background; the watcher runs while there is at least one.
     @ObservationIgnored private var foregroundWindows = Set<ObjectIdentifier>()
     var lastError: String?
+    /// While the vault folder is being moved: edits stay unsaved (in `dirty`) instead of recreating it at the old path.
+    @ObservationIgnored var savesPaused = false
 
     init(vault: Vault) {
         self.vault = vault
@@ -83,7 +85,7 @@ final class VaultModel {
 
     func save(_ path: String) {
         saveTasks[path]?.cancel(); saveTasks[path] = nil
-        guard dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
+        guard !savesPaused, dirty.contains(path), !isGone(path), let text = index.notes[path]?.text else { return }
         do {
             try vault.write(text, to: path)
             dirty.remove(path)
