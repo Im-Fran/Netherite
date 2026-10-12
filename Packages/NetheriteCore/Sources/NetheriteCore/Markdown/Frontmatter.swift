@@ -160,8 +160,13 @@ public enum Frontmatter {
         guard !props.isEmpty else { return body }
         var yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
             ?? props.map { verbatim[$0.key] ?? serialize([$0]) }.joined(separator: "\n")
-        // A kept block can lean on YAML that was rewritten (an alias whose anchor's key changed): reserialize all.
-        if (try? Yams.compose(yaml: yaml))?.mapping == nil { yaml = props.map { serialize([$0]) }.joined(separator: "\n") }
+        // A kept block can lean on YAML that was rewritten (an alias whose anchor's key changed): first rewrite
+        // only the kept blocks with an alias, from their resolved nodes, and reserialize all as a last resort.
+        let composes = { (y: String) in (try? Yams.compose(yaml: y))?.mapping != nil }
+        if !composes(yaml), let retry = fm.flatMap({ merge(props, into: $0.yaml, verbatim: verbatim, resolvingAliases: true) }), composes(retry) {
+            yaml = retry
+        }
+        if !composes(yaml) { yaml = props.map { serialize([$0]) }.joined(separator: "\n") }
         return "---\n\(yaml)\n---\n" + body
     }
 
@@ -201,28 +206,35 @@ public enum Frontmatter {
 
     /// Splits a YAML mapping into the lines before its first key and one line block per top-level key;
     /// nil when it isn't a mapping or two keys share a line.
-    static func blocks(_ yaml: String) -> (head: [String], keys: [(key: String, value: PropertyValue, lines: [String])])? {
+    static func blocks(_ yaml: String) -> (head: [String], keys: [(key: String, value: PropertyValue, node: Node, lines: [String])])? {
         guard let node = try? Yams.compose(yaml: yaml), case .mapping(let map) = node else { return nil }
         let lines = yaml.components(separatedBy: "\n")
-        var starts: [(key: String, value: PropertyValue, line: Int)] = []
+        var starts: [(key: String, value: PropertyValue, node: Node, line: Int)] = []
         for (k, v) in map {
             guard let key = k.string, let line = k.mark?.line, line - 1 > (starts.last?.line ?? -1) else { return nil }
-            starts.append((key, value(of: v), line - 1))
+            starts.append((key, value(of: v), v, line - 1))
         }
         guard let first = starts.first else { return nil }
         return (Array(lines[..<first.line]), starts.indices.map { i in
-            (starts[i].key, starts[i].value, Array(lines[starts[i].line..<(i + 1 < starts.count ? starts[i + 1].line : lines.count)]))
+            (starts[i].key, starts[i].value, starts[i].node, Array(lines[starts[i].line..<(i + 1 < starts.count ? starts[i + 1].line : lines.count)]))
         })
     }
 
     /// Rewrites only the top-level keys of `yaml` whose value differs from `props`; nil when the
-    /// mapping can't be split into one line block per key.
-    static func merge(_ props: [Property], into yaml: String, verbatim: [String: String] = [:]) -> String? {
+    /// mapping can't be split into one line block per key. `resolvingAliases` rewrites kept blocks that use an
+    /// alias from their resolved node, so they no longer depend on an anchor in a rewritten block.
+    static func merge(_ props: [Property], into yaml: String, verbatim: [String: String] = [:], resolvingAliases: Bool = false) -> String? {
         guard let (head, keys) = blocks(yaml) else { return nil }
         var out = head
         for p in props {
             if let b = keys.first(where: { $0.key == p.key }), b.value == p.value {
-                out += b.lines
+                // ponytail: `*` in a quoted string or comment counts as an alias too; that block only loses its comments.
+                if resolvingAliases, b.lines.contains(where: { $0.range(of: #"\*[^\s,\[\]{}]"#, options: .regularExpression) != nil }),
+                   let y = try? Yams.serialize(node: .mapping(Node.Mapping([(Node(b.key), b.node)]))) {
+                    out.append(y.replacingOccurrences(of: #"\s+\z"#, with: "", options: .regularExpression))
+                } else {
+                    out += b.lines
+                }
             } else {
                 out.append(verbatim[p.key] ?? serialize([p]))
             }
