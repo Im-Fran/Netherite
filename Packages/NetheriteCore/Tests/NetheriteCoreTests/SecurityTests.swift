@@ -73,6 +73,14 @@ private func renderPlain(_ md: String) -> String {
     #expect(HTMLRenderer.restoreTokens("\u{E000}9\u{E001}", ["a"]) == "\u{E000}9\u{E001}")
 }
 
+// R2-09: no token lands inside a link destination or an image alt.
+@Test func noTokensInsideLinkAttributes() {
+    let html = renderPlain("[Jump](#Intro) [see #tag](x.md) ![alt $x$](https://e.com/a.png)")
+    #expect(!html.contains(">#Intro<") && html.contains(">Jump</a>"))
+    #expect(html.contains("alt=\"alt $x$\""))
+    #expect(html.contains("class=\"tag\""))   // a tag in link text still renders
+}
+
 @Test func renderIsLinearInLinks() {
     let md = (0..<8000).map { "[[Note \($0)]]" }.joined(separator: " ")
     let start = Date()
