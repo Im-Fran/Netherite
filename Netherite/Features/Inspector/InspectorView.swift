@@ -266,8 +266,7 @@ struct PropertiesEditor: View {
             TextField(p.key, value: Binding(get: { n }, set: { set(p.key, .number($0), in: all) }), format: .number)
                 .labelsHidden().multilineTextAlignment(.trailing)
         case .list(let l):
-            TextField(p.key, text: Binding(get: { l.joined(separator: ", ") },
-                                        set: { set(p.key, .list($0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }), in: all) }))
+            ListPropertyField(key: p.key, values: l) { set(p.key, .list($0), in: all) }
                 .labelsHidden()
                 .multilineTextAlignment(.trailing)
         default:
@@ -314,6 +313,30 @@ struct PropertiesEditor: View {
     private func save(_ props: [Property]) {
         let text = window.model.text(of: path)
         window.model.edit(path, text: Frontmatter.replacing(in: text, with: props))
+    }
+}
+
+/// Edits a list property as comma-separated text, committing on Return or when focus leaves
+/// (splitting on every keystroke would swallow the comma being typed).
+private struct ListPropertyField: View {
+    let key: String
+    let values: [String]
+    let commit: ([String]) -> Void
+    @State private var draft: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(key, text: Binding(get: { draft ?? values.joined(separator: ", ") }, set: { draft = $0 }))
+            .focused($focused)
+            .onSubmit(save)
+            .onChange(of: focused) { if !$1 { save() } }
+            .onDisappear(perform: save)
+    }
+
+    private func save() {
+        guard let d = draft else { return }
+        draft = nil
+        commit(d.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
     }
 }
 
