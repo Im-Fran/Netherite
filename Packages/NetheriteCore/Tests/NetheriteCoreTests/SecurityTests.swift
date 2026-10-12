@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Testing
 @testable import NetheriteCore
 
@@ -150,8 +151,12 @@ private func renderPlain(_ md: String) -> String {
 
 @Test func pagesCarryCSP() {
     let page = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "nth://web/", initialSubpath: "a", extraBody: "<script>1</script>")
-    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth: file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
+    #expect(page.contains("Content-Security-Policy") && page.contains("script-src 'self' nth://web/ file: 'nonce-\(HTMLRenderer.scriptNonce)'"))
     #expect(!page.contains("<script>"))   // every script of ours carries the nonce
+    // R2-22: a published page names its inline scripts by hash and never exposes the nonce.
+    let site = HTMLRenderer.page(title: "T", body: "<p>x</p>", assets: "assets/", extraHead: "<script>a()</script>", pinScriptsByHash: true)
+    #expect(!site.contains(HTMLRenderer.scriptNonce) && !site.contains("nonce"))
+    #expect(site.contains("'sha256-\(Data(SHA256.hash(data: Data("a()".utf8))).base64EncodedString())'"))
 }
 
 // MARK: N-48 · Bases and site export
