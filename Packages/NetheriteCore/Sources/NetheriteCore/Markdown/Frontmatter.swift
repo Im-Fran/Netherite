@@ -184,8 +184,12 @@ public enum Frontmatter {
             var joins = ["tags", "tag", "aliases", "alias"].contains(p.key.lowercased())
             if case .list = p.value { joins = true }
             if case .list = merged[i].value { joins = true }
-            let a = merged[i].value.strings
-            let new = p.value.strings.filter { !a.contains($0) }
+            // A number, date or checkbox joins as its text, so it isn't lost (`strings` is empty for them).
+            let items = { (v: PropertyValue) -> [String] in
+                switch v { case .number, .date, .bool: [v.displayString]; default: v.strings }
+            }
+            let a = items(merged[i].value)
+            let new = items(p.value).filter { !a.contains($0) }
             if joins, !new.isEmpty { merged[i].value = .list(a + new) }
         }
         return merged == original ? target : try replacing(in: target, with: merged, verbatim: verbatim)
