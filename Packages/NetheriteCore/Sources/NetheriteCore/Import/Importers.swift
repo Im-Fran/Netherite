@@ -256,8 +256,9 @@ struct Writer {
 
     init(vault: Vault, root: String) { self.vault = vault; self.root = root }
 
+    /// Archive paths are untrusted: `..`, `.` and empty components never shape the destination.
     func folderPath(_ sub: String) -> String {
-        [root, sub].filter { !$0.isEmpty }.joined(separator: "/")
+        "\(root)/\(sub)".split(separator: "/").filter { $0 != "." && $0 != ".." }.joined(separator: "/")
     }
 
     static func safeName(_ s: String) -> String {
