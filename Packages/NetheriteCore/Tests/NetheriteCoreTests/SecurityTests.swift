@@ -59,6 +59,16 @@ private func renderPlain(_ md: String) -> String {
     #expect(try outer.files(maxTotalSize: 1 << 20).map(\.path) == ["x.txt", "a.txt", "b.txt"])
 }
 
+// R2-20: the ZIPs of one import share a single budget.
+@Test func zipBudgetIsPerImport() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    for n in 0..<3 { try makeZip([("f\(n).txt", Data(repeating: 65, count: 600))]).write(to: dir.appending(path: "\(n).zip")) }
+    #expect(throws: ZipReader.ZipError.self) { try Importer.files(at: dir, maxTotalSize: 1000) }
+    #expect(try Importer.files(at: dir, maxTotalSize: 2000).count == 3)
+}
+
 // MARK: N-20 / N-21 / N-40 · renderer robustness
 
 @Test func embedSectionWithOtherLineBreaks() {

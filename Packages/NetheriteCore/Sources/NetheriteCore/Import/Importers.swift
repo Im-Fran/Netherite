@@ -40,8 +40,10 @@ public struct Importer: Sendable {
 
     // MARK: Sources
 
-    /// Files of a folder, a .zip, or a single file, as (relative path, data).
-    public static func files(at url: URL) throws -> [(path: String, data: Data)] {
+    /// Files of a folder, a .zip, or a single file, as (relative path, data). All the archives in a folder
+    /// share one expansion budget, so many ZIPs can't add up past it.
+    public static func files(at url: URL, maxTotalSize: Int = ZipReader.maxTotalSize) throws -> [(path: String, data: Data)] {
+        var budget = maxTotalSize
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDir)
         if isDir.boolValue {
@@ -51,13 +53,13 @@ public struct Importer: Sendable {
             for case let f as URL in e where (try? f.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true {
                 let rel = String(f.standardizedFileURL.path(percentEncoded: false).dropFirst(base.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 let data = try Data(contentsOf: f)
-                if f.pathExtension.lowercased() == "zip", let z = try? ZipReader(data: data) { out += try z.files().map { ($0.path, $0.data) } }
+                if f.pathExtension.lowercased() == "zip", let z = try? ZipReader(data: data) { out += try z.files(budget: &budget).map { ($0.path, $0.data) } }
                 else { out.append((rel, data)) }
             }
             return out
         }
         let data = try Data(contentsOf: url)
-        if url.pathExtension.lowercased() == "zip" { return try ZipReader(data: data).files() }
+        if url.pathExtension.lowercased() == "zip" { return try ZipReader(data: data).files(budget: &budget) }
         return [(url.lastPathComponent, data)]
     }
 

@@ -96,12 +96,20 @@ public struct ZipReader {
 
     /// All files as (path, data), expanding ZIPs nested inside (Notion exports wrap parts in inner zips).
     /// Nesting and the total expanded size are capped so a ZIP bomb can't exhaust memory.
-    public func files(maxTotalSize: Int = 2 << 30) throws -> [(path: String, data: Data)] {
+    public func files(maxTotalSize: Int = Self.maxTotalSize) throws -> [(path: String, data: Data)] {
         var budget = maxTotalSize
-        return try files(depth: 0, budget: &budget)
+        return try files(budget: &budget)
     }
 
-    private func files(depth: Int, budget: inout Int) throws -> [(path: String, data: Data)] {
+    /// Default cap on what one import expands to; iOS gives an app far less memory than a Mac.
+    #if os(iOS)
+    public static let maxTotalSize = 512 << 20
+    #else
+    public static let maxTotalSize = 2 << 30
+    #endif
+
+    /// `files()`, drawing from a budget shared with other archives of the same import.
+    func files(depth: Int = 0, budget: inout Int) throws -> [(path: String, data: Data)] {
         var out: [(String, Data)] = []
         for e in entries {
             // Charge what `read` will actually allocate: stored entries copy `compressedSize` bytes whatever the
