@@ -52,6 +52,17 @@ Footnote here[^1].
     #expect(Frontmatter.replacing(in: text, with: []) == "body")
 }
 
+// N-07: editing one property keeps the rest of the frontmatter byte for byte.
+@Test func frontmatterEditKeepsOtherKeys() {
+    let text = "---\n# keep me\nauthors: [{name: Ana}]\nmeta: {rating: 5}\nversion: 1.10\nzip: 01234\nanswer: no\nstatus: draft\n---\nbody"
+    var props = NoteParser.parse(text).properties
+    #expect(props.first { $0.key == "answer" }?.value == .text("no"))
+    props[props.firstIndex { $0.key == "status" }!].value = .text("done")
+    let out = Frontmatter.replacing(in: text, with: props)
+    #expect(out == text.replacingOccurrences(of: "status: draft", with: "status: done"))
+    #expect(Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
+}
+
 @Test func resolvesLinks() {
     let r = LinkResolver(files: ["A.md", "x/B.md", "y/B.md", "img/map.png", "x/C.md"])
     #expect(r.resolve("A", from: "x/C.md") == "A.md")
