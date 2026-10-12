@@ -12,7 +12,12 @@ final class VaultModel {
     var vaultTheme: Theme { themes.first { $0.name == settings.theme } ?? .netherite }
     /// The theme as drawn on this device, after the Accessibility preferences.
     var theme: Theme { A11y.shared.apply(vaultTheme) }
-    private(set) var recentFiles: [String]
+    private(set) var recentFiles: [String] {
+        didSet {
+            vault.saveConfig("recent.json", recentFiles)
+            SharedVault.publishRecents(recentFiles)
+        }
+    }
     private(set) var dirty: Set<String> = []
     var bookmarks: [Bookmark] = [] { didSet { vault.saveConfig("bookmarks.json", bookmarks) } }
     private var saveTasks: [String: Task<Void, Never>] = [:]
@@ -113,11 +118,7 @@ final class VaultModel {
     // MARK: File operations
 
     func noteDidOpen(_ path: String) {
-        recentFiles.removeAll { $0 == path }
-        recentFiles.insert(path, at: 0)
-        if recentFiles.count > 50 { recentFiles.removeLast(recentFiles.count - 50) }
-        vault.saveConfig("recent.json", recentFiles)
-        SharedVault.publishRecents(recentFiles)
+        recentFiles = Array(([path] + recentFiles.filter { $0 != path }).prefix(50))
     }
 
     @discardableResult
@@ -156,7 +157,7 @@ final class VaultModel {
         for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         let result: String? = perform { try index.move(path, to: target); return target }
         if result != nil {
-            recentFiles = recentFiles.map { $0 == path ? target : $0 }
+            recentFiles = recentFiles.map { $0 == path || $0.hasPrefix(path + "/") ? target + $0.dropFirst(path.count) : $0 }
             for pane in panes { pane.replacePaths(from: path, to: target) }
         }
         return result
