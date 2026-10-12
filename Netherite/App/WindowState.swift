@@ -261,9 +261,9 @@ final class WindowState {
         let src = source ?? ""
         if let target = model.index.resolver.resolve(link.target, from: src) {
             open(path: target, line: line(for: link.subpath, in: target), newPane: newPane)
-        } else if !link.target.isEmpty {
+        } else if !link.target.isEmpty, let name = LinkResolver.newNoteName(for: link.target) {
             let folder = link.target.contains("/") ? link.target.parentFolder : model.settings.newNoteFolder
-            if let p = model.newNote(in: folder, named: (link.target as NSString).lastPathComponent) {
+            if let p = model.newNote(in: folder, named: name) {
                 open(path: p, newPane: newPane)
             }
         }

@@ -160,6 +160,8 @@ public enum Frontmatter {
         guard !props.isEmpty else { return body }
         let yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
             ?? props.map { verbatim[$0.key] ?? serialize([$0]) }.joined(separator: "\n")
+        // A copied block can lean on YAML outside it (an alias whose anchor wasn't copied): reserialize instead.
+        if !verbatim.isEmpty, (try? Yams.compose(yaml: yaml))?.mapping == nil { return try replacing(in: text, with: props) }
         return "---\n\(yaml)\n---\n" + body
     }
 
@@ -184,8 +186,12 @@ public enum Frontmatter {
             var joins = ["tags", "tag", "aliases", "alias"].contains(p.key.lowercased())
             if case .list = p.value { joins = true }
             if case .list = merged[i].value { joins = true }
-            let a = merged[i].value.strings
-            let new = p.value.strings.filter { !a.contains($0) }
+            // A number, date or checkbox joins as its text, so it isn't lost (`strings` is empty for them).
+            let items = { (v: PropertyValue) -> [String] in
+                switch v { case .number, .date, .bool: [v.displayString]; default: v.strings }
+            }
+            let a = items(merged[i].value)
+            let new = items(p.value).filter { !a.contains($0) }
             if joins, !new.isEmpty { merged[i].value = .list(a + new) }
         }
         return merged == original ? target : try replacing(in: target, with: merged, verbatim: verbatim)
