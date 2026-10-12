@@ -165,6 +165,14 @@ struct AudioRecorderView: View {
             if inSheet {
                 rec.error = window.model.lastError ?? String(localized: "The recording couldn't be saved.")
                 window.model.lastError = nil
+            } else {
+                // Nothing can retry once the sheet is gone, and the system purges tmp: keep the audio and say where.
+                let kept = URL.applicationSupportDirectory.appending(path: "Recordings/\(name).m4a")
+                do {
+                    try FileManager.default.createDirectory(at: kept.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try FileManager.default.moveItem(at: rec.fileURL, to: kept)
+                    window.model.lastError = String(localized: "The recording couldn't be saved in the vault. It was kept at “\(kept.path(percentEncoded: false))”.")
+                } catch {}
             }
             return false
         }
