@@ -65,6 +65,11 @@ private func renderPlain(_ md: String) -> String {
     let text = "intro\rmore\u{2028}x\n# Head\nbody ^blk\n# Next"
     #expect(HTMLRenderer.section(of: text, subpath: "Head").contains("body"))
     #expect(HTMLRenderer.section(of: text, subpath: "^blk").contains("body"))
+    // R2-19: the same breaks inside code, frontmatter or math don't shift the heading lines.
+    for hidden in ["```\nx\u{2028}y\r\nz\u{2029}\n```", "$$a\rb$$", "`a\u{2028}b`"] {
+        #expect(HTMLRenderer.section(of: "# A\n\(hidden)\nalpha\n# B\nbeta\n", subpath: "B") == "# B\nbeta", "\(hidden.debugDescription)")
+    }
+    #expect(HTMLRenderer.section(of: "---\nk: \"a\u{2028}b\"\n---\n# B\nbeta", subpath: "B") == "# B\nbeta")
 }
 
 @Test func forgedPlaceholderMarkers() {
