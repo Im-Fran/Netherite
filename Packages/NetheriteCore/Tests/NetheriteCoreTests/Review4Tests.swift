@@ -24,3 +24,13 @@ import Testing
     #expect(NoteParser.parse("[r]: #Intro 'Title'").tags.isEmpty)
     #expect(NoteParser.parse("[r]: <#Intro> \"t\"").tags.isEmpty)
 }
+
+// R4-12: a highlight that starts inside a link and ends after it isn't rendered (it would mis-nest the HTML).
+@Test func highlightCannotStraddleLink() {
+    let ctx = RenderContext(source: "A.md", resolve: { _, _ in nil }, readNote: { _ in nil },
+                            linkHref: { _, t, _ in t }, assetURL: { $0 }, tagHref: { $0 })
+    let html = HTMLRenderer.render("[a ==b](c) d==", context: ctx)
+    #expect(!html.contains("<mark>"))
+    #expect(html.contains(">a ==b</a> d==</p>"))
+    #expect(HTMLRenderer.render("==see [a](b) now== and [x ==y== z](w)", context: ctx).components(separatedBy: "<mark>").count == 3)
+}
