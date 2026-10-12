@@ -167,12 +167,25 @@ struct AudioRecorderView: View {
                 window.model.lastError = nil
             } else {
                 // Nothing can retry once the sheet is gone, and the system purges tmp: keep the audio and say where.
-                let kept = URL.applicationSupportDirectory.appending(path: "Recordings/\(name).m4a")
+                // On iOS the app's Documents shows in Files (On My iPhone › Netherite); vaults there only open from the list.
+                #if os(iOS)
+                let folder = URL.documentsDirectory.appending(path: "Recovered Recordings", directoryHint: .isDirectory)
+                #else
+                let folder = URL.applicationSupportDirectory.appending(path: "Recordings", directoryHint: .isDirectory)
+                #endif
+                let kept = folder.appending(path: Vault(root: folder).availablePath(folder: "", base: name, ext: "m4a"))
                 do {
-                    try FileManager.default.createDirectory(at: kept.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                     try FileManager.default.moveItem(at: rec.fileURL, to: kept)
-                    window.model.lastError = String(localized: "The recording couldn't be saved in the vault. It was kept at “\(kept.path(percentEncoded: false))”.")
-                } catch {}
+                    #if os(iOS)
+                    let shown = "Netherite › \(folder.lastPathComponent) › \(kept.lastPathComponent)"
+                    #else
+                    let shown = kept.path(percentEncoded: false)
+                    #endif
+                    window.model.lastError = String(localized: "The recording couldn't be saved in the vault. It was kept at “\(shown)”.")
+                } catch {
+                    window.model.lastError = String(localized: "The recording couldn't be saved.") + " " + error.localizedDescription
+                }
             }
             return false
         }

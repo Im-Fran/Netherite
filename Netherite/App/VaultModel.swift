@@ -58,8 +58,12 @@ final class VaultModel {
 
     /// Updates the index immediately and writes to disk after a short pause in typing.
     func edit(_ path: String, text: String) {
-        // A file moved or deleted outside this window must not be recreated at its old path.
-        guard !isGone(path) else { return }
+        // A file moved or deleted outside this window must not be recreated at its old path: say so and close it.
+        guard !isGone(path) else {
+            lastError = String(localized: "“\(path.noteName)” was moved or deleted outside Netherite, so its latest changes weren’t saved.")
+            for pane in panes { pane.removePath(path) }
+            return
+        }
         // On disk but not indexed yet (made by a widget, the Share Extension or an intent before the next refresh).
         // `isGone` matched the exact spelling, so this can't add a second record for a file the index has in other case.
         if index.isLoaded && !index.files.contains(path) { index.didCreate(path) }
@@ -168,7 +172,11 @@ final class VaultModel {
         for p in dirty where p == path || p.hasPrefix(path + "/") { save(p) }
         let result: String? = perform { try index.move(path, to: target); return target }
         if result != nil {
-            recentFiles = recentFiles.map { $0 == path || $0.hasPrefix(path + "/") ? target + $0.dropFirst(path.count) : $0 }
+            func moved(_ p: String) -> String { p == path || p.hasPrefix(path + "/") ? target + p.dropFirst(path.count) : p }
+            recentFiles = recentFiles.map(moved)
+            let marks = bookmarks.map { var b = $0; b.path = b.path.map(moved); return b }
+            if marks != bookmarks { bookmarks = marks }
+            updateWorkspaces { $0.renamed(from: path, to: target) }
             for pane in panes { pane.replacePaths(from: path, to: target) }
         }
         return result
@@ -181,7 +189,10 @@ final class VaultModel {
         // If trashing fails they stay, so the edits are still saved.
         guard perform({ try index.trash(path) }) != nil else { return }
         for p in dirty where p == path || p.hasPrefix(path + "/") { saveTasks[p]?.cancel(); saveTasks[p] = nil; dirty.remove(p) }
-        recentFiles.removeAll { $0 == path || $0.hasPrefix(path + "/") }
+        func inside(_ p: String?) -> Bool { p.map { $0 == path || $0.hasPrefix(path + "/") } ?? false }
+        recentFiles.removeAll { inside($0) }
+        if bookmarks.contains(where: { inside($0.path) }) { bookmarks.removeAll { inside($0.path) } }
+        updateWorkspaces { inside($0.path) ? nil : $0 }
         for pane in panes { pane.removePath(path) }
     }
 

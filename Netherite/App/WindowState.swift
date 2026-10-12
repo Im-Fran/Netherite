@@ -214,6 +214,7 @@ final class WindowState {
     var currentNote: String? { if case .note(let p) = pane.current { p } else { nil } }
 
     func open(_ d: Destination, line: Int? = nil, newPane: Bool = false) {
+        guard let d = canonical(d) else { return }
         if newPane { split() }
         pane.open(d, line: line)
         preferredCompactColumn = .detail
@@ -223,6 +224,17 @@ final class WindowState {
         case .graph, .localGraph: NetheriteTips.donate(NetheriteTips.graphOpened)
         default: break
         }
+    }
+
+    /// The destination with its path as spelled in the index (recents, bookmarks and links may use other capitals),
+    /// or nil when the file no longer exists: editing a misspelled path would discard what is typed.
+    func canonical(_ d: Destination) -> Destination? {
+        guard let p = d.path else { return d }
+        let files = model.index.files
+        // Not indexed yet (the index is loading, or a widget or extension just made the file): ask the disk.
+        guard let found = files.contains(p) ? p : files.first(where: { $0.caseInsensitiveCompare(p) == .orderedSame }) ?? model.vault.canonicalPath(p)
+        else { return nil }
+        return found == p ? d : d.renamed(from: p, to: found)
     }
 
     func open(path: String, line: Int? = nil, newPane: Bool = false) {

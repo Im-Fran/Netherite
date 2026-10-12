@@ -22,7 +22,8 @@ extension WindowState {
     }
 
     func loadWorkspace(_ w: Workspace) {
-        let restored: [Pane] = w.panes.enumerated().map { i, d in
+        let restored: [Pane] = w.panes.enumerated().compactMap { i, d in
+            guard let d = canonical(d) else { return nil }
             let p = Pane()
             p.open(d)
             p.reading = w.readingModes.indices.contains(i) ? w.readingModes[i] : false
@@ -36,6 +37,21 @@ extension WindowState {
 
     func deleteWorkspace(_ w: Workspace) {
         model.vault.saveConfig("workspaces.json", workspaces.filter { $0.name != w.name })
+    }
+}
+
+extension VaultModel {
+    /// Rewrites the panes of every saved workspace (`nil` drops one), so they follow renamed, moved and trashed files.
+    func updateWorkspaces(_ change: (Destination) -> Destination?) {
+        let all = vault.loadConfig("workspaces.json", fallback: [Workspace]())
+        let updated = all.map { w in
+            var w = w
+            let kept = w.panes.indices.compactMap { i in change(w.panes[i]).map { ($0, w.readingModes.indices.contains(i) && w.readingModes[i]) } }
+            w.panes = kept.map { $0.0 }
+            w.readingModes = kept.map { $0.1 }
+            return w
+        }
+        if updated != all { vault.saveConfig("workspaces.json", updated) }
     }
 }
 
