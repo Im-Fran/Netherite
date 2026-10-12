@@ -97,6 +97,16 @@ private func tempDir() -> URL { FileManager.default.temporaryDirectory.appending
     #expect(try vault.read("In/Dir/x.md") == "d")
 }
 
+@Test func vaultIDFollowsTheFolder() throws {
+    let root = tempDir()
+    let id = Vault(root: root).stableID
+    #expect(Vault(root: root).stableID == id)
+    let moved = tempDir()
+    try FileManager.default.moveItem(at: root, to: moved)
+    #expect(Vault(root: moved).stableID == id)
+    #expect(Vault(root: tempDir()).stableID != id)
+}
+
 @Test func vaultFolderNameIsOneFolder() {
     #expect(Vault.folderName(for: "  My Notes ") == "My Notes")
     #expect(Vault.folderName(for: "a/b") == "a-b")

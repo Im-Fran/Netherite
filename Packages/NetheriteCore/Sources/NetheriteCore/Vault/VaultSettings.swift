@@ -79,6 +79,15 @@ public extension Vault {
 
     var settings: VaultSettings { loadConfig("app.json", fallback: VaultSettings()) }
 
+    /// Stable identifier stored in the vault, so data kept on the device (File Recovery snapshots)
+    /// follows the folder when it moves or is renamed.
+    var stableID: String {
+        if let id = loadConfig("id.json", fallback: String?.none) { return id }
+        let id = UUID().uuidString
+        saveConfig("id.json", id)
+        return id
+    }
+
     /// A vault name as one folder name: separators become dashes and leading dots go (`..`, hidden folders); nil when empty.
     static func folderName(for name: String) -> String? {
         let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
