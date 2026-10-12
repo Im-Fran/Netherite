@@ -124,7 +124,8 @@ struct OnboardingView: View {
         #if os(macOS)
         .frame(width: 560, height: 620)
         #endif
-        .gesture(DragGesture(minimumDistance: 30).onEnded { v in
+        // Simultaneous: an exclusive drag on the root swallowed the first tap on Skip/Continue on iOS.
+        .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
             if v.translation.width < -40, page < Self.pages.count - 1 { go(page + 1) }
             if v.translation.width > 40, page > 0 { go(page - 1) }
         })
