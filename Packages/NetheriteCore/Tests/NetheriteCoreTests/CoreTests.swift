@@ -128,6 +128,12 @@ Footnote here[^1].
     #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == a.replacingOccurrences(of: "[[Old", with: "[[New"))
 }
 
+// N-17: renaming keeps the escaped alias pipe of a link inside a table.
+@MainActor @Test func renameKeepsTablePipe() async throws {
+    let a = "| a | b |\n|---|---|\n| [[Old\\|alias]] | 1 |"
+    #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == "| a | b |\n|---|---|\n| [[New\\|alias]] | 1 |")
+}
+
 @Test func searchOperators() {
     let notes = [
         "a.md": NoteRecord(path: "a.md", text: "Hello world #x\n- [ ] buy milk", parsed: NoteParser.parse("Hello world #x\n- [ ] buy milk"), modified: .now, created: .now),

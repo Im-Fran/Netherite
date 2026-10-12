@@ -201,7 +201,9 @@ public final class VaultIndex {
             guard let target = newTarget(link) else { continue }
             let replacement: String
             if link.isWiki {
-                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { "|" + $0 } ?? "") + "]]"
+                // Keep a table cell's escaped `\|` so the rewrite doesn't split the column.
+                let bar = ns.substring(with: link.range).contains("\\|") ? "\\|" : "|"
+                replacement = (link.isEmbed ? "!" : "") + "[[" + linkText(target) + (link.subpath.map { "#" + $0 } ?? "") + (link.alias.map { bar + $0 } ?? "") + "]]"
             } else {
                 let encoded = target.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "()"))) ?? target
                 replacement = (link.isEmbed ? "!" : "") + "[" + (link.alias ?? "") + "](" + encoded + (link.subpath.map { "#" + $0 } ?? "") + ")"
