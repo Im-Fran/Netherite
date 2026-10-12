@@ -32,7 +32,7 @@ struct NoteEditorView: View {
         .onAppear { title = path.noteName; window.editors[pane.id] = controller; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: path) { title = path.noteName; controller.completion = nil; jumpIfNeeded(); selectTitleIfFresh() }
         .onChange(of: pane.pendingLine) { jumpIfNeeded() }
-        .onDisappear { model.save(path) }
+        .onDisappear { model.save(path); controller.isEditing = false }
         .focusedSceneValue(\.editor, controller)
     }
 

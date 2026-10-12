@@ -368,12 +368,14 @@ final class NetheriteNSTextView: NSTextView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
+        if ok { coordinator?.parent.controller.isEditing = true }
         if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
         return ok
     }
 
     override func resignFirstResponder() -> Bool {
         let ok = super.resignFirstResponder()
+        if ok { coordinator?.parent.controller.isEditing = false }
         if ok { DispatchQueue.main.async { self.coordinator?.restyle(self, force: true) } }
         return ok
     }
@@ -653,6 +655,8 @@ extension MarkdownTextView: UIViewRepresentable {
 extension MarkdownTextView.Coordinator: UITextViewDelegate, UIGestureRecognizerDelegate {
     func textViewDidChange(_ tv: UITextView) { textChanged(tv) }
     func textViewDidChangeSelection(_ tv: UITextView) { selectionChanged(tv) }
+    func textViewDidBeginEditing(_ tv: UITextView) { parent.controller.isEditing = true }
+    func textViewDidEndEditing(_ tv: UITextView) { parent.controller.isEditing = false }
 
     func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         guard !updating, text == "\n", range.length == 0 else { return true }

@@ -171,9 +171,10 @@ final class WindowState {
         GraphTip()
         CommandPaletteTip()
     }
-    /// Current toolbar tip, or nil while the welcome tour is on screen.
+    /// Current toolbar tip, or nil while the welcome tour is on screen or the user is typing in a note
+    /// (a tip's popover takes keyboard focus, so the keystrokes would be lost).
     func toolbarTip<T: Tip>(_ type: T.Type, onboarded: Bool) -> T? {
-        onboarded ? toolbarTips.currentTip as? T : nil
+        onboarded && !editors.values.contains(where: \.isEditing) ? toolbarTips.currentTip as? T : nil
     }
 
     /// Editor tips shown one at a time.
