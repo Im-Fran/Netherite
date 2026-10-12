@@ -162,6 +162,8 @@ final class WindowState {
     var explorerSelection: String?
     /// A note created by "New Note" that should open with its title selected for renaming.
     @ObservationIgnored var freshNote: String?
+    /// A note whose body should take focus when its editor appears (after naming a note: renaming recreates the editor).
+    @ObservationIgnored var focusBody: String?
     var presentingSlides = false
     /// Toolbar tips shown one at a time, in this order.
     @ObservationIgnored let toolbarTips = TipGroup(.ordered) {

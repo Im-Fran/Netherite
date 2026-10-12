@@ -116,7 +116,9 @@ final class VaultModel {
     /// Renames the file's base name (keeping extension/folder); returns the new path.
     @discardableResult
     func rename(_ path: String, to newName: String) -> String? {
-        let clean = newName.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
+        // Line breaks (pasted into a title or rename field) must never reach the file name.
+        let clean = newName.split(whereSeparator: \.isNewline).joined(separator: " ")
+            .replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespaces)
         guard !clean.isEmpty else { return nil }
         let ext = path.fileExtension
         let isFolder = index.folders.contains(path)
