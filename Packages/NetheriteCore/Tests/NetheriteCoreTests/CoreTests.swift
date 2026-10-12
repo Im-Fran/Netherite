@@ -63,6 +63,13 @@ Footnote here[^1].
     #expect(Frontmatter.replacing(in: out, with: props.filter { $0.key != "meta" }) == out.replacingOccurrences(of: "meta: {rating: 5}\n", with: ""))
 }
 
+// N-19: a stray backtick doesn't hide the links and tags of the following paragraphs.
+@Test func strayBacktickStaysInParagraph() {
+    let p = NoteParser.parse("Use ` here.\n\nSee [[A]] #tag\n\nand `code\nspan` [[B]] `x`")
+    #expect(p.links.map(\.target) == ["A", "B"])
+    #expect(p.tags == ["tag"])
+}
+
 @Test func resolvesLinks() {
     let r = LinkResolver(files: ["A.md", "x/B.md", "y/B.md", "img/map.png", "x/C.md"])
     #expect(r.resolve("A", from: "x/C.md") == "A.md")

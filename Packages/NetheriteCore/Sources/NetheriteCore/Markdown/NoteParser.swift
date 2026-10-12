@@ -202,7 +202,8 @@ public enum NoteParser {
         static let fenced = try! NSRegularExpression(pattern: #"^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^\1\2[`~]*[ \t]*$|\z)"#, options: .anchorsMatchLines)
         static let mathBlock = try! NSRegularExpression(pattern: #"\$\$[\s\S]*?\$\$"#)
         static let comment = try! NSRegularExpression(pattern: #"%%[\s\S]*?%%"#)
-        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n][\s\S]*?\1"#)
+        // A code span never crosses a blank line, so a stray backtick can't swallow the next paragraphs.
+        static let inlineCode = try! NSRegularExpression(pattern: #"(`+)[^`\n](?:[^\n]|\n(?![ \t\r]*(?:\n|\z)))*?\1"#)
         static let inlineMath = try! NSRegularExpression(pattern: #"(?<![\\$])\$(?=\S)[^$\n]+?(?<=\S)\$(?!\d)"#)
     }
 }
