@@ -7644,6 +7644,16 @@
         }
       }
     },
+    "“%@” was moved or deleted outside Netherite, so its latest changes weren’t saved." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” se movió o se eliminó fuera de Netherite, así que sus últimos cambios no se guardaron."
+          }
+        }
+      }
+    },
     "↩ open · ⌘↩ open in new pane · ⇧↩ create" : {
       "localizations" : {
         "es" : {

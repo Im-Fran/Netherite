@@ -87,6 +87,11 @@ final class Pane: Identifiable {
         history.removeAll { $0.path == path || ($0.path?.hasPrefix(path + "/") ?? false) }
         position = min(max(0, history.firstIndex { $0 == before } ?? history.count - 1), history.count - 1)
     }
+
+    /// Drops destinations whose file no longer exists (moved or deleted outside Netherite).
+    func removeMissing(_ files: Set<String>) {
+        for p in Set(history.compactMap(\.path)) where !files.contains(p) { removePath(p) }
+    }
 }
 
 enum SidebarTab: String, CaseIterable, Identifiable, Codable {
@@ -191,6 +196,7 @@ final class WindowState {
         let first = Pane()
         panes = [first]
         focusedPaneID = first.id
+        model.register(self)
     }
 
     var pane: Pane { panes.first { $0.id == focusedPaneID } ?? panes[0] }
@@ -254,19 +260,14 @@ final class WindowState {
         if let p = model.newNote(in: folder ?? model.settings.newNoteFolder) { freshNote = p; open(path: p) }
     }
 
-    func rename(_ path: String, to name: String) {
-        if let new = model.rename(path, to: name) { panes.forEach { $0.replacePaths(from: path, to: new) } }
-    }
+    // The model updates the panes of every window showing the vault.
+    func rename(_ path: String, to name: String) { model.rename(path, to: name) }
 
     func move(_ path: String, toFolder folder: String) {
-        let target = folder.isEmpty ? (path as NSString).lastPathComponent : "\(folder)/\((path as NSString).lastPathComponent)"
-        if let new = model.move(path, to: target) { panes.forEach { $0.replacePaths(from: path, to: new) } }
+        model.move(path, to: folder.isEmpty ? (path as NSString).lastPathComponent : "\(folder)/\((path as NSString).lastPathComponent)")
     }
 
-    func trash(_ path: String) {
-        model.trash(path)
-        panes.forEach { $0.removePath(path) }
-    }
+    func trash(_ path: String) { model.trash(path) }
 
     func export(_ path: String) {
         model.flushAll()
