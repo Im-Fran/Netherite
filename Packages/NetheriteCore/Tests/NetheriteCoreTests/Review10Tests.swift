@@ -9,3 +9,10 @@ import Testing
     #expect(try x("2024-01-02") == .list(["2024-01-02", "a"]))
     #expect(try x("true") == .list(["true", "a"]))
 }
+
+// R10-02: a key copied verbatim with an alias whose anchor stays behind is reserialized, so the target still parses.
+@Test func mergeReserializesAliasWithoutAnchor() throws {
+    let out = try Frontmatter.merging("---\nbase: &d 2024-01-01\nupdated: *d\n---\nS", into: "---\nbase: 2023-01-01\n---\nT")
+    #expect(NoteParser.parse(out).property("updated") == .date(Frontmatter.parseDate("2024-01-01")!))
+    #expect(NoteParser.parse(out).property("base") == .date(Frontmatter.parseDate("2023-01-01")!))
+}

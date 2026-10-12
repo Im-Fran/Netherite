@@ -160,6 +160,8 @@ public enum Frontmatter {
         guard !props.isEmpty else { return body }
         let yaml = fm.flatMap { merge(props, into: $0.yaml, verbatim: verbatim) }
             ?? props.map { verbatim[$0.key] ?? serialize([$0]) }.joined(separator: "\n")
+        // A copied block can lean on YAML outside it (an alias whose anchor wasn't copied): reserialize instead.
+        if !verbatim.isEmpty, (try? Yams.compose(yaml: yaml))?.mapping == nil { return try replacing(in: text, with: props) }
         return "---\n\(yaml)\n---\n" + body
     }
 
