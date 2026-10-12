@@ -134,6 +134,11 @@ Footnote here[^1].
     #expect(try await renamed(["A.md": a, "Old.md": ""], read: "A.md") == "| a | b |\n|---|---|\n| [[New\\|alias]] | 1 |")
 }
 
+// N-18: renaming rewrites a note's links to itself.
+@MainActor @Test func renameRewritesSelfLinks() async throws {
+    #expect(try await renamed(["Old.md": "# Old\nSee [[Old#Old]] and [[#Old]]."], read: "New.md") == "# Old\nSee [[New#Old]] and [[#Old]].")
+}
+
 @Test func searchOperators() {
     let notes = [
         "a.md": NoteRecord(path: "a.md", text: "Hello world #x\n- [ ] buy milk", parsed: NoteParser.parse("Hello world #x\n- [ ] buy milk"), modified: .now, created: .now),

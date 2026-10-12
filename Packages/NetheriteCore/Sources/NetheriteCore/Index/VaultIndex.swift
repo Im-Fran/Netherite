@@ -155,7 +155,8 @@ public final class VaultIndex {
             ? files.filter { $0.hasPrefix(from + "/") }.map { ($0, to + $0.dropFirst(from.count)) }
             : [(from, to)]
         let movedMap = Dictionary(moved, uniquingKeysWith: { a, _ in a })
-        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] })
+        // The moved notes too: their links to themselves (`[[Old#Heading]]`) aren't in `incoming`.
+        let affected = Set(moved.flatMap { incoming[$0.0] ?? [] } + moved.map(\.0))
         try vault.move(from, to: to)
 
         // Update in-memory state for moved files
@@ -171,7 +172,8 @@ public final class VaultIndex {
             let source = movedMap[oldSource] ?? oldSource
             guard let rec = notes[source] else { continue }
             let text = Self.rewriteLinks(in: rec.text, parsed: rec.parsed) { link in
-                guard let target = oldResolver.resolve(link.target, from: oldSource), let newTarget = movedMap[target] else { return nil }
+                guard !link.target.isEmpty, let target = oldResolver.resolve(link.target, from: oldSource),
+                      let newTarget = movedMap[target] else { return nil }
                 return newTarget
             } linkText: { resolver.linkText(for: $0) }
             if text != rec.text {
