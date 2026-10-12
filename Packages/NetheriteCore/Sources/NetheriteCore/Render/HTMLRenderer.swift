@@ -109,11 +109,12 @@ public enum HTMLRenderer {
         // `==` and tags are matched with link destinations and titles blanked, so an `==` inside `[a](b "x==y")` can't
         // pair with (and swallow) a highlight after the link. They're filled with U+FFFC, not spaces, so the link still
         // counts as text: `==see [a](b)==` closes after it and `[x](y)#t` isn't a tag. Inline math, blanked in `masked`,
-        // counts as text too: `==$x$==` is a highlight.
+        // counts as text for highlights (`==$x$==` is one) but stays blank for tags, as in the index: `$x$#t` is a tag.
         var unlinkedUnits = Array(masked.utf16)
-        for r in linkTargets.rangeView.map(NSRange.init) + inlineMath { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
+        for r in linkTargets.rangeView.map(NSRange.init) { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
         let unlinked = String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count)
-        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: unlinked, groups: [1, 3]) { _ in
+        for r in inlineMath { NoteParser.blank(&unlinkedUnits, r, with: 0xFFFC) }
+        add(try! NSRegularExpression(pattern: #"(==)(?=\S)(.+?)(?<=\S)(==)"#), in: String(utf16CodeUnits: unlinkedUnits, count: unlinkedUnits.count), groups: [1, 3]) { _ in
             [token("<mark>", source: "=="), token("</mark>", source: "==")]
         }
         add(NoteParser.Regex.tag, in: unlinked) { m in
